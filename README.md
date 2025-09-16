@@ -26,15 +26,6 @@ transformed = SE3.transform_points(T, points)
 pip install nanomanifold
 ```
 
-## Features
-
-**Array-based API** — all functions operate directly on arrays from any backend  
-**Backend agnostic** — works with NumPy, PyTorch, JAX, CuPy, Dask, and more  
-**Batched operations** — process thousands of transforms at once  
-**Differentiable** — automatic gradients where supported (PyTorch/JAX)  
-**Memory efficient** — quaternions instead of matrices  
-**Numerically stable** — handles edge cases and singularities
-
 ## Quick Start
 
 ### Rotations (SO3)

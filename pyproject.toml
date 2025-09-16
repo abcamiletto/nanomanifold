@@ -1,0 +1,22 @@
+[project]
+name = "nanomanifold"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Andrea Boscolo Camiletto", email = "abcamiletto@gmail.com" },
+]
+requires-python = ">=3.11"
+dependencies = ["array-api-compat>=1.12.0", "jaxtyping>=0.3.2", "numpy>=2.3.2"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["jax>=0.7.1", "pytest>=8.4.1", "scipy>=1.16.1", "torch>=2.8.0"]
+
+[tool.ruff]
+line-length = 140
+lint.ignore = ["E741", "E743", "F722"] # ignore ambiguous variable names
+lint.extend-select = ["I"]

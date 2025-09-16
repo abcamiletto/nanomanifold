@@ -20,6 +20,12 @@ T = SE3.from_rt(q, np.array([1, 0, 0]))  # rotation + translation
 transformed = SE3.transform_points(T, points)
 ```
 
+## Installation
+
+```bash
+pip install nanomanifold
+```
+
 ## Features
 
 **Array-based API** — all functions operate directly on arrays from any backend  
@@ -89,13 +95,3 @@ transformed = SE3.transform_points(T_combined, points)
 | `multiply(T1, T2)`            | `(...,7), (...,7) → (...,7)`     | Compose transforms                 |
 | `inverse(T)`                  | `(...,7) → (...,7)`              | Invert transform                   |
 | `transform_points(T, points)` | `(...,7), (...,N,3) → (...,N,3)` | Transform 3D points                |
-
-## Installation
-
-```bash
-pip install nanomanifold
-```
-
-## License
-
-MIT

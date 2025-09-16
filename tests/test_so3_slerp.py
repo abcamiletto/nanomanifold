@@ -114,7 +114,7 @@ def test_slerp_same_quaternion(backend, batch_dims, precision):
 
     if precision >= 32:
         q_np = np.array(q)
-    
+
         result_np = np.array(result)
 
         # Expand q for comparison with result
@@ -124,6 +124,7 @@ def test_slerp_same_quaternion(backend, batch_dims, precision):
         # Check quaternion equivalence
         dot_products = np.sum(q_broadcasted * result_np, axis=-1)
         assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)

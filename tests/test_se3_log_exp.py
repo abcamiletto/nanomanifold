@@ -55,6 +55,7 @@ def test_exp_zero(backend, batch_dims, precision):
         t_identity = identity_np[..., 4:7]
         assert np.allclose(t_exp, t_identity, atol=ATOL[precision])
 
+
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)

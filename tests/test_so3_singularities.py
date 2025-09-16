@@ -107,7 +107,6 @@ def test_near_pi_rotation_stability(backend, precision):
 
             # Test log
             log_result = SO3.log(q)
-            log_np = np.array(log_result)
 
             # Test exp(log(q)) = q
             exp_result = SO3.exp(log_result)
@@ -286,4 +285,3 @@ def test_zero_rotation_stability(backend, precision):
         # For very small angles, numerical precision limits accuracy
         tol = max(ATOL[precision], angle * 100)
         assert np.allclose(log_np, tangent_np, atol=tol)
-

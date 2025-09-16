@@ -1,7 +1,7 @@
 [project]
 name = "nanomanifold"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.1.1"
+description = "SO3/SE3 operations on any backend"
 readme = "README.md"
 authors = [
     { name = "Andrea Boscolo Camiletto", email = "abcamiletto@gmail.com" },

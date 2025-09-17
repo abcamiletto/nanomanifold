@@ -10,15 +10,12 @@ from . import matrix
 
 def to_euler(q: Float[Any, "... 4"], convention: str = "ZYX") -> Float[Any, "... 3"]:
     q = canonicalize(q)
-
     R = matrix.to_matrix(q)
-
     return _matrix_to_euler(R, convention)
 
 
 def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX") -> Float[Any, "... 4"]:
     R = _euler_to_matrix(euler, convention)
-
     return matrix.from_matrix(R)
 
 

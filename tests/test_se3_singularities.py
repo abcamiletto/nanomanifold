@@ -373,3 +373,196 @@ def test_se3_numerical_stability_chain(backend):
 
     # Translation part
     assert np.allclose(se3_start_np[4:], current_np[4:], atol=1e-4)
+
+
+@pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("precision", TEST_PRECISIONS)
+def test_log_near_two_pi_rotation_behaviour(backend, precision):
+    """SE3 log should agree with the minimal representation near 2π rotations."""
+
+    common = pytest.importorskip("nanomanifold.common")
+    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+
+    np_dtype = getattr(np, f"float{precision}")
+
+    axes = [
+        [0.0, 0.0, 1.0],
+        [1.0, 0.0, 0.0],
+        [0.3, -0.5, 0.4],
+    ]
+
+    translations = [
+        [1.0, -2.0, 3.0],
+        [-0.5, 0.75, -1.25],
+    ]
+
+    deltas = [1e-2, 5e-3, 1e-3]
+
+    for axis in axes:
+        axis_np = np.array(axis, dtype=np.float64)
+        axis_np = axis_np / np.linalg.norm(axis_np)
+
+        for translation in translations:
+            translation_np = np.array(translation, dtype=np_dtype)
+
+            for delta in deltas:
+                theta = 2.0 * np.pi - delta
+                half_angle = theta / 2.0
+
+                q_np = np.concatenate(
+                    (
+                        [np.cos(half_angle)],
+                        np.sin(half_angle) * axis_np,
+                    )
+                ).astype(np_dtype)
+
+                se3_np = np.concatenate([q_np, translation_np])
+                se3 = xp.asarray(se3_np)
+
+                log_np = np.array(SE3.log(se3))
+
+                omega_np = log_np[:3]
+                expected_omega = -delta * axis_np
+                tol = max(ATOL[precision] * 100, delta * 5e-3)
+                assert np.allclose(omega_np, expected_omega, atol=tol)
+
+                rho_np = log_np[3:]
+                translation_norm = np.linalg.norm(translation_np.astype(np.float64))
+                diff_norm = np.linalg.norm(rho_np - translation_np.astype(np.float64))
+
+                upper_bound = delta * (translation_norm + 1.0)
+                assert diff_norm <= upper_bound + ATOL[precision] * 10
+
+
+@pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("precision", TEST_PRECISIONS)
+def test_log_matches_canonicalized_input(backend, precision):
+    """Log should be insensitive to quaternion sign for SE3 inputs."""
+
+    common = pytest.importorskip("nanomanifold.common")
+    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+
+    np_dtype = getattr(np, f"float{precision}")
+
+    axes = [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [1.0, 1.0, 1.0],
+    ]
+
+    angles = [np.pi - 5e-3, np.pi + 5e-3, 2.0 * np.pi - 1e-2]
+
+    translation = np.array([0.5, -1.0, 1.5], dtype=np_dtype)
+
+    for axis in axes:
+        axis_np = np.array(axis, dtype=np.float64)
+        axis_np = axis_np / np.linalg.norm(axis_np)
+
+        for angle in angles:
+            q_np = np.concatenate(
+                (
+                    [np.cos(angle / 2.0)],
+                    np.sin(angle / 2.0) * axis_np,
+                )
+            ).astype(np_dtype)
+
+            se3_np = np.concatenate([q_np, translation])
+            se3 = xp.asarray(se3_np)
+
+            log_direct = np.array(SE3.log(se3))
+
+            canonical_q = np.array(SO3.canonicalize(q_np), dtype=np_dtype)
+            se3_canonical_np = np.concatenate([canonical_q, translation])
+            se3_canonical = xp.asarray(se3_canonical_np)
+
+            log_canonical = np.array(SE3.log(se3_canonical))
+
+            assert np.allclose(
+                log_direct,
+                log_canonical,
+                atol=ATOL[precision] * 10,
+            )
+
+
+def _quaternion_to_axis_angle_np(q: np.ndarray) -> np.ndarray:
+    """Independent helper to compute canonical axis-angle from quaternion."""
+
+    w = q[0]
+    xyz = q[1:]
+    norm_xyz = np.linalg.norm(xyz)
+
+    if norm_xyz < 1e-12:
+        return np.zeros(3, dtype=q.dtype)
+
+    angle = 2.0 * np.arctan2(norm_xyz, w)
+    axis = xyz / norm_xyz
+    return axis * angle
+
+
+@pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("precision", TEST_PRECISIONS)
+def test_log_exp_round_trip_beyond_pi(backend, precision):
+    """Round-trip exp/log should respect canonical axis-angle beyond π rotations."""
+
+    common = pytest.importorskip("nanomanifold.common")
+    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+
+    np_dtype = getattr(np, f"float{precision}")
+
+    axes = [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [0.5, -0.25, 0.75],
+    ]
+
+    angles = [
+        np.pi + 1e-3,
+        1.5 * np.pi,
+        2.0 * np.pi - 1e-3,
+        2.0 * np.pi + 1e-3,
+    ]
+
+    translations = [
+        [0.0, 0.0, 0.0],
+        [0.25, -0.75, 1.0],
+    ]
+
+    for axis in axes:
+        axis_np = np.array(axis, dtype=np.float64)
+        axis_np = axis_np / np.linalg.norm(axis_np)
+
+        for angle in angles:
+            omega_np = axis_np * angle
+
+            for translation in translations:
+                tangent_np = np.concatenate(
+                    [
+                        omega_np,
+                        np.array(translation, dtype=np_dtype),
+                    ]
+                ).astype(np_dtype)
+
+                tangent = xp.asarray(tangent_np)
+
+                se3 = SE3.exp(tangent)
+                se3_np = np.array(se3)
+
+                log_result = SE3.log(se3)
+                log_np = np.array(log_result)
+
+                expected_axis_angle = _quaternion_to_axis_angle_np(se3_np[:4])
+
+                atol = max(ATOL[precision] * 10, 1e-6)
+                assert np.allclose(log_np[:3], expected_axis_angle, atol=atol)
+
+                reconstructed = SE3.exp(log_result)
+                reconstructed_np = np.array(reconstructed)
+
+                assert np.allclose(
+                    reconstructed_np,
+                    se3_np,
+                    atol=ATOL[precision] * 10,
+                    rtol=1e-6,
+                )

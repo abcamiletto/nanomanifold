@@ -56,7 +56,7 @@ def slerp(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], t: Float[Any, "... N
     omega = xp.acos(dot_product)
     sin_omega = xp.sin(omega)
 
-    eps = 1e-8
+    eps = xp.asarray(xp.finfo(q1.dtype).eps, dtype=q1.dtype)
     sin_omega_safe = xp.where(xp.abs(sin_omega) < eps, eps, sin_omega)
 
     weight1 = xp.sin((1.0 - t_expanded) * omega) / sin_omega_safe

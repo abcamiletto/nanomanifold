@@ -8,7 +8,7 @@ from .conversions.matrix import to_matrix
 
 
 def adjoint(q: Float[Any, "... 4"]) -> Float[Any, "... 3 3"]:
-    """Return the adjoint matrix of a unit quaternion.
+    r"""Return the adjoint matrix of a unit quaternion.
 
     For :math:`\mathrm{SO}(3)` the adjoint representation coincides with the
     rotation matrix itself.

@@ -19,38 +19,51 @@ def _jacobian_upper_right_block(rho: Float[Any, "... 3"], omega: Float[Any, "...
 
     xp = get_namespace(rho)
 
-    input_dtype = rho.dtype
-    float16_dtype = getattr(xp, "float16", None)
-    needs_upcast = float16_dtype is not None and input_dtype == float16_dtype
-    calc_dtype = getattr(xp, "float32", input_dtype) if needs_upcast else input_dtype
-
+    dtype = rho.dtype
     rho_shape = rho.shape
-    rho_calc = xp.asarray(rho, dtype=calc_dtype)
-    omega_calc = xp.asarray(omega, dtype=calc_dtype)
 
-    omega_sq_norm = xp.sum(omega_calc * omega_calc, axis=-1, keepdims=True)
+    rho_arr = xp.asarray(rho, dtype=dtype)
+    omega_arr = xp.asarray(omega, dtype=dtype)
+
+    omega_sq_norm = xp.sum(omega_arr * omega_arr, axis=-1, keepdims=True)
     omega_norm = xp.sqrt(omega_sq_norm)
 
-    Upsilon = hat(rho_calc)
-    Omega = hat(omega_calc)
+    Upsilon = hat(rho_arr)
+    Omega = hat(omega_arr)
 
-    eps = xp.finfo(input_dtype).eps
-    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=calc_dtype)
+    eps = xp.finfo(dtype).eps
+    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=dtype)
     small_angle_mask = omega_norm < small_angle_threshold
 
     Q_small = 0.5 * Upsilon
 
-    safe_norm = xp.where(small_angle_mask, xp.ones_like(omega_norm), omega_norm)
-    inv_theta = 1.0 / safe_norm
-    inv_theta_sq = inv_theta * inv_theta
-    inv_theta_4 = inv_theta_sq * inv_theta_sq
-
+    half_norm = omega_norm / 2.0
+    sin_half = xp.sin(half_norm)
     sin_theta = xp.sin(omega_norm)
-    cos_theta = xp.cos(omega_norm)
 
-    c1 = inv_theta_sq - sin_theta * inv_theta_sq * inv_theta
-    c2 = 0.5 * inv_theta_sq + cos_theta * inv_theta_4 - inv_theta_4
-    c3 = inv_theta_4 + 0.5 * cos_theta * inv_theta_4 - 1.5 * sin_theta * inv_theta * inv_theta_4
+    safe_norm = xp.where(small_angle_mask, xp.ones_like(omega_norm), omega_norm)
+    safe_norm_sq = safe_norm * safe_norm
+    safe_half_norm = xp.where(small_angle_mask, xp.ones_like(half_norm), half_norm)
+
+    sinc_half = xp.where(
+        small_angle_mask,
+        xp.ones_like(half_norm),
+        sin_half / safe_half_norm,
+    )
+    sinc = xp.where(
+        small_angle_mask,
+        xp.ones_like(omega_norm),
+        sin_theta / safe_norm,
+    )
+
+    A = 0.5 * sinc_half * sinc_half
+    B = (1.0 - sinc) / safe_norm_sq
+
+    inv_theta_sq = xp.reciprocal(safe_norm_sq)
+
+    c1 = B
+    c2 = (0.5 - A) * inv_theta_sq
+    c3 = (1.5 * B - 0.5 * A) * inv_theta_sq
 
     c1 = xp.reshape(c1, c1.shape[:-1] + (1, 1))
     c2 = xp.reshape(c2, c2.shape[:-1] + (1, 1))
@@ -71,10 +84,5 @@ def _jacobian_upper_right_block(rho: Float[Any, "... 3"], omega: Float[Any, "...
 
     mask = xp.reshape(small_angle_mask, small_angle_mask.shape[:-1] + (1, 1))
     Q = xp.where(mask, Q_small, Q_large)
-
-    Q = xp.reshape(Q, rho_calc.shape[:-1] + (3, 3))
-
-    if needs_upcast:
-        Q = xp.asarray(Q, dtype=input_dtype)
 
     return xp.reshape(Q, rho_shape[:-1] + (3, 3))

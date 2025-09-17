@@ -8,11 +8,6 @@ from nanomanifold.SO3.canonicalize import canonicalize
 
 def to_axis_angle(q: Float[Any, "... 4"]) -> Float[Any, "... 3"]:
     xp = get_namespace(q)
-
-    # Canonicalize the quaternion so the scalar part is non-negative. This keeps
-    # the logarithm invariant to the input sign (q and -q) and guarantees the
-    # returned axis-angle vector represents the minimal rotation, i.e. has
-    # magnitude in [0, π].
     q_canonical = canonicalize(q)
 
     w = q_canonical[..., 0:1]
@@ -20,8 +15,6 @@ def to_axis_angle(q: Float[Any, "... 4"]) -> Float[Any, "... 3"]:
 
     norm_xyz = xp.linalg.norm(xyz, axis=-1, keepdims=True)
 
-    # For small rotations, use the direct approximation: axis_angle ≈ 2*xyz
-    # This avoids numerical issues with acos when w ≈ 1
     small_angle_threshold = 1e-6
     small_angle_mask = norm_xyz < small_angle_threshold
 

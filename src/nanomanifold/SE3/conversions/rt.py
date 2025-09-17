@@ -1,5 +1,7 @@
 from nanomanifold.common import get_namespace
 
+from ..canonicalize import canonicalize as canonicalize_se3
+
 
 def from_rt(quat, translation):
     """Create SE(3) representation from rotation quaternion and translation.
@@ -9,10 +11,12 @@ def from_rt(quat, translation):
         translation: Translation vector (..., 3)
 
     Returns:
-        SE(3) representation (..., 7) as [w, x, y, z, tx, ty, tz]
+        SE(3) representation (..., 7) as [w, x, y, z, tx, ty, tz] with the
+        quaternion canonicalized to have a non-negative scalar component.
     """
     xp = get_namespace(quat)
-    return xp.concatenate([quat, translation], axis=-1)
+    se3 = xp.concatenate([quat, translation], axis=-1)
+    return canonicalize_se3(se3)
 
 
 def to_rt(se3):

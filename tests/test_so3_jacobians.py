@@ -1,7 +1,12 @@
 import numpy as np
 import pytest
-
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS
+from conftest import (
+    ATOL,
+    TEST_BACKENDS,
+    TEST_BATCH_DIMS,
+    TEST_PRECISIONS,
+    identity_quaternion,
+)
 
 from nanomanifold import SO3
 
@@ -11,14 +16,9 @@ from nanomanifold import SO3
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 def test_left_jacobian_identity(backend, batch_dims, precision):
     common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp = common.get_namespace_by_name(backend)
 
-    if precision == 16:
-        dtype = xp.float16
-    elif precision == 32:
-        dtype = xp.float32
-    else:
-        dtype = xp.float64
+    dtype = getattr(xp, f"float{precision}")
 
     omega = xp.zeros(batch_dims + (3,), dtype=dtype)
     J = SO3.left_jacobian(omega)
@@ -36,18 +36,10 @@ def test_left_jacobian_identity(backend, batch_dims, precision):
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 def test_left_jacobian_inverse_pair(backend, batch_dims, precision):
     common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
-
-    if precision == 16:
-        dtype = xp.float16
-    elif precision == 32:
-        dtype = xp.float32
-    else:
-        dtype = xp.float64
+    xp = common.get_namespace_by_name(backend)
 
     shape = batch_dims + (3,)
-    rng = np.random.default_rng(0)
-    omega_np = 0.2 * rng.standard_normal(shape).astype(f"float{precision}")
+    omega_np = 0.2 * np.random.normal(size=shape).astype(f"float{precision}")
     omega = xp.asarray(omega_np)
 
     J = SO3.left_jacobian(omega)
@@ -72,12 +64,9 @@ def test_left_jacobian_inverse_pair(backend, batch_dims, precision):
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 def test_adjoint_matches_matrix(backend, batch_dims, precision):
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    pytest.importorskip("nanomanifold.common")
 
-    q_np = np.zeros(batch_dims + (4,), dtype=f"float{precision}")
-    q_np[..., 0] = 1.0
-    q = xp.asarray(q_np)
+    q = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
     adjoint_matrix = SO3.adjoint(q)
     rotation_matrix = SO3.to_matrix(q)
@@ -87,4 +76,3 @@ def test_adjoint_matches_matrix(backend, batch_dims, precision):
     adj_np = np.asarray(adjoint_matrix, dtype=np.float64)
     rot_np = np.asarray(rotation_matrix, dtype=np.float64)
     assert np.allclose(adj_np, rot_np, atol=ATOL[precision])
-

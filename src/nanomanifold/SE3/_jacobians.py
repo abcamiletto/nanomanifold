@@ -8,9 +8,7 @@ from ..common import get_namespace
 from ..SO3.hat import hat
 
 
-def _jacobian_upper_right_block(
-    rho: Float[Any, "... 3"], omega: Float[Any, "... 3"]
-) -> Float[Any, "... 3 3"]:
+def _jacobian_upper_right_block(rho: Float[Any, "... 3"], omega: Float[Any, "... 3"]) -> Float[Any, "... 3 3"]:
     r"""Compute the upper-right block of the :math:`\mathrm{SE}(3)` left Jacobian.
 
     This quantity captures how the translational component couples with rotation

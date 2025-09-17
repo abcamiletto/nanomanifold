@@ -19,14 +19,23 @@ def _jacobian_upper_right_block(rho: Float[Any, "... 3"], omega: Float[Any, "...
 
     xp = get_namespace(rho)
 
-    omega_sq_norm = xp.sum(omega * omega, axis=-1, keepdims=True)
+    input_dtype = rho.dtype
+    float16_dtype = getattr(xp, "float16", None)
+    needs_upcast = float16_dtype is not None and input_dtype == float16_dtype
+    calc_dtype = getattr(xp, "float32", input_dtype) if needs_upcast else input_dtype
+
+    rho_shape = rho.shape
+    rho_calc = xp.asarray(rho, dtype=calc_dtype)
+    omega_calc = xp.asarray(omega, dtype=calc_dtype)
+
+    omega_sq_norm = xp.sum(omega_calc * omega_calc, axis=-1, keepdims=True)
     omega_norm = xp.sqrt(omega_sq_norm)
 
-    Upsilon = hat(rho)
-    Omega = hat(omega)
+    Upsilon = hat(rho_calc)
+    Omega = hat(omega_calc)
 
-    eps = xp.finfo(omega.dtype).eps
-    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=omega.dtype)
+    eps = xp.finfo(input_dtype).eps
+    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=calc_dtype)
     small_angle_mask = omega_norm < small_angle_threshold
 
     Q_small = 0.5 * Upsilon
@@ -63,4 +72,9 @@ def _jacobian_upper_right_block(rho: Float[Any, "... 3"], omega: Float[Any, "...
     mask = xp.reshape(small_angle_mask, small_angle_mask.shape[:-1] + (1, 1))
     Q = xp.where(mask, Q_small, Q_large)
 
-    return xp.reshape(Q, rho.shape[:-1] + (3, 3))
+    Q = xp.reshape(Q, rho_calc.shape[:-1] + (3, 3))
+
+    if needs_upcast:
+        Q = xp.asarray(Q, dtype=input_dtype)
+
+    return xp.reshape(Q, rho_shape[:-1] + (3, 3))

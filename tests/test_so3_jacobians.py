@@ -15,8 +15,9 @@ from nanomanifold import SO3
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 def test_left_jacobian_identity(backend, batch_dims, precision):
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
+    from nanomanifold.common import get_namespace_by_name
+
+    xp = get_namespace_by_name(backend)
 
     dtype = getattr(xp, f"float{precision}")
 
@@ -35,8 +36,9 @@ def test_left_jacobian_identity(backend, batch_dims, precision):
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 def test_left_jacobian_inverse_pair(backend, batch_dims, precision):
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
+    from nanomanifold.common import get_namespace_by_name
+
+    xp = get_namespace_by_name(backend)
 
     shape = batch_dims + (3,)
     omega_np = 0.2 * np.random.normal(size=shape).astype(f"float{precision}")
@@ -53,19 +55,13 @@ def test_left_jacobian_inverse_pair(backend, batch_dims, precision):
     identity = np.broadcast_to(identity, product.shape)
     product_np = np.asarray(product, dtype=np.float64)
 
-    tolerance = ATOL[precision]
-    if precision == 16:
-        tolerance = max(tolerance, 4e-3)
-
-    assert np.allclose(product_np, identity, atol=tolerance)
+    assert np.allclose(product_np, identity, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 def test_adjoint_matches_matrix(backend, batch_dims, precision):
-    pytest.importorskip("nanomanifold.common")
-
     q = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
     adjoint_matrix = SO3.adjoint(q)

@@ -20,15 +20,23 @@ def left_jacobian_inverse(omega: Float[Any, "... 3"]) -> Float[Any, "... 3 3"]:
 
     xp = get_namespace(omega)
 
-    omega_norm = xp.linalg.norm(omega, axis=-1, keepdims=True)
-    omega_cross = hat(omega)
+    input_dtype = omega.dtype
+    float16_dtype = getattr(xp, "float16", None)
+    needs_upcast = float16_dtype is not None and input_dtype == float16_dtype
+    calc_dtype = getattr(xp, "float32", input_dtype) if needs_upcast else input_dtype
+
+    omega_shape = omega.shape
+    omega_calc = xp.asarray(omega, dtype=calc_dtype)
+
+    omega_norm = xp.linalg.norm(omega_calc, axis=-1, keepdims=True)
+    omega_cross = hat(omega_calc)
     omega_cross_sq = xp.matmul(omega_cross, omega_cross)
 
-    identity = xp.eye(3, dtype=omega.dtype)
-    identity = xp.broadcast_to(identity, omega.shape[:-1] + (3, 3))
+    identity = xp.eye(3, dtype=calc_dtype)
+    identity = xp.broadcast_to(identity, omega_calc.shape[:-1] + (3, 3))
 
-    eps = xp.finfo(omega.dtype).eps
-    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=omega.dtype)
+    eps = xp.finfo(input_dtype).eps
+    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=calc_dtype)
     small_angle_mask = omega_norm < small_angle_threshold
 
     J_inv_small = identity - 0.5 * omega_cross + (1.0 / 12.0) * omega_cross_sq
@@ -51,4 +59,9 @@ def left_jacobian_inverse(omega: Float[Any, "... 3"]) -> Float[Any, "... 3 3"]:
     mask = xp.reshape(small_angle_mask, small_angle_mask.shape[:-1] + (1, 1))
     J_inv = xp.where(mask, J_inv_small, J_inv_large)
 
-    return xp.reshape(J_inv, omega.shape[:-1] + (3, 3))
+    J_inv = xp.reshape(J_inv, omega_calc.shape[:-1] + (3, 3))
+
+    if needs_upcast:
+        J_inv = xp.asarray(J_inv, dtype=input_dtype)
+
+    return xp.reshape(J_inv, omega_shape[:-1] + (3, 3))

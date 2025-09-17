@@ -285,3 +285,93 @@ def test_zero_rotation_stability(backend, precision):
         # For very small angles, numerical precision limits accuracy
         tol = max(ATOL[precision], angle * 100)
         assert np.allclose(log_np, tangent_np, atol=tol)
+
+
+@pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("precision", TEST_PRECISIONS)
+def test_log_matches_canonicalized_quaternion_near_two_pi(backend, precision):
+    """Log should match canonical quaternion representation near 2π rotations."""
+
+    common = pytest.importorskip("nanomanifold.common")
+    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+
+    np_dtype = getattr(np, f"float{precision}")
+
+    axes = [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [1.0, -2.0, 0.5],
+    ]
+
+    deltas = [1e-2, 5e-3, 1e-3]
+
+    for axis in axes:
+        axis_np = np.array(axis, dtype=np.float64)
+        axis_np = axis_np / np.linalg.norm(axis_np)
+
+        for delta in deltas:
+            theta = 2.0 * np.pi - delta
+            half_angle = theta / 2.0
+
+            q_np = np.concatenate(
+                (
+                    [np.cos(half_angle)],
+                    np.sin(half_angle) * axis_np,
+                )
+            ).astype(np_dtype)
+
+            q = xp.asarray(q_np)
+
+            log_direct = np.array(SO3.log(q))
+
+            canonical_q = SO3.canonicalize(q)
+            log_canonical = np.array(SO3.log(canonical_q))
+
+            assert np.allclose(
+                log_direct,
+                log_canonical,
+                atol=max(ATOL[precision], delta * 1e-3),
+            )
+
+
+@pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("precision", TEST_PRECISIONS)
+def test_log_direction_near_two_pi_rotation(backend, precision):
+    """Log should pick the minimal axis-angle direction for rotations near 2π."""
+
+    common = pytest.importorskip("nanomanifold.common")
+    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+
+    np_dtype = getattr(np, f"float{precision}")
+
+    axes = [
+        [0.0, 0.0, 1.0],
+        [1.0, 0.0, 0.0],
+        [0.3, -0.5, 0.2],
+    ]
+
+    deltas = [1e-2, 5e-3, 1e-3]
+
+    for axis in axes:
+        axis_np = np.array(axis, dtype=np.float64)
+        axis_np = axis_np / np.linalg.norm(axis_np)
+
+        for delta in deltas:
+            theta = 2.0 * np.pi - delta
+            half_angle = theta / 2.0
+
+            q_np = np.concatenate(
+                (
+                    [np.cos(half_angle)],
+                    np.sin(half_angle) * axis_np,
+                )
+            ).astype(np_dtype)
+
+            q = xp.asarray(q_np)
+
+            log_result = np.array(SO3.log(q))
+
+            expected = -delta * axis_np
+            tol = max(ATOL[precision] * 10, delta * 1e-3)
+            assert np.allclose(log_result, expected, atol=tol)

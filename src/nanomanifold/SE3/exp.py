@@ -37,7 +37,7 @@ def exp(tangent_vector: Float[Any, "... 6"]) -> Float[Any, "... 7"]:
     omega_norm = xp.linalg.norm(omega, axis=-1, keepdims=True)
 
     eps = xp.finfo(omega.dtype).eps
-    small_angle_threshold = xp.asarray(max(1e-6, float(eps)), dtype=omega.dtype)
+    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=omega.dtype)
     small_angle_mask = omega_norm < small_angle_threshold
 
     omega_cross = hat(omega)

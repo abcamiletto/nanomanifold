@@ -1,11 +1,11 @@
 # nanomanifold
 
-Fast, batched and differentiable SO3/SE3 transforms for any backend (NumPy, PyTorch, JAX, ...)
+Fast, batched and differentiable SO(3)/SE(3) transforms for any backend (NumPy, PyTorch, JAX, ...)
 
 Works directly on arrays, defined as:
 
-- **SO3**: unit quaternions `[w, x, y, z]` for 3D rotations, shape `(..., 4)`
-- **SE3**: concatenated `[quat, translation]`, shape `(..., 7)`
+- **SO(3)**: unit quaternions `[w, x, y, z]` for 3D rotations, shape `(..., 4)`
+- **SE(3)**: concatenated `[quat, translation]`, shape `(..., 7)`
 
 ```python
 import numpy as np

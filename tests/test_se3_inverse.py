@@ -20,17 +20,16 @@ def test_inverse_identity(backend, batch_dims, precision):
     identity_np = np.array(identity)
     identity_inv_np = np.array(identity_inv)
 
-    if precision >= 32:
-        # Check quaternion equivalence (q and -q represent the same rotation)
-        quat_identity = identity_np[..., :4]
-        quat_identity_inv = identity_inv_np[..., :4]
-        dot_products = np.sum(quat_identity * quat_identity_inv, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent the same rotation)
+    quat_identity = identity_np[..., :4]
+    quat_identity_inv = identity_inv_np[..., :4]
+    dot_products = np.sum(quat_identity * quat_identity_inv, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
-        # Check translation is zero
-        trans_identity = identity_np[..., 4:7]
-        trans_identity_inv = identity_inv_np[..., 4:7]
-        assert np.allclose(trans_identity, trans_identity_inv, atol=ATOL[precision])
+    # Check translation is zero
+    trans_identity = identity_np[..., 4:7]
+    trans_identity_inv = identity_inv_np[..., 4:7]
+    assert np.allclose(trans_identity, trans_identity_inv, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -49,17 +48,16 @@ def test_inverse_involution(backend, batch_dims, precision):
     se3_np = np.array(se3)
     se3_inv_inv_np = np.array(se3_inv_inv)
 
-    if precision >= 32:
-        # Check quaternion equivalence (q and -q represent the same rotation)
-        quat_orig = se3_np[..., :4]
-        quat_inv_inv = se3_inv_inv_np[..., :4]
-        dot_products = np.sum(quat_orig * quat_inv_inv, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent the same rotation)
+    quat_orig = se3_np[..., :4]
+    quat_inv_inv = se3_inv_inv_np[..., :4]
+    dot_products = np.sum(quat_orig * quat_inv_inv, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
-        # Check translation equivalence
-        trans_orig = se3_np[..., 4:7]
-        trans_inv_inv = se3_inv_inv_np[..., 4:7]
-        assert np.allclose(trans_orig, trans_inv_inv, atol=ATOL[precision])
+    # Check translation equivalence
+    trans_orig = se3_np[..., 4:7]
+    trans_inv_inv = se3_inv_inv_np[..., 4:7]
+    assert np.allclose(trans_orig, trans_inv_inv, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -86,22 +84,21 @@ def test_inverse_multiply_identity(backend, batch_dims, precision):
     result1_np = np.array(result1)
     result2_np = np.array(result2)
 
-    if precision >= 32:
-        # Check quaternion equivalence (q and -q represent the same rotation)
-        quat_identity = identity_np[..., :4]
-        quat_result1 = result1_np[..., :4]
-        quat_result2 = result2_np[..., :4]
+    # Check quaternion equivalence (q and -q represent the same rotation)
+    quat_identity = identity_np[..., :4]
+    quat_result1 = result1_np[..., :4]
+    quat_result2 = result2_np[..., :4]
 
-        dot_products1 = np.sum(quat_identity * quat_result1, axis=-1)
-        dot_products2 = np.sum(quat_identity * quat_result2, axis=-1)
-        assert np.allclose(np.abs(dot_products1), 1.0, atol=ATOL[precision])
-        assert np.allclose(np.abs(dot_products2), 1.0, atol=ATOL[precision])
+    dot_products1 = np.sum(quat_identity * quat_result1, axis=-1)
+    dot_products2 = np.sum(quat_identity * quat_result2, axis=-1)
+    assert np.allclose(np.abs(dot_products1), 1.0, atol=ATOL[precision])
+    assert np.allclose(np.abs(dot_products2), 1.0, atol=ATOL[precision])
 
-        # Check translation is zero
-        trans_result1 = result1_np[..., 4:7]
-        trans_result2 = result2_np[..., 4:7]
-        assert np.allclose(trans_result1, 0.0, atol=ATOL[precision])
-        assert np.allclose(trans_result2, 0.0, atol=ATOL[precision])
+    # Check translation is zero
+    trans_result1 = result1_np[..., 4:7]
+    trans_result2 = result2_np[..., 4:7]
+    assert np.allclose(trans_result1, 0.0, atol=ATOL[precision])
+    assert np.allclose(trans_result2, 0.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -136,17 +133,16 @@ def test_inverse_matrix_equivalence(backend, batch_dims, precision):
     se3_inv_np = np.array(se3_inv)
     se3_from_matrix_inv_np = np.array(se3_from_matrix_inv)
 
-    if precision >= 32:
-        # Check quaternion equivalence (q and -q represent the same rotation)
-        quat_inv = se3_inv_np[..., :4]
-        quat_from_matrix = se3_from_matrix_inv_np[..., :4]
-        dot_products = np.sum(quat_inv * quat_from_matrix, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent the same rotation)
+    quat_inv = se3_inv_np[..., :4]
+    quat_from_matrix = se3_from_matrix_inv_np[..., :4]
+    dot_products = np.sum(quat_inv * quat_from_matrix, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
-        # Check translation equivalence
-        trans_inv = se3_inv_np[..., 4:7]
-        trans_from_matrix = se3_from_matrix_inv_np[..., 4:7]
-        assert np.allclose(trans_inv, trans_from_matrix, atol=ATOL[precision])
+    # Check translation equivalence
+    trans_inv = se3_inv_np[..., 4:7]
+    trans_from_matrix = se3_from_matrix_inv_np[..., 4:7]
+    assert np.allclose(trans_inv, trans_from_matrix, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

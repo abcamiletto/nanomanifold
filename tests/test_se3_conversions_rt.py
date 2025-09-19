@@ -41,13 +41,12 @@ def test_rt_conversion_cycle(backend, batch_dims, precision):
     translation_np_orig = np.array(translation)
     translation_converted_np = np.array(translation_converted)
 
-    if precision >= 32:
-        # Check quaternion equivalence (q and -q represent the same rotation)
-        dot_products = np.sum(quat_np * quat_converted_np, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent the same rotation)
+    dot_products = np.sum(quat_np * quat_converted_np, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
-        # Check translation equivalence
-        assert np.allclose(translation_np_orig, translation_converted_np, atol=ATOL[precision])
+    # Check translation equivalence
+    assert np.allclose(translation_np_orig, translation_converted_np, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

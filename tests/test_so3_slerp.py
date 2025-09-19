@@ -45,21 +45,20 @@ def test_slerp_endpoints(backend, batch_dims, precision):
     assert result_1.dtype == q1.dtype
     assert result_1.shape == batch_dims + (1, 4)
 
-    if precision >= 32:
-        q1_np = np.array(q1)
-        q2_np = np.array(q2)
-        result_0_np = np.array(result_0)
-        result_1_np = np.array(result_1)
+    q1_np = np.array(q1)
+    q2_np = np.array(q2)
+    result_0_np = np.array(result_0)
+    result_1_np = np.array(result_1)
 
-        # Remove the N=1 dimension for comparison
-        result_0_squeezed = result_0_np.squeeze(-2)  # [..., 1, 4] -> [..., 4]
-        result_1_squeezed = result_1_np.squeeze(-2)  # [..., 1, 4] -> [..., 4]
+    # Remove the N=1 dimension for comparison
+    result_0_squeezed = result_0_np.squeeze(-2)  # [..., 1, 4] -> [..., 4]
+    result_1_squeezed = result_1_np.squeeze(-2)  # [..., 1, 4] -> [..., 4]
 
-        # Check quaternion equivalence (q and -q represent same rotation)
-        dot_products_0 = np.sum(q1_np * result_0_squeezed, axis=-1)
-        dot_products_1 = np.sum(q2_np * result_1_squeezed, axis=-1)
-        assert np.allclose(np.abs(dot_products_0), 1.0, atol=ATOL[precision])
-        assert np.allclose(np.abs(dot_products_1), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent same rotation)
+    dot_products_0 = np.sum(q1_np * result_0_squeezed, axis=-1)
+    dot_products_1 = np.sum(q2_np * result_1_squeezed, axis=-1)
+    assert np.allclose(np.abs(dot_products_0), 1.0, atol=ATOL[precision])
+    assert np.allclose(np.abs(dot_products_1), 1.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -84,11 +83,10 @@ def test_slerp_multiple_points(backend, batch_dims, precision):
     assert result.dtype == q1.dtype
     assert result.shape == batch_dims + (5, 4)
 
-    if precision >= 32:
-        # Results should be unit quaternions
-        result_np = np.array(result)
-        norms = np.linalg.norm(result_np, axis=-1)
-        assert np.allclose(norms, 1.0, atol=ATOL[precision])
+    # Results should be unit quaternions
+    result_np = np.array(result)
+    norms = np.linalg.norm(result_np, axis=-1)
+    assert np.allclose(norms, 1.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -112,18 +110,17 @@ def test_slerp_same_quaternion(backend, batch_dims, precision):
     assert result.dtype == q.dtype
     assert result.shape == batch_dims + (5, 4)
 
-    if precision >= 32:
-        q_np = np.array(q)
+    q_np = np.array(q)
 
-        result_np = np.array(result)
+    result_np = np.array(result)
 
-        # Expand q for comparison with result
-        q_expanded = np.expand_dims(q_np, axis=-2)  # [..., 1, 4]
-        q_broadcasted = np.broadcast_to(q_expanded, result_np.shape)  # [..., 5, 4]
+    # Expand q for comparison with result
+    q_expanded = np.expand_dims(q_np, axis=-2)  # [..., 1, 4]
+    q_broadcasted = np.broadcast_to(q_expanded, result_np.shape)  # [..., 5, 4]
 
-        # Check quaternion equivalence
-        dot_products = np.sum(q_broadcasted * result_np, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence
+    dot_products = np.sum(q_broadcasted * result_np, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

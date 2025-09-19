@@ -30,10 +30,9 @@ def test_matrix_conversion_cycle(backend, batch_dims, precision):
     quat_np = np.array(quat)
     quat_converted_np = np.array(quat_converted)
 
-    if precision >= 32:
-        # Check quaternion equivalence (q and -q represent the same rotation)
-        dot_products = np.sum(quat_np * quat_converted_np, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent the same rotation)
+    dot_products = np.sum(quat_np * quat_converted_np, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

@@ -34,8 +34,7 @@ def test_inverse_identity(backend, batch_dims, precision):
         expected_identity = np.expand_dims(expected_identity, axis=0)
     expected_identity = np.broadcast_to(expected_identity, identity.shape)
 
-    if precision >= 32:
-        assert np.allclose(identity, expected_identity, atol=ATOL[precision])
+    assert np.allclose(identity, expected_identity, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

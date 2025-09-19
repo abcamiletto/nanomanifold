@@ -27,8 +27,7 @@ def test_rotate_points_identity(backend, batch_dims, precision):
     points_np = np.array(points)
     rotated_points_np = np.array(rotated_points)
 
-    if precision >= 32:
-        assert np.allclose(points_np, rotated_points_np, atol=ATOL[precision])
+    assert np.allclose(points_np, rotated_points_np, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -56,8 +55,7 @@ def test_rotate_points_inverse(backend, batch_dims, precision):
     points_np = np.array(points)
     restored_points_np = np.array(restored_points)
 
-    if precision >= 32:
-        assert np.allclose(points_np, restored_points_np, atol=ATOL[precision])
+    assert np.allclose(points_np, restored_points_np, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

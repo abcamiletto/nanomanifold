@@ -16,9 +16,8 @@ def test_log_identity(backend, batch_dims, precision):
 
     assert log_result.shape == batch_dims + (3,)
 
-    if precision >= 32:
-        log_np = np.array(log_result)
-        assert np.allclose(log_np, 0.0, atol=ATOL[precision])
+    log_np = np.array(log_result)
+    assert np.allclose(log_np, 0.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -43,13 +42,12 @@ def test_exp_zero(backend, batch_dims, precision):
 
     assert exp_result.shape == identity.shape
 
-    if precision >= 32:
-        exp_np = np.array(exp_result)
-        identity_np = np.array(identity)
+    exp_np = np.array(exp_result)
+    identity_np = np.array(identity)
 
-        # Check quaternion equivalence (accounting for q/-q ambiguity)
-        dot_products = np.sum(exp_np * identity_np, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (accounting for q/-q ambiguity)
+    dot_products = np.sum(exp_np * identity_np, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -64,13 +62,12 @@ def test_log_exp_inverse(backend, batch_dims, precision):
 
     assert exp_log_quat.shape == quat.shape
 
-    if precision >= 32:
-        quat_np = np.array(quat)
-        result_np = np.array(exp_log_quat)
+    quat_np = np.array(quat)
+    result_np = np.array(exp_log_quat)
 
-        # Check quaternion equivalence (q and -q represent same rotation)
-        dot_products = np.sum(quat_np * result_np, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent same rotation)
+    dot_products = np.sum(quat_np * result_np, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -92,10 +89,9 @@ def test_exp_log_inverse(backend, batch_dims, precision):
 
     assert log_exp_vec.shape == tangent_vec.shape
 
-    if precision >= 32:
-        original_np = np.array(tangent_vec)
-        result_np = np.array(log_exp_vec)
-        assert np.allclose(original_np, result_np, atol=ATOL[precision])
+    original_np = np.array(tangent_vec)
+    result_np = np.array(log_exp_vec)
+    assert np.allclose(original_np, result_np, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

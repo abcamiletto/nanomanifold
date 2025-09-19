@@ -29,12 +29,11 @@ def test_multiply_identity(backend, batch_dims, precision):
     result1_np = np.array(result1)
     result2_np = np.array(result2)
 
-    if precision >= 32:
-        # Check quaternion equivalence (q and -q represent the same rotation)
-        dot_products1 = np.sum(quat_np * result1_np, axis=-1)
-        dot_products2 = np.sum(quat_np * result2_np, axis=-1)
-        assert np.allclose(np.abs(dot_products1), 1.0, atol=ATOL[precision])
-        assert np.allclose(np.abs(dot_products2), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent the same rotation)
+    dot_products1 = np.sum(quat_np * result1_np, axis=-1)
+    dot_products2 = np.sum(quat_np * result2_np, axis=-1)
+    assert np.allclose(np.abs(dot_products1), 1.0, atol=ATOL[precision])
+    assert np.allclose(np.abs(dot_products2), 1.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -61,12 +60,11 @@ def test_multiply_inverse(backend, batch_dims, precision):
     result1_np = np.array(result1)
     result2_np = np.array(result2)
 
-    if precision >= 32:
-        # Check quaternion equivalence (q and -q represent the same rotation)
-        dot_products1 = np.sum(identity_np * result1_np, axis=-1)
-        dot_products2 = np.sum(identity_np * result2_np, axis=-1)
-        assert np.allclose(np.abs(dot_products1), 1.0, atol=ATOL[precision])
-        assert np.allclose(np.abs(dot_products2), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent the same rotation)
+    dot_products1 = np.sum(identity_np * result1_np, axis=-1)
+    dot_products2 = np.sum(identity_np * result2_np, axis=-1)
+    assert np.allclose(np.abs(dot_products1), 1.0, atol=ATOL[precision])
+    assert np.allclose(np.abs(dot_products2), 1.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -95,10 +93,9 @@ def test_multiply_matrix_equivalence(backend, batch_dims, precision):
     q_result_np = np.array(q_result)
     q_from_matrix_np = np.array(q_from_matrix)
 
-    if precision >= 32:
-        # Check quaternion equivalence (q and -q represent the same rotation)
-        dot_products = np.sum(q_result_np * q_from_matrix_np, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent the same rotation)
+    dot_products = np.sum(q_result_np * q_from_matrix_np, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

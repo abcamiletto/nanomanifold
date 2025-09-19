@@ -41,19 +41,18 @@ def test_exp_zero(backend, batch_dims, precision):
 
     assert exp_result.shape == identity.shape
 
-    if precision >= 32:
-        exp_np = np.array(exp_result)
-        identity_np = np.array(identity)
+    exp_np = np.array(exp_result)
+    identity_np = np.array(identity)
 
-        # Check quaternion equivalence (accounting for q/-q ambiguity)
-        q_exp = exp_np[..., :4]
-        q_identity = identity_np[..., :4]
-        dot_products = np.sum(q_exp * q_identity, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (accounting for q/-q ambiguity)
+    q_exp = exp_np[..., :4]
+    q_identity = identity_np[..., :4]
+    dot_products = np.sum(q_exp * q_identity, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
-        t_exp = exp_np[..., 4:7]
-        t_identity = identity_np[..., 4:7]
-        assert np.allclose(t_exp, t_identity, atol=ATOL[precision])
+    t_exp = exp_np[..., 4:7]
+    t_identity = identity_np[..., 4:7]
+    assert np.allclose(t_exp, t_identity, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -68,19 +67,18 @@ def test_log_exp_inverse(backend, batch_dims, precision):
 
     assert exp_log_se3.shape == se3.shape
 
-    if precision >= 32:
-        se3_np = np.array(se3)
-        result_np = np.array(exp_log_se3)
+    se3_np = np.array(se3)
+    result_np = np.array(exp_log_se3)
 
-        # Check quaternion equivalence (q and -q represent same rotation)
-        q_orig = se3_np[..., :4]
-        q_result = result_np[..., :4]
-        dot_products = np.sum(q_orig * q_result, axis=-1)
-        assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
+    # Check quaternion equivalence (q and -q represent same rotation)
+    q_orig = se3_np[..., :4]
+    q_result = result_np[..., :4]
+    dot_products = np.sum(q_orig * q_result, axis=-1)
+    assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
-        t_orig = se3_np[..., 4:7]
-        t_result = result_np[..., 4:7]
-        assert np.allclose(t_orig, t_result, atol=ATOL[precision])
+    t_orig = se3_np[..., 4:7]
+    t_result = result_np[..., 4:7]
+    assert np.allclose(t_orig, t_result, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -100,10 +98,9 @@ def test_exp_log_inverse(backend, batch_dims, precision):
 
     assert log_exp_vec.shape == tangent_vec.shape
 
-    if precision >= 32:
-        original_np = np.array(tangent_vec)
-        result_np = np.array(log_exp_vec)
-        assert np.allclose(original_np, result_np, atol=ATOL[precision])
+    original_np = np.array(tangent_vec)
+    result_np = np.array(log_exp_vec)
+    assert np.allclose(original_np, result_np, atol=ATOL[precision])
 
 
 def test_log_specific_transformations():

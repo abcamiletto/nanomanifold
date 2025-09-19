@@ -26,8 +26,7 @@ def test_transform_points_identity(backend, batch_dims, precision):
     points_np = np.array(points)
     transformed_points_np = np.array(transformed_points)
 
-    if precision >= 32:
-        assert np.allclose(points_np, transformed_points_np, atol=ATOL[precision])
+    assert np.allclose(points_np, transformed_points_np, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -56,8 +55,7 @@ def test_transform_points_inverse(backend, batch_dims, precision):
     restored_points_np = np.array(restored_points)
 
     # Use more lenient tolerance for complex batch dimensions due to accumulated floating-point error
-    if precision >= 32:
-        assert np.allclose(points_np, restored_points_np, atol=ATOL[precision])
+    assert np.allclose(points_np, restored_points_np, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -100,8 +98,7 @@ def test_transform_points_matrix_equivalence(backend, batch_dims, precision):
     # Convert to numpy arrays and compare
     transformed_points_np = np.array(transformed_points)
 
-    if precision >= 32:
-        assert np.allclose(transformed_points_np, transformed_matrix, atol=ATOL[precision])
+    assert np.allclose(transformed_points_np, transformed_matrix, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

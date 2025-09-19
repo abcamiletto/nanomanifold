@@ -1,3 +1,4 @@
+from .adjoint import adjoint
 from .canonicalize import canonicalize
 from .conversions.axis_angle import from_axis_angle, to_axis_angle
 from .conversions.euler import from_euler, to_euler
@@ -6,6 +7,8 @@ from .distance import distance
 from .exp import exp
 from .hat import hat
 from .inverse import inverse
+from .left_jacobian import left_jacobian
+from .left_jacobian_inverse import left_jacobian_inverse
 from .log import log
 from .multiply import multiply
 from .rotate_points import rotate_points
@@ -21,6 +24,7 @@ __all__ = [
     "to_matrix",
     "from_matrix",
     "canonicalize",
+    "adjoint",
     "rotate_points",
     "inverse",
     "multiply",
@@ -29,6 +33,8 @@ __all__ = [
     "exp",
     "hat",
     "vee",
+    "left_jacobian",
+    "left_jacobian_inverse",
     "slerp",
     "weighted_mean",
     "mean",

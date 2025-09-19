@@ -249,7 +249,7 @@ wheels = [
 
 [[package]]
 name = "nanomanifold"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "array-api-compat" },

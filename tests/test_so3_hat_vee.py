@@ -42,18 +42,17 @@ def test_hat_skew_symmetric(backend, batch_dims, precision):
     assert W.shape == batch_dims + (3, 3)
     assert W.dtype == w.dtype
 
-    if precision >= 32:
-        W_np = np.array(W)
-        # Properly transpose batch dimensions: swap last two axes
-        W_T_np = np.transpose(W_np, axes=tuple(range(len(W.shape) - 2)) + (-1, -2))
+    W_np = np.array(W)
+    # Properly transpose batch dimensions: swap last two axes
+    W_T_np = np.transpose(W_np, axes=tuple(range(len(W.shape) - 2)) + (-1, -2))
 
-        # Check that W = -W^T (skew-symmetric property)
-        assert np.allclose(W_np, -W_T_np, atol=ATOL[precision])
+    # Check that W = -W^T (skew-symmetric property)
+    assert np.allclose(W_np, -W_T_np, atol=ATOL[precision])
 
-        # Check that diagonal is zero
-        diag_indices = np.arange(3)
-        diagonal = W_np[..., diag_indices, diag_indices]
-        assert np.allclose(diagonal, 0.0, atol=ATOL[precision])
+    # Check that diagonal is zero
+    diag_indices = np.arange(3)
+    diagonal = W_np[..., diag_indices, diag_indices]
+    assert np.allclose(diagonal, 0.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -71,9 +70,8 @@ def test_hat_zero_vector(backend, batch_dims, precision):
     assert W.shape == batch_dims + (3, 3)
     assert W.dtype == w.dtype
 
-    if precision >= 32:
-        W_np = np.array(W)
-        assert np.allclose(W_np, 0.0, atol=ATOL[precision])
+    W_np = np.array(W)
+    assert np.allclose(W_np, 0.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -92,10 +90,9 @@ def test_vee_hat_inverse(backend, batch_dims, precision):
     assert w_recovered.shape == batch_dims + (3,)
     assert w_recovered.dtype == w.dtype
 
-    if precision >= 32:
-        w_np = np.array(w)
-        w_recovered_np = np.array(w_recovered)
-        assert np.allclose(w_np, w_recovered_np, atol=ATOL[precision])
+    w_np = np.array(w)
+    w_recovered_np = np.array(w_recovered)
+    assert np.allclose(w_np, w_recovered_np, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -115,10 +112,9 @@ def test_hat_vee_inverse_skew_symmetric(backend, batch_dims, precision):
     assert W_recovered.shape == batch_dims + (3, 3)
     assert W_recovered.dtype == W.dtype
 
-    if precision >= 32:
-        W_np = np.array(W)
-        W_recovered_np = np.array(W_recovered)
-        assert np.allclose(W_np, W_recovered_np, atol=ATOL[precision])
+    W_np = np.array(W)
+    W_recovered_np = np.array(W_recovered)
+    assert np.allclose(W_np, W_recovered_np, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -136,9 +132,8 @@ def test_vee_zero_matrix(backend, batch_dims, precision):
     assert w.shape == batch_dims + (3,)
     assert w.dtype == W.dtype
 
-    if precision >= 32:
-        w_np = np.array(w)
-        assert np.allclose(w_np, 0.0, atol=ATOL[precision])
+    w_np = np.array(w)
+    assert np.allclose(w_np, 0.0, atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

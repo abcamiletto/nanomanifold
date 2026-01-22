@@ -1,6 +1,6 @@
 [project]
 name = "nanomanifold"
-version = "0.1.3"
+version = "0.1.4"
 description = "SO3/SE3 operations on any backend"
 readme = "README.md"
 authors = [

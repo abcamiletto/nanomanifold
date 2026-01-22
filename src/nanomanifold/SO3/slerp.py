@@ -4,7 +4,7 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
-from .canonicalize import canonicalize
+from .conversions.quaternion import canonicalize
 
 
 def slerp(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], t: Float[Any, "... N"]) -> Float[Any, "... N 4"]:

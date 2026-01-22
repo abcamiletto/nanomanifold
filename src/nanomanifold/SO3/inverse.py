@@ -4,7 +4,7 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
-from .canonicalize import canonicalize
+from .conversions.quaternion import canonicalize
 
 
 def inverse(q: Float[Any, "... 4"]) -> Float[Any, "... 4"]:

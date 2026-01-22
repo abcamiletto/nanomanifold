@@ -4,7 +4,7 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
-from .canonicalize import canonicalize
+from .conversions.quaternion import canonicalize
 
 
 def weighted_mean(quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any, "... N"]) -> Float[Any, "... 4"]:

@@ -4,7 +4,7 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
-from .canonicalize import canonicalize
+from .conversions.quaternion import canonicalize
 from .conversions.quaternion import from_quat_xyzw, to_quat_xyzw
 
 

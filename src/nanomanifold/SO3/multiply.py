@@ -5,9 +5,10 @@ from jaxtyping import Float
 from nanomanifold.common import get_namespace
 
 from .canonicalize import canonicalize
+from .conversions.quaternion import from_quat_xyzw, to_quat_xyzw
 
 
-def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"]) -> Float[Any, "... 4"]:
+def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], xyzw: bool = False) -> Float[Any, "... 4"]:
     """Multiply two quaternions representing SO(3) rotations.
 
     The multiplication order matches rotation matrix multiplication:
@@ -16,13 +17,18 @@ def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"]) -> Float[Any, "..
     This means q2 is applied first, then q1.
 
     Args:
-        q1: First quaternion in [w, x, y, z] format
-        q2: Second quaternion in [w, x, y, z] format
+        q1: First quaternion in [w, x, y, z] format (or [x, y, z, w] if xyzw=True)
+        q2: Second quaternion in [w, x, y, z] format (or [x, y, z, w] if xyzw=True)
+        xyzw: Whether to interpret inputs (and return output) as [x, y, z, w]
 
     Returns:
         Product quaternion representing the composed rotation
     """
     xp = get_namespace(q1)
+
+    if xyzw:
+        q1 = from_quat_xyzw(q1)
+        q2 = from_quat_xyzw(q2)
 
     q1 = canonicalize(q1)
     q2 = canonicalize(q2)
@@ -36,5 +42,8 @@ def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"]) -> Float[Any, "..
     z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
 
     result = xp.stack([w, x, y, z], axis=-1)
+    result = canonicalize(result)
 
-    return canonicalize(result)
+    if xyzw:
+        return to_quat_xyzw(result)
+    return result

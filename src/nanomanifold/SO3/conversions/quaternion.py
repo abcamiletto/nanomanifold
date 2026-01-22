@@ -5,7 +5,6 @@ from typing import Any
 from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
-from nanomanifold.SO3.canonicalize import canonicalize
 
 
 def from_quat_xyzw(quat_xyzw: Float[Any, "... 4"]) -> Float[Any, "... 4"]:
@@ -14,12 +13,16 @@ def from_quat_xyzw(quat_xyzw: Float[Any, "... 4"]) -> Float[Any, "... 4"]:
     w = quat_xyzw[..., 3:4]
     xyz = quat_xyzw[..., 0:3]
     quat_wxyz = xp.concat([w, xyz], axis=-1)
+    from nanomanifold.SO3.canonicalize import canonicalize
+
     return canonicalize(quat_wxyz)
 
 
 def to_quat_xyzw(quat_wxyz: Float[Any, "... 4"]) -> Float[Any, "... 4"]:
     """Convert quaternion from [w, x, y, z] format to [x, y, z, w]."""
     xp = get_namespace(quat_wxyz)
+    from nanomanifold.SO3.canonicalize import canonicalize
+
     quat_wxyz = canonicalize(quat_wxyz)
     w = quat_wxyz[..., 0:1]
     xyz = quat_wxyz[..., 1:4]

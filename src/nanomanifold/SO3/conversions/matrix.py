@@ -33,7 +33,7 @@ def from_matrix(R: Float[Any, "... 3 3"]) -> Float[Any, "... 4"]:
 
     zero = trace * 0
     one = zero + 1
-    eps = one * 1e-10
+    eps = xp.finfo(R.dtype).eps * one * 10
     quarter = one * 0.25
     two = one * 2
 

@@ -8,26 +8,26 @@ from .canonicalize import canonicalize
 
 
 def slerp(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], t: Float[Any, "... N"]) -> Float[Any, "... N 4"]:
-"""Spherical linear interpolation between two quaternions representing SO(3).
+    """Spherical linear interpolation between two quaternions representing SO(3).
 
-The routine performs geodesic interpolation on the SO(3) manifold, taking the
-shortest path between two rotations after canonicalizing the inputs to the same
-hemisphere. The interpolation parameters ``t`` are typically chosen in the
-closed interval ``[0, 1]`` where ``t = 0`` returns ``q1`` and ``t = 1`` returns
-``q2``, but values outside that range are accepted and will extrapolate beyond
-the arc connecting the endpoints.
+    The routine performs geodesic interpolation on the SO(3) manifold, taking the
+    shortest path between two rotations after canonicalizing the inputs to the same
+    hemisphere. The interpolation parameters ``t`` are typically chosen in the
+    closed interval ``[0, 1]`` where ``t = 0`` returns ``q1`` and ``t = 1`` returns
+    ``q2``, but values outside that range are accepted and will extrapolate beyond
+    the arc connecting the endpoints.
 
-Args:
-    q1: Start quaternion in ``[w, x, y, z]`` format.
-    q2: End quaternion in ``[w, x, y, z]`` format.
-    t: Array of interpolation parameters whose last dimension ``N`` represents
-        the number of interpolation points. For a single point use shape
-        ``[..., 1]``.
+    Args:
+        q1: Start quaternion in ``[w, x, y, z]`` format.
+        q2: End quaternion in ``[w, x, y, z]`` format.
+        t: Array of interpolation parameters whose last dimension ``N`` represents
+            the number of interpolation points. For a single point use shape
+            ``[..., 1]``.
 
-Returns:
-    Interpolated quaternions with shape ``[..., N, 4]`` where ``N`` is the last
-    dimension of ``t``.
-"""
+    Returns:
+        Interpolated quaternions with shape ``[..., N, 4]`` where ``N`` is the last
+        dimension of ``t``.
+    """
     xp = get_namespace(q1)
 
     q1 = canonicalize(q1)
@@ -56,7 +56,7 @@ Returns:
     omega = xp.acos(dot_product)
     sin_omega = xp.sin(omega)
 
-    eps = 1e-8
+    eps = xp.finfo(dot_product.dtype).eps
     sin_omega_safe = xp.where(xp.abs(sin_omega) < eps, eps, sin_omega)
 
     weight1 = xp.sin((1.0 - t_expanded) * omega) / sin_omega_safe

@@ -9,7 +9,8 @@ from nanomanifold.common import get_namespace
 from .matrix import from_matrix, to_matrix
 
 
-def _normalize(vec: Float[Any, "... 3"], xp, eps: float = 1e-8) -> Float[Any, "... 3"]:
+def _normalize(vec: Float[Any, "... 3"], xp) -> Float[Any, "... 3"]:
+    eps = float(xp.finfo(vec.dtype).eps) * 10.0
     norm = xp.linalg.norm(vec, axis=-1, keepdims=True)
     safe_norm = xp.where(norm < eps, xp.ones_like(norm), norm)
     return vec / safe_norm

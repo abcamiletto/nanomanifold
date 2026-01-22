@@ -3,7 +3,7 @@ from typing import Any
 from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
-from nanomanifold.SO3.canonicalize import canonicalize
+from .quaternion import canonicalize
 
 
 def to_axis_angle(q: Float[Any, "... 4"]) -> Float[Any, "... 3"]:

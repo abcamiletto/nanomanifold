@@ -1,4 +1,4 @@
-from .canonicalize import canonicalize
+from .conversions.quaternion import canonicalize
 from .conversions.axis_angle import from_axis_angle, to_axis_angle
 from .conversions.euler import from_euler, to_euler
 from .conversions.matrix import from_matrix, to_matrix

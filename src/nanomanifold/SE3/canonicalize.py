@@ -3,7 +3,7 @@ from typing import Any
 from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
-from nanomanifold.SO3.canonicalize import canonicalize as canonicalize_quat
+from nanomanifold.SO3.conversions.quaternion import canonicalize as canonicalize_quat
 
 
 def canonicalize(se3: Float[Any, "... 7"], xyzw: bool = False) -> Float[Any, "... 7"]:

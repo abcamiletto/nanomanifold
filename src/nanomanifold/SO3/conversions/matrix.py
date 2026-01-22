@@ -7,10 +7,19 @@ from jaxtyping import Float
 from nanomanifold.common import get_namespace
 
 from ..canonicalize import canonicalize
+from .quaternion import from_quat_xyzw
 
 
-def to_matrix(q: Float[Any, "... 4"]) -> Float[Any, "... 3 3"]:
+def to_matrix(q: Float[Any, "... 4"], xyzw: bool = False) -> Float[Any, "... 3 3"]:
+    """Convert quaternion to 3x3 rotation matrix.
+
+    Args:
+        q: Quaternion in [w, x, y, z] format or [x, y, z, w] if xyzw=True
+        xyzw: Whether to interpret the quaternion as [x, y, z, w]
+    """
     xp = get_namespace(q)
+    if xyzw:
+        q = from_quat_xyzw(q)
     q = canonicalize(q)
     w, x, y, z = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
 

@@ -10,11 +10,13 @@ from nanomanifold.common import get_namespace
 from ..canonicalize import canonicalize
 
 
-def to_matrix(se3: Float[Any, "... 7"]) -> Float[Any, "... 4 4"]:
+def to_matrix(se3: Float[Any, "... 7"], xyzw: bool = False) -> Float[Any, "... 4 4"]:
     """Convert SE(3) representation to 4x4 transformation matrix.
 
     Args:
         se3: SE(3) representation (..., 7) as [w, x, y, z, tx, ty, tz]
+            or [x, y, z, w, tx, ty, tz] if xyzw=True
+        xyzw: Whether to interpret the quaternion as [x, y, z, w]
 
     Returns:
         4x4 transformation matrix (..., 4, 4)
@@ -24,7 +26,7 @@ def to_matrix(se3: Float[Any, "... 7"]) -> Float[Any, "... 4 4"]:
     quat = se3[..., :4]
     translation = se3[..., 4:7]
 
-    R = SO3.to_matrix(quat)
+    R = SO3.to_matrix(quat, xyzw=xyzw)
 
     translation_column = translation[..., None]
     top_block = xp.concatenate([R, translation_column], axis=-1)

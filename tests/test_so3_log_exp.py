@@ -226,6 +226,26 @@ def test_exp_differentiability_torch(batch_dims):
 
 
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
+def test_log_exp_differentiability_torch_at_pi_rotation(batch_dims):
+    torch = pytest.importorskip("torch")
+    dtype = torch.float64
+
+    axis_angle = torch.zeros(batch_dims + (3,), dtype=dtype)
+    axis_angle[..., 0] = np.pi
+
+    quat = SO3.from_axis_angle(axis_angle).requires_grad_(True)
+
+    log_out = SO3.log(quat)
+    log_out.sum().backward()
+    assert torch.isfinite(quat.grad).all()
+
+    axis_angle = axis_angle.clone().requires_grad_(True)
+    exp_out = SO3.exp(axis_angle)
+    exp_out.sum().backward()
+    assert torch.isfinite(axis_angle.grad).all()
+
+
+@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 def test_log_exp_jittability_jax(batch_dims):
     """Test that log and exp functions are JIT-compatible with JAX"""
     jax = pytest.importorskip("jax")

@@ -110,3 +110,33 @@ def test_euler_differentiality_torch(batch_dims, convention):
         return SO3.from_euler(e, convention=convention)
 
     assert torch.autograd.gradcheck(g, (euler,), eps=1e-6, atol=1e-5)
+
+
+@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
+@pytest.mark.parametrize("convention", ["xyz", "ZYX"])
+def test_euler_differentiality_torch_at_singularity(batch_dims, convention):
+    torch = pytest.importorskip("torch")
+    dtype = torch.float64
+
+    singular_angle = torch.tensor(np.pi / 2.0, dtype=dtype)
+    euler = torch.zeros(batch_dims + (3,), dtype=dtype)
+    euler[..., 1] = singular_angle
+
+    quat = SO3.from_euler(euler, convention=convention).requires_grad_(True)
+
+    euler_out = SO3.to_euler(quat, convention=convention)
+    euler_out.sum().backward()
+    assert torch.isfinite(quat.grad).all()
+
+    euler = euler.clone().requires_grad_(True)
+    quat_out = SO3.from_euler(euler, convention=convention)
+    quat_out.sum().backward()
+    assert torch.isfinite(euler.grad).all()
+
+
+def test_from_euler_zero_gradient_torch():
+    torch = pytest.importorskip("torch")
+    euler = torch.zeros((1, 3), dtype=torch.float64, requires_grad=True)
+    quat = SO3.from_euler(euler, convention="xyz")
+    quat.sum().backward()
+    assert torch.isfinite(euler.grad).all()

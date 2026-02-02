@@ -4,6 +4,7 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
+from ..multiply import multiply
 from .quaternion import canonicalize
 from . import matrix
 
@@ -15,8 +16,34 @@ def to_euler(q: Float[Any, "... 4"], convention: str = "ZYX") -> Float[Any, "...
 
 
 def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX") -> Float[Any, "... 4"]:
-    R = _euler_to_matrix(euler, convention)
-    return matrix.from_matrix(R)
+    xp = get_namespace(euler)
+    half_angles = euler * 0.5
+    cos_half = xp.cos(half_angles)
+    sin_half = xp.sin(half_angles)
+
+    ones = xp.ones(euler.shape[:-1] + (1,), dtype=euler.dtype)
+    zeros = xp.zeros(euler.shape[:-1] + (3,), dtype=euler.dtype)
+    q = xp.concat([ones, zeros], axis=-1)
+
+    is_extrinsic = convention.islower()
+    conv = convention.lower()
+
+    for i, axis in enumerate(conv):
+        q_axis = _axis_quaternion(cos_half[..., i], sin_half[..., i], axis, xp)
+        q = multiply(q_axis, q) if is_extrinsic else multiply(q, q_axis)
+
+    return canonicalize(q)
+
+
+def _axis_quaternion(cos_half, sin_half, axis, xp):
+    zero = xp.zeros_like(cos_half)
+    if axis == "x":
+        return xp.stack([cos_half, sin_half, zero, zero], axis=-1)
+    if axis == "y":
+        return xp.stack([cos_half, zero, sin_half, zero], axis=-1)
+    if axis == "z":
+        return xp.stack([cos_half, zero, zero, sin_half], axis=-1)
+    raise ValueError(f"Invalid axis: {axis}")
 
 
 def _euler_to_matrix(euler, convention):

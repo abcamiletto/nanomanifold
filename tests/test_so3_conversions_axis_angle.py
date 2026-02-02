@@ -80,3 +80,23 @@ def test_axis_angle_differentiality_torch(batch_dims):
         return SO3.from_axis_angle(aa)
 
     assert torch.autograd.gradcheck(g, (axis_angle,), eps=1e-6, atol=1e-5)
+
+
+@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
+def test_axis_angle_differentiality_torch_at_singularity(batch_dims):
+    torch = pytest.importorskip("torch")
+    dtype = torch.float64
+
+    axis_angle = torch.zeros(batch_dims + (3,), dtype=dtype)
+    axis_angle[..., 0] = np.pi
+
+    quat = SO3.from_axis_angle(axis_angle).requires_grad_(True)
+
+    axis_angle_out = SO3.to_axis_angle(quat)
+    axis_angle_out.sum().backward()
+    assert torch.isfinite(quat.grad).all()
+
+    axis_angle = axis_angle.clone().requires_grad_(True)
+    quat_out = SO3.from_axis_angle(axis_angle)
+    quat_out.sum().backward()
+    assert torch.isfinite(axis_angle.grad).all()

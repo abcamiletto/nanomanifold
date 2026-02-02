@@ -31,8 +31,8 @@ def to_matrix(se3: Float[Any, "... 7"], xyzw: bool = False) -> Float[Any, "... 4
     translation_column = translation[..., None]
     top_block = xp.concatenate([R, translation_column], axis=-1)
 
-    zeros = xp.zeros(top_block.shape[:-2] + (1, 3), dtype=se3.dtype)
-    ones = xp.ones(top_block.shape[:-2] + (1, 1), dtype=se3.dtype)
+    zeros = xp.zeros_like(top_block[..., :1, :3])
+    ones = xp.ones_like(top_block[..., :1, :1])
     bottom_row = xp.concatenate([zeros, ones], axis=-1)
 
     return xp.concatenate([top_block, bottom_row], axis=-2)

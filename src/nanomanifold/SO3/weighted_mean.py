@@ -84,6 +84,6 @@ def mean(quaternions: Sequence[Float[Any, "... 4"]]) -> Float[Any, "... 4"]:
 
     batch_shape = quaternions[0].shape[:-1]
     num_quats = len(quaternions)
-    weights = xp.ones(batch_shape + (num_quats,), dtype=quaternions[0].dtype)
+    weights = xp.broadcast_to(xp.ones_like(quaternions[0][..., :1]), batch_shape + (num_quats,))
 
     return weighted_mean(quaternions, weights)

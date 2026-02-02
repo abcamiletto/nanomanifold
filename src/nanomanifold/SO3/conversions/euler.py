@@ -21,8 +21,8 @@ def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX") -> Float[Any
     cos_half = xp.cos(half_angles)
     sin_half = xp.sin(half_angles)
 
-    ones = xp.ones(euler.shape[:-1] + (1,), dtype=euler.dtype)
-    zeros = xp.zeros(euler.shape[:-1] + (3,), dtype=euler.dtype)
+    ones = xp.ones_like(euler[..., :1])
+    zeros = xp.zeros_like(euler)
     q = xp.concat([ones, zeros], axis=-1)
 
     is_extrinsic = convention.islower()

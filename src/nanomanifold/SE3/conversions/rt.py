@@ -1,11 +1,14 @@
 from types import ModuleType
+from typing import Any
+
+from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
 from ..canonicalize import canonicalize as canonicalize_se3
 
 
-def from_rt(quat, translation, *, xp: ModuleType | None = None):
+def from_rt(quat: Float[Any, "... 4"], translation: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 7"]:
     """Create SE(3) representation from rotation quaternion and translation.
 
     Args:
@@ -23,7 +26,7 @@ def from_rt(quat, translation, *, xp: ModuleType | None = None):
     return canonicalize_se3(se3, xp=xp)
 
 
-def to_rt(se3):
+def to_rt(se3: Float[Any, "... 7"]) -> tuple[Float[Any, "... 4"], Float[Any, "... 3"]]:
     """Extract rotation quaternion and translation from SE(3) representation.
 
     Args:

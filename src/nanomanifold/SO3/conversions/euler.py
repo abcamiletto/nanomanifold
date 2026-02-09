@@ -39,7 +39,7 @@ def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX", *, xp: Modul
     return canonicalize(q, xp=xp)
 
 
-def _axis_quaternion(cos_half, sin_half, axis, xp):
+def _axis_quaternion(cos_half: Float[Any, "..."], sin_half: Float[Any, "..."], axis: str, xp: ModuleType) -> Float[Any, "... 4"]:
     zero = xp.zeros_like(cos_half)
     if axis == "x":
         return xp.stack([cos_half, sin_half, zero, zero], axis=-1)
@@ -50,7 +50,7 @@ def _axis_quaternion(cos_half, sin_half, axis, xp):
     raise ValueError(f"Invalid axis: {axis}")
 
 
-def _euler_to_matrix(euler, convention, *, xp: ModuleType | None = None):
+def _euler_to_matrix(euler: Float[Any, "... 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     """Convert Euler angles to rotation matrix."""
     if xp is None:
         xp = get_namespace(euler)
@@ -74,7 +74,7 @@ def _euler_to_matrix(euler, convention, *, xp: ModuleType | None = None):
     return R
 
 
-def _rotation_matrix(angle, axis, *, xp: ModuleType | None = None):
+def _rotation_matrix(angle: Float[Any, "..."], axis: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     """Create rotation matrix for given angle and axis."""
     if xp is None:
         xp = get_namespace(angle)
@@ -105,7 +105,7 @@ def _rotation_matrix(angle, axis, *, xp: ModuleType | None = None):
     return mat
 
 
-def _matrix_to_euler(matrix, convention, *, xp: ModuleType | None = None):
+def _matrix_to_euler(matrix: Float[Any, "... 3 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
     """Convert rotation matrix to Euler angles."""
     if xp is None:
         xp = get_namespace(matrix)
@@ -124,7 +124,7 @@ def _matrix_to_euler(matrix, convention, *, xp: ModuleType | None = None):
     return eulers
 
 
-def _matrix_to_euler_angles(matrix, convention, *, xp: ModuleType | None = None):
+def _matrix_to_euler_angles(matrix: Float[Any, "... 3 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
     """Extract Euler angles from rotation matrix using systematic approach."""
     if xp is None:
         xp = get_namespace(matrix)
@@ -157,7 +157,7 @@ def _matrix_to_euler_angles(matrix, convention, *, xp: ModuleType | None = None)
     return xp.stack([first_angle, central_angle, third_angle], axis=-1)
 
 
-def _angle_from_tan(axis, other_axis, data, horizontal, tait_bryan, xp):
+def _angle_from_tan(axis: str, other_axis: str, data: Float[Any, "... 3"], horizontal: bool, tait_bryan: bool, xp: ModuleType) -> Float[Any, "..."]:
     """Compute angle from tangent using systematic indexing."""
     i1, i2 = {"X": (2, 1), "Y": (0, 2), "Z": (1, 0)}[axis]
     if horizontal:
@@ -170,7 +170,7 @@ def _angle_from_tan(axis, other_axis, data, horizontal, tait_bryan, xp):
     return xp.atan2(data[..., i2], -data[..., i1])
 
 
-def _index_from_letter(letter):
+def _index_from_letter(letter: str) -> int:
     """Convert axis letter to index."""
     if letter == "X":
         return 0

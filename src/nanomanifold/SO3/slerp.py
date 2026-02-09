@@ -3,12 +3,15 @@ from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 from .conversions.quaternion import canonicalize
 
 
-def slerp(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], t: Float[Any, "... N"], *, xp: ModuleType | None = None) -> Float[Any, "... N 4"]:
+def slerp(
+    q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], t: Float[Any, "... N"], *, xp: ModuleType | None = None
+) -> Float[Any, "... N 4"]:
     """Spherical linear interpolation between two quaternions representing SO(3).
 
     The routine performs geodesic interpolation on the SO(3) manifold, taking the
@@ -46,7 +49,7 @@ def slerp(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], t: Float[Any, "... N
 
     dot_product = xp.clip(dot_product, 0.0, 1.0)
 
-    threshold = 0.9995
+    threshold = common.slerp_linear_threshold(dot_product.dtype, xp)
 
     t_expanded = t[..., None]
 

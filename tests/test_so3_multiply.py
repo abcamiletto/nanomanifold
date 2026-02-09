@@ -1,6 +1,15 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, identity_quaternion, random_quaternion
+from conftest import (
+    ATOL,
+    TEST_BACKENDS,
+    TEST_BATCH_DIMS,
+    TEST_PASS_XP,
+    TEST_PRECISIONS,
+    get_xp_kwargs,
+    identity_quaternion,
+    random_quaternion,
+)
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3

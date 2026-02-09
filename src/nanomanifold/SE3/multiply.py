@@ -10,7 +10,9 @@ from nanomanifold.SO3 import rotate_points
 from .canonicalize import canonicalize
 
 
-def multiply(se3_1: Float[Any, "... 7"], se3_2: Float[Any, "... 7"], xyzw: bool = False, *, xp: ModuleType | None = None) -> Float[Any, "... 7"]:
+def multiply(
+    se3_1: Float[Any, "... 7"], se3_2: Float[Any, "... 7"], xyzw: bool = False, *, xp: ModuleType | None = None
+) -> Float[Any, "... 7"]:
     """Multiply two SE(3) transformations.
 
     The multiplication order matches transformation matrix multiplication:

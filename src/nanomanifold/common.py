@@ -1,3 +1,4 @@
+import math
 from types import ModuleType
 
 import array_api_compat
@@ -25,3 +26,24 @@ def get_namespace_by_name(name: str) -> ModuleType:
 
         ones = jnp.ones(1)
         return get_namespace(ones)
+
+    else:
+        raise ValueError(f"Unknown array namespace '{name}'. Supported: 'numpy', 'torch', 'jax'.")
+
+
+def safe_eps(dtype, xp, scale=10.0) -> float:
+    """Machine epsilon * scale. Used for division-by-zero guards."""
+    return float(xp.finfo(dtype).eps) * scale
+
+
+def small_angle_threshold(dtype, xp) -> float:
+    """Dtype-dependent threshold for small-angle approximations.
+    Uses sqrt(eps): ~0.031 for f16, ~3.5e-4 for f32, ~1.5e-8 for f64.
+    At theta ~ sqrt(eps), Taylor series error is O(eps)."""
+    return math.sqrt(float(xp.finfo(dtype).eps))
+
+
+def slerp_linear_threshold(dtype, xp) -> float:
+    """Dtype-dependent threshold for switching slerp to linear interpolation.
+    Uses 1 - sqrt(eps): ~0.969 for f16, ~0.9997 for f32, ~1-1.5e-8 for f64."""
+    return 1.0 - math.sqrt(float(xp.finfo(dtype).eps))

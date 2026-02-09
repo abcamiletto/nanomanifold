@@ -57,9 +57,10 @@ from nanomanifold import SE3
 T1 = SE3.from_rt(q1, [1, 2, 3])               # rotation + translation
 T2 = SE3.from_matrix(transformation_matrix)
 
-# Compose transforms
+# Compose and interpolate
 T_combined = SE3.multiply(T1, T2)
 T_inverse = SE3.inverse(T_combined)
+T_halfway = SE3.slerp(T1, T2, t=0.5)
 
 # Apply to points
 transformed = SE3.transform_points(T_combined, points)
@@ -99,15 +100,37 @@ Array API convention and accept arbitrarily batched inputs.
 
 ### SE3 (Rigid Transforms)
 
-| Function                        | Signature                         |
-| ------------------------------- | --------------------------------- |
-| `canonicalize(se3)`             | `(...,7) -> (...,7)`              |
-| `from_rt(quat, translation)`    | `(...,4), (...,3) -> (...,7)`     |
-| `to_rt(se3)`                    | `(...,7) -> (quat, translation)`  |
-| `from_matrix(T)`                | `(...,4,4) -> (...,7)`            |
-| `to_matrix(se3)`                | `(...,7) -> (...,4,4)`            |
-| `multiply(se3_1, se3_2)`        | `(...,7), (...,7) -> (...,7)`     |
-| `inverse(se3)`                  | `(...,7) -> (...,7)`              |
-| `transform_points(se3, points)` | `(...,7), (...,N,3) -> (...,N,3)` |
-| `log(se3)`                      | `(...,7) -> (...,6)`              |
-| `exp(tangent)`                  | `(...,6) -> (...,7)`              |
+| Function                              | Signature                                 |
+| ------------------------------------- | ----------------------------------------- |
+| `canonicalize(se3)`                   | `(...,7) -> (...,7)`                      |
+| `from_rt(quat, translation)`          | `(...,4), (...,3) -> (...,7)`             |
+| `to_rt(se3)`                          | `(...,7) -> (quat, translation)`          |
+| `from_matrix(T)`                      | `(...,4,4) -> (...,7)`                    |
+| `to_matrix(se3)`                      | `(...,7) -> (...,4,4)`                    |
+| `multiply(se3_1, se3_2)`              | `(...,7), (...,7) -> (...,7)`             |
+| `inverse(se3)`                        | `(...,7) -> (...,7)`                      |
+| `transform_points(se3, points)`       | `(...,7), (...,N,3) -> (...,N,3)`         |
+| `slerp(se3_1, se3_2, t)`             | `(...,7), (...,7), (...,N) -> (...,N,7)`  |
+| `log(se3)`                            | `(...,7) -> (...,6)`                      |
+| `exp(tangent)`                        | `(...,6) -> (...,7)`                      |
+| `hat(v)`                              | `(...,6) -> (...,4,4)`                    |
+| `vee(M)`                              | `(...,4,4) -> (...,6)`                    |
+| `weighted_mean(transforms, weights)`  | `sequence of (...,7), (...,N) -> (...,7)` |
+| `mean(transforms)`                    | `sequence of (...,7) -> (...,7)`          |
+
+## Backend-Explicit Mode
+
+By default, nanomanifold auto-detects the array backend via `array_api_compat`. Every function also
+accepts an optional `xp` keyword argument to specify the backend explicitly. This is required for
+`torch.compile(fullgraph=True)`, since Dynamo cannot trace the dynamic dispatch:
+
+```python
+import torch
+from nanomanifold import SO3, SE3
+
+@torch.compile(fullgraph=True)
+def forward(q1, q2, T1, T2):
+    q_mid = SO3.slerp(q1, q2, torch.tensor([0.5]), xp=torch)
+    T_mid = SE3.slerp(T1, T2, torch.tensor([0.5]), xp=torch)
+    return q_mid, T_mid
+```

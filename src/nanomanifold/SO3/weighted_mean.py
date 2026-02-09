@@ -3,12 +3,15 @@ from typing import Any, Sequence
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 from .conversions.quaternion import canonicalize
 
 
-def weighted_mean(quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any, "... N"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+def weighted_mean(
+    quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any, "... N"], *, xp: ModuleType | None = None
+) -> Float[Any, "... 4"]:
     """Compute the weighted mean of SO(3) rotations represented as quaternions.
 
     This function implements the Riemannian mean on SO(3) by computing the weighted
@@ -39,7 +42,7 @@ def weighted_mean(quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any
     weights_array = xp.asarray(weights, dtype=original_dtype)
 
     norms = xp.linalg.norm(quats, axis=-1, keepdims=True)
-    eps = xp.finfo(original_dtype).eps * 10
+    eps = common.safe_eps(original_dtype, xp)
     safe_norms = xp.where(norms < eps, eps, norms)
     quats_normalized = quats / safe_norms
 

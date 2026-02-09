@@ -9,7 +9,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from nanomanifold import SO3, SE3
+from nanomanifold import SE3, SO3  # noqa: E402
 
 
 def _random_quat(batch_size=2):
@@ -230,3 +230,65 @@ def test_compile_se3_transform_points():
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(_random_se3(), torch.randn(2, 5, 3))
+
+
+def test_compile_se3_log():
+    def f(se3):
+        return SE3.log(se3, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(_random_se3())
+
+
+def test_compile_se3_exp():
+    def f(v):
+        return SE3.exp(v, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(torch.randn(2, 6))
+
+
+def test_compile_se3_canonicalize():
+    def f(se3):
+        return SE3.canonicalize(se3, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(_random_se3())
+
+
+def test_compile_se3_from_matrix():
+    def f(M):
+        return SE3.from_matrix(M, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    M = torch.eye(4).unsqueeze(0).expand(2, -1, -1).clone()
+    M[:, :3, 3] = torch.randn(2, 3)
+    compiled(M)
+
+
+def test_compile_se3_slerp():
+    def f(a, b, t):
+        return SE3.slerp(a, b, t, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(_random_se3(), _random_se3(), torch.tensor(0.5))
+
+
+def test_compile_se3_hat():
+    def f(v):
+        return SE3.hat(v, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(torch.randn(2, 6))
+
+
+def test_compile_se3_vee():
+    def f(M):
+        return SE3.vee(M, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    M = torch.zeros(2, 4, 4)
+    M[:, 0, 1] = -1.0
+    M[:, 1, 0] = 1.0
+    M[:, :3, 3] = torch.randn(2, 3)
+    compiled(M)

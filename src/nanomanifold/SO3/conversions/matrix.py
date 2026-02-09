@@ -5,10 +5,10 @@ from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .quaternion import canonicalize
-from .quaternion import from_quat_xyzw
+from .quaternion import canonicalize, from_quat_xyzw
 
 
 def to_matrix(q: Float[Any, "... 4"], xyzw: bool = False, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
@@ -46,7 +46,7 @@ def from_matrix(R: Float[Any, "... 3 3"], *, xp: ModuleType | None = None) -> Fl
 
     zero = trace * 0
     one = zero + 1
-    eps = xp.finfo(R.dtype).eps * one * 10
+    eps = common.safe_eps(R.dtype, xp)
     quarter = one * 0.25
     two = one * 2
 

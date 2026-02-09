@@ -1,6 +1,16 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, identity_se3, random_points, random_se3
+from conftest import (
+    ATOL,
+    TEST_BACKENDS,
+    TEST_BATCH_DIMS,
+    TEST_PASS_XP,
+    TEST_PRECISIONS,
+    get_xp_kwargs,
+    identity_se3,
+    random_points,
+    random_se3,
+)
 
 from nanomanifold import SE3, SO3
 

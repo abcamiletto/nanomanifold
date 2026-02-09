@@ -3,6 +3,7 @@ from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 from nanomanifold.SO3 import exp as so3_exp
 from nanomanifold.SO3 import hat
@@ -39,9 +40,8 @@ def exp(tangent_vector: Float[Any, "... 6"], *, xp: ModuleType | None = None) ->
     q = so3_exp(omega, xp=xp)
     omega_norm = xp.linalg.norm(omega, axis=-1, keepdims=True)
 
-    eps = xp.finfo(omega.dtype).eps
-    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=omega.dtype)
-    small_angle_mask = omega_norm < small_angle_threshold
+    thresh = xp.asarray(common.small_angle_threshold(omega.dtype, xp), dtype=omega.dtype)
+    small_angle_mask = omega_norm < thresh
 
     omega_cross = hat(omega, xp=xp)
     omega_cross_sq = xp.matmul(omega_cross, omega_cross)

@@ -5,8 +5,7 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
-from .conversions.quaternion import canonicalize
-from .conversions.quaternion import from_quat_xyzw, to_quat_xyzw
+from .conversions.quaternion import canonicalize, from_quat_xyzw, to_quat_xyzw
 
 
 def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], xyzw: bool = False, *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:

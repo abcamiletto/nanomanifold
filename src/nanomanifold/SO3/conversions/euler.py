@@ -3,11 +3,12 @@ from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 from ..multiply import multiply
-from .quaternion import canonicalize
 from . import matrix
+from .quaternion import canonicalize
 
 
 def to_euler(q: Float[Any, "... 4"], convention: str = "ZYX", *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
@@ -146,7 +147,7 @@ def _matrix_to_euler_angles(matrix: Float[Any, "... 3 3"], convention: str, *, x
         x = matrix[..., i0, i2] * sign
 
         one = xp.ones_like(x)
-        eps = xp.finfo(x.dtype).eps * one
+        eps = common.safe_eps(x.dtype, xp, scale=1.0)
         central_angle = xp.arcsin(xp.clip(x, -one + eps, one - eps))
     else:
         central_angle = xp.arccos(xp.clip(matrix[..., i0, i0], -1, 1))
@@ -157,7 +158,9 @@ def _matrix_to_euler_angles(matrix: Float[Any, "... 3 3"], convention: str, *, x
     return xp.stack([first_angle, central_angle, third_angle], axis=-1)
 
 
-def _angle_from_tan(axis: str, other_axis: str, data: Float[Any, "... 3"], horizontal: bool, tait_bryan: bool, xp: ModuleType) -> Float[Any, "..."]:
+def _angle_from_tan(
+    axis: str, other_axis: str, data: Float[Any, "... 3"], horizontal: bool, tait_bryan: bool, xp: ModuleType
+) -> Float[Any, "..."]:
     """Compute angle from tangent using systematic indexing."""
     i1, i2 = {"X": (2, 1), "Y": (0, 2), "Z": (1, 0)}[axis]
     if horizontal:

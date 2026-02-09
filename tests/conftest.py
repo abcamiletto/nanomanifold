@@ -26,6 +26,7 @@ def get_xp_kwargs(backend, pass_xp):
         return {}
     return {"xp": get_namespace_by_name(backend)}
 
+
 np.random.seed(0)
 
 

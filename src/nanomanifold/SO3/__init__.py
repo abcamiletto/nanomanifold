@@ -1,8 +1,7 @@
-from .conversions.quaternion import canonicalize
 from .conversions.axis_angle import from_axis_angle, to_axis_angle
 from .conversions.euler import from_euler, to_euler
 from .conversions.matrix import from_matrix, to_matrix
-from .conversions.quaternion import from_quat_xyzw, to_quat_xyzw
+from .conversions.quaternion import canonicalize, from_quat_xyzw, to_quat_xyzw
 from .conversions.sixd import from_6d, to_6d
 from .distance import distance
 from .exp import exp

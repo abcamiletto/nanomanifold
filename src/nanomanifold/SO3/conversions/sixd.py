@@ -5,13 +5,14 @@ from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 from .matrix import from_matrix, to_matrix
 
 
 def _normalize(vec: Float[Any, "... 3"], xp) -> Float[Any, "... 3"]:
-    eps = float(xp.finfo(vec.dtype).eps) * 10.0
+    eps = common.safe_eps(vec.dtype, xp)
     norm = xp.linalg.norm(vec, axis=-1, keepdims=True)
     safe_norm = xp.where(norm < eps, xp.ones_like(norm), norm)
     return vec / safe_norm

@@ -1,16 +1,18 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, random_quaternion
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
 
 from nanomanifold import SO3
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_exact_pi_rotation_all_axes(backend, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_exact_pi_rotation_all_axes(backend, precision, pass_xp):
     """Test logarithm at exactly π rotation for all principal axes."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     # Exactly π rotations around principal axes
     # q = cos(θ/2) + sin(θ/2) * (xi + yj + zk)
@@ -29,7 +31,7 @@ def test_exact_pi_rotation_all_axes(backend, precision):
     ]
 
     for q, expected in zip(pi_rotations, expected_logs):
-        log_result = SO3.log(q)
+        log_result = SO3.log(q, **xp_kwargs)
         log_np = np.array(log_result)
 
         # The magnitude should be π
@@ -47,10 +49,12 @@ def test_exact_pi_rotation_all_axes(backend, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_exact_pi_rotation_arbitrary_axes(backend, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_exact_pi_rotation_arbitrary_axes(backend, precision, pass_xp):
     """Test logarithm at exactly π rotation for arbitrary axes."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     # π rotations around arbitrary normalized axes
     axes = [
@@ -70,7 +74,7 @@ def test_exact_pi_rotation_arbitrary_axes(backend, precision):
         q = xp.asarray([0.0, axis_np[0], axis_np[1], axis_np[2]])
 
         # Test log
-        log_result = SO3.log(q)
+        log_result = SO3.log(q, **xp_kwargs)
         log_np = np.array(log_result)
 
         # Magnitude should be π
@@ -78,7 +82,7 @@ def test_exact_pi_rotation_arbitrary_axes(backend, precision):
         assert np.allclose(magnitude, np.pi, atol=ATOL[precision])
 
         # Test that exp(log(q)) = q (up to sign)
-        exp_result = SO3.exp(log_result)
+        exp_result = SO3.exp(log_result, **xp_kwargs)
         exp_np = np.array(exp_result)
 
         q_np = np.array(q)
@@ -88,10 +92,12 @@ def test_exact_pi_rotation_arbitrary_axes(backend, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_near_pi_rotation_stability(backend, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_near_pi_rotation_stability(backend, precision, pass_xp):
     """Test numerical stability as rotation approaches π from different directions."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     # Test angles approaching π
     epsilons = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
@@ -103,13 +109,13 @@ def test_near_pi_rotation_stability(backend, precision):
         for angle in angles:
             # Rotation around z-axis using from_axis_angle
             axis_angle = xp.asarray([0.0, 0.0, angle])
-            q = SO3.from_axis_angle(axis_angle)
+            q = SO3.from_axis_angle(axis_angle, **xp_kwargs)
 
             # Test log
-            log_result = SO3.log(q)
+            log_result = SO3.log(q, **xp_kwargs)
 
             # Test exp(log(q)) = q
-            exp_result = SO3.exp(log_result)
+            exp_result = SO3.exp(log_result, **xp_kwargs)
             exp_np = np.array(exp_result)
 
             q_np = np.array(q)
@@ -123,8 +129,10 @@ def test_near_pi_rotation_stability(backend, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_quaternion_double_cover_mean(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_quaternion_double_cover_mean(backend, batch_dims, precision, pass_xp):
     """Test mean computation with quaternion double cover (q and -q)."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random quaternions
     q1 = random_quaternion(batch_dims, backend, precision)
     q2 = random_quaternion(batch_dims, backend, precision)
@@ -144,7 +152,7 @@ def test_quaternion_double_cover_mean(backend, batch_dims, precision):
 
     results = []
     for quats in sign_combinations:
-        mean_result = SO3.mean(quats)
+        mean_result = SO3.mean(quats, **xp_kwargs)
         results.append(np.array(mean_result))
 
     # All means should represent the same rotation (up to sign)
@@ -156,10 +164,12 @@ def test_quaternion_double_cover_mean(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_slerp_exact_antipodal(backend, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_slerp_exact_antipodal(backend, precision, pass_xp):
     """Test SLERP with exactly antipodal quaternions."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     # Test multiple antipodal pairs
     pairs = [
@@ -171,7 +181,7 @@ def test_slerp_exact_antipodal(backend, precision):
     t_values = xp.asarray([0.0, 0.25, 0.5, 0.75, 1.0])
 
     for q1, q2 in pairs:
-        result = SO3.slerp(q1, q2, t_values)
+        result = SO3.slerp(q1, q2, t_values, **xp_kwargs)
         result_np = np.array(result)
 
         # All results should be unit quaternions
@@ -185,10 +195,12 @@ def test_slerp_exact_antipodal(backend, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_exp_at_branch_cut(backend, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_log_exp_at_branch_cut(backend, precision, pass_xp):
     """Test log/exp behavior at the branch cut (rotations by exactly π)."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     # Create rotations at different positions on the branch cut
     # These are π rotations around axes in the xy-plane
@@ -201,7 +213,7 @@ def test_log_exp_at_branch_cut(backend, precision):
         q = xp.asarray([0.0, axis[0], axis[1], axis[2]])
 
         # Log should give magnitude π
-        log_result = SO3.log(q)
+        log_result = SO3.log(q, **xp_kwargs)
         log_np = np.array(log_result)
         magnitude = np.linalg.norm(log_np)
         assert np.allclose(magnitude, np.pi, atol=ATOL[precision])
@@ -209,7 +221,7 @@ def test_log_exp_at_branch_cut(backend, precision):
         # Multiple applications of log/exp should be stable
         current = q
         for _ in range(5):
-            current = SO3.exp(SO3.log(current))
+            current = SO3.exp(SO3.log(current, **xp_kwargs), **xp_kwargs)
 
         current_np = np.array(current)
         q_np = np.array(q)
@@ -218,10 +230,12 @@ def test_log_exp_at_branch_cut(backend, precision):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
-def test_gimbal_lock_euler_conversions(backend):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_gimbal_lock_euler_conversions(backend, pass_xp):
     """Test Euler angle conversions at gimbal lock configurations."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     # Gimbal lock occurs when the middle rotation is ±90°
     # For ZYX convention, this is when pitch = ±π/2
@@ -230,17 +244,17 @@ def test_gimbal_lock_euler_conversions(backend):
     gimbal_quaternions = []
 
     # Pitch = π/2 (looking straight up)
-    q_up = SO3.from_euler(xp.asarray([[0.0, np.pi / 2, 0.0]]), convention="ZYX")
+    q_up = SO3.from_euler(xp.asarray([[0.0, np.pi / 2, 0.0]]), convention="ZYX", **xp_kwargs)
     gimbal_quaternions.append(q_up)
 
     # Pitch = -π/2 (looking straight down)
-    q_down = SO3.from_euler(xp.asarray([[0.0, -np.pi / 2, 0.0]]), convention="ZYX")
+    q_down = SO3.from_euler(xp.asarray([[0.0, -np.pi / 2, 0.0]]), convention="ZYX", **xp_kwargs)
     gimbal_quaternions.append(q_down)
 
     for q in gimbal_quaternions:
         # Convert to Euler angles and back
-        euler = SO3.to_euler(q, convention="ZYX")
-        q_reconstructed = SO3.from_euler(euler, convention="ZYX")
+        euler = SO3.to_euler(q, convention="ZYX", **xp_kwargs)
+        q_reconstructed = SO3.from_euler(euler, convention="ZYX", **xp_kwargs)
 
         # Check that we get the same rotation (up to sign)
         q_np = np.array(q).reshape(-1, 4)
@@ -253,10 +267,12 @@ def test_gimbal_lock_euler_conversions(backend):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_zero_rotation_stability(backend, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_zero_rotation_stability(backend, precision, pass_xp):
     """Test stability near zero rotation (identity)."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     # Very small rotation angles
     small_angles = [1e-8, 1e-10, 1e-12, 1e-14, 1e-15]
@@ -270,7 +286,7 @@ def test_zero_rotation_stability(backend, precision):
         tangent = xp.asarray(angle * axis)
 
         # Test exp
-        q = SO3.exp(tangent)
+        q = SO3.exp(tangent, **xp_kwargs)
         q_np = np.array(q)
 
         # Should be very close to identity
@@ -278,7 +294,7 @@ def test_zero_rotation_stability(backend, precision):
         assert np.allclose(q_np, identity, atol=angle * 2)
 
         # Test log(exp(v)) = v
-        log_result = SO3.log(q)
+        log_result = SO3.log(q, **xp_kwargs)
         log_np = np.array(log_result)
         tangent_np = np.array(tangent)
 
@@ -289,11 +305,13 @@ def test_zero_rotation_stability(backend, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_matches_canonicalized_quaternion_near_two_pi(backend, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_log_matches_canonicalized_quaternion_near_two_pi(backend, precision, pass_xp):
     """Log should match canonical quaternion representation near 2π rotations."""
 
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     np_dtype = getattr(np, f"float{precision}")
 
@@ -323,10 +341,10 @@ def test_log_matches_canonicalized_quaternion_near_two_pi(backend, precision):
 
             q = xp.asarray(q_np)
 
-            log_direct = np.array(SO3.log(q))
+            log_direct = np.array(SO3.log(q, **xp_kwargs))
 
-            canonical_q = SO3.canonicalize(q)
-            log_canonical = np.array(SO3.log(canonical_q))
+            canonical_q = SO3.canonicalize(q, **xp_kwargs)
+            log_canonical = np.array(SO3.log(canonical_q, **xp_kwargs))
 
             assert np.allclose(
                 log_direct,
@@ -337,11 +355,13 @@ def test_log_matches_canonicalized_quaternion_near_two_pi(backend, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_direction_near_two_pi_rotation(backend, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_log_direction_near_two_pi_rotation(backend, precision, pass_xp):
     """Log should pick the minimal axis-angle direction for rotations near 2π."""
 
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     np_dtype = getattr(np, f"float{precision}")
 
@@ -370,7 +390,7 @@ def test_log_direction_near_two_pi_rotation(backend, precision):
 
             q = xp.asarray(q_np)
 
-            log_result = np.array(SO3.log(q))
+            log_result = np.array(SO3.log(q, **xp_kwargs))
 
             expected = -delta * axis_np
             tol = max(ATOL[precision] * 10, delta * 1e-3)

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, identity_se3, random_se3
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, identity_se3, random_se3
 
 from nanomanifold import SE3
 
@@ -8,10 +8,12 @@ from nanomanifold import SE3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_identity(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_log_identity(backend, batch_dims, precision, pass_xp):
     """Test that log of identity SE3 transformation gives zero tangent vector."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     identity = identity_se3(batch_dims=batch_dims, backend=backend, precision=precision)
-    log_result = SE3.log(identity)
+    log_result = SE3.log(identity, **xp_kwargs)
 
     assert log_result.shape == batch_dims + (6,)
 
@@ -22,10 +24,12 @@ def test_log_identity(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_exp_zero(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_exp_zero(backend, batch_dims, precision, pass_xp):
     """Test that exp of zero tangent vector gives identity SE3 transformation."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     if precision == 16:
         dtype = xp.float16
@@ -35,7 +39,7 @@ def test_exp_zero(backend, batch_dims, precision):
         dtype = xp.float64
 
     zero_tangent = xp.zeros(batch_dims + (6,), dtype=dtype)
-    exp_result = SE3.exp(zero_tangent)
+    exp_result = SE3.exp(zero_tangent, **xp_kwargs)
 
     identity = identity_se3(batch_dims=batch_dims, backend=backend, precision=precision)
 
@@ -58,12 +62,14 @@ def test_exp_zero(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_exp_inverse(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_log_exp_inverse(backend, batch_dims, precision, pass_xp):
     """Test that exp(log(se3)) = se3 for random SE3 transformations."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
 
-    log_se3 = SE3.log(se3)
-    exp_log_se3 = SE3.exp(log_se3)
+    log_se3 = SE3.log(se3, **xp_kwargs)
+    exp_log_se3 = SE3.exp(log_se3, **xp_kwargs)
 
     assert exp_log_se3.shape == se3.shape
 
@@ -84,17 +90,19 @@ def test_log_exp_inverse(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_exp_log_inverse(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_exp_log_inverse(backend, batch_dims, precision, pass_xp):
     """Test that log(exp(tangent)) = tangent for small tangent vectors."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     shape = batch_dims + (6,)
     tangent_vec_np = 0.5 * np.random.normal(0, 1, size=shape).astype(f"float{precision}")
     tangent_vec = xp.asarray(tangent_vec_np)
 
-    exp_vec = SE3.exp(tangent_vec)
-    log_exp_vec = SE3.log(exp_vec)
+    exp_vec = SE3.exp(tangent_vec, **xp_kwargs)
+    log_exp_vec = SE3.log(exp_vec, **xp_kwargs)
 
     assert log_exp_vec.shape == tangent_vec.shape
 

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, random_quaternion
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3
@@ -9,19 +9,21 @@ from nanomanifold import SO3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_matrix_conversion_cycle(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_matrix_conversion_cycle(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create a random SO3 quaternion
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Convert to matrix representation
-    matrix = SO3.to_matrix(quat)
+    matrix = SO3.to_matrix(quat, **xp_kwargs)
 
     assert matrix.dtype == quat.dtype
     assert matrix.shape[:-2] == quat.shape[:-1]
     assert matrix.shape[-2:] == (3, 3)
 
     # Convert back to quaternion
-    quat_converted = SO3.from_matrix(matrix)
+    quat_converted = SO3.from_matrix(matrix, **xp_kwargs)
 
     assert quat_converted.dtype == quat.dtype
     assert quat_converted.shape == quat.shape
@@ -37,12 +39,14 @@ def test_matrix_conversion_cycle(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_matrix_conversion_scipy(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_matrix_conversion_scipy(backend, batch_dims, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create a random SO3 quaternion
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
     # Convert to matrix representation using nanomanifold
-    matrix = SO3.to_matrix(quat)
+    matrix = SO3.to_matrix(quat, **xp_kwargs)
 
     # Convert to matrix representation using scipy
     quat_np = np.array(quat)

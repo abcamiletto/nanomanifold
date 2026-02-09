@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, random_quaternion
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3
@@ -9,12 +9,14 @@ from nanomanifold import SO3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_inverse_identity(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_inverse_identity(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create a random SO3 quaternion
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Compute inverse
-    quat_inv = SO3.inverse(quat)
+    quat_inv = SO3.inverse(quat, **xp_kwargs)
 
     assert quat_inv.dtype == quat.dtype
     assert quat_inv.shape == quat.shape
@@ -22,8 +24,8 @@ def test_inverse_identity(backend, batch_dims, precision):
     # Test that q * q_inv = identity quaternion [1, 0, 0, 0]
     # For quaternions, multiplication is not commutative, but for rotations q * q^-1 = identity
     # We can verify by converting to matrices and checking R * R_inv = I
-    R_orig = SO3.to_matrix(quat)
-    R_inv = SO3.to_matrix(quat_inv)
+    R_orig = SO3.to_matrix(quat, **xp_kwargs)
+    R_inv = SO3.to_matrix(quat_inv, **xp_kwargs)
 
     # Compute product R * R_inv (should be identity)
     identity = np.matmul(np.array(R_orig), np.array(R_inv))
@@ -39,12 +41,14 @@ def test_inverse_identity(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_inverse_scipy(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_inverse_scipy(backend, batch_dims, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create a random SO3 quaternion
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
     # Compute inverse using nanomanifold
-    quat_inv = SO3.inverse(quat)
+    quat_inv = SO3.inverse(quat, **xp_kwargs)
 
     # Compute inverse using scipy
     quat_np = np.array(quat)

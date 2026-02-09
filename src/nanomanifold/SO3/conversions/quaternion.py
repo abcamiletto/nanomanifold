@@ -13,7 +13,7 @@ def _from_quat_xyzw(quat_xyzw: Float[Any, "... 4"], *, xp: ModuleType | None = N
         xp = get_namespace(quat_xyzw)
     w = quat_xyzw[..., 3:4]
     xyz = quat_xyzw[..., 0:3]
-    return xp.concat([w, xyz], axis=-1)
+    return xp.concatenate([w, xyz], axis=-1)
 
 
 def _to_quat_xyzw(quat_wxyz: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
@@ -21,7 +21,7 @@ def _to_quat_xyzw(quat_wxyz: Float[Any, "... 4"], *, xp: ModuleType | None = Non
         xp = get_namespace(quat_wxyz)
     w = quat_wxyz[..., 0:1]
     xyz = quat_wxyz[..., 1:4]
-    return xp.concat([xyz, w], axis=-1)
+    return xp.concatenate([xyz, w], axis=-1)
 
 
 def canonicalize(q: Float[Any, "... 4"], xyzw: bool = False, *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs
 
 from nanomanifold import SO3
 
@@ -29,15 +29,17 @@ def get_dtype(backend, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_hat_skew_symmetric(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_hat_skew_symmetric(backend, batch_dims, precision, pass_xp):
     """Test that hat produces skew-symmetric matrices."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     dtype = get_dtype(backend, precision)
 
     # Create random tangent vectors
     w = 0.1 * xp.asarray(np.random.randn(*batch_dims, 3), dtype=dtype)
-    W = SO3.hat(w)
+    W = SO3.hat(w, **xp_kwargs)
 
     assert W.shape == batch_dims + (3, 3)
     assert W.dtype == w.dtype
@@ -58,14 +60,16 @@ def test_hat_skew_symmetric(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_hat_zero_vector(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_hat_zero_vector(backend, batch_dims, precision, pass_xp):
     """Test hat operator on zero vector gives zero matrix."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     dtype = get_dtype(backend, precision)
 
     w = xp.zeros(batch_dims + (3,), dtype=dtype)
-    W = SO3.hat(w)
+    W = SO3.hat(w, **xp_kwargs)
 
     assert W.shape == batch_dims + (3, 3)
     assert W.dtype == w.dtype
@@ -77,15 +81,17 @@ def test_hat_zero_vector(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_vee_hat_inverse(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_vee_hat_inverse(backend, batch_dims, precision, pass_xp):
     """Test that vee(hat(w)) = w."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     dtype = get_dtype(backend, precision)
 
     # Create random tangent vectors
     w = 0.1 * xp.asarray(np.random.randn(*batch_dims, 3), dtype=dtype)
-    w_recovered = SO3.vee(SO3.hat(w))
+    w_recovered = SO3.vee(SO3.hat(w, **xp_kwargs), **xp_kwargs)
 
     assert w_recovered.shape == batch_dims + (3,)
     assert w_recovered.dtype == w.dtype
@@ -98,16 +104,18 @@ def test_vee_hat_inverse(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_hat_vee_inverse_skew_symmetric(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_hat_vee_inverse_skew_symmetric(backend, batch_dims, precision, pass_xp):
     """Test that hat(vee(W)) = W for skew-symmetric W."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     dtype = get_dtype(backend, precision)
 
     # Create random tangent vector, then convert to skew-symmetric matrix
     w = 0.1 * xp.asarray(np.random.randn(*batch_dims, 3), dtype=dtype)
-    W = SO3.hat(w)
-    W_recovered = SO3.hat(SO3.vee(W))
+    W = SO3.hat(w, **xp_kwargs)
+    W_recovered = SO3.hat(SO3.vee(W, **xp_kwargs), **xp_kwargs)
 
     assert W_recovered.shape == batch_dims + (3, 3)
     assert W_recovered.dtype == W.dtype
@@ -120,14 +128,16 @@ def test_hat_vee_inverse_skew_symmetric(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_vee_zero_matrix(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_vee_zero_matrix(backend, batch_dims, precision, pass_xp):
     """Test vee operator on zero matrix gives zero vector."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     dtype = get_dtype(backend, precision)
 
     W = xp.zeros(batch_dims + (3, 3), dtype=dtype)
-    w = SO3.vee(W)
+    w = SO3.vee(W, **xp_kwargs)
 
     assert w.shape == batch_dims + (3,)
     assert w.dtype == W.dtype
@@ -139,10 +149,12 @@ def test_vee_zero_matrix(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_hat_vee_numerical_precision(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_hat_vee_numerical_precision(backend, batch_dims, precision, pass_xp):
     """Test numerical precision of hat/vee operations."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     dtype = get_dtype(backend, precision)
 
     if precision == 16:
@@ -164,7 +176,7 @@ def test_hat_vee_numerical_precision(backend, batch_dims, precision):
         w_base = xp.stack([pi, e, sqrt2])
         w = xp.broadcast_to(w_base, batch_dims + (3,))
 
-    w_recovered = SO3.vee(SO3.hat(w))
+    w_recovered = SO3.vee(SO3.hat(w, **xp_kwargs), **xp_kwargs)
 
     assert w_recovered.dtype == w.dtype
 
@@ -197,13 +209,15 @@ def test_vee_specific_values():
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
-def test_hat_vee_large_values(backend):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_hat_vee_large_values(backend, pass_xp):
     """Test hat and vee with large values."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     w = xp.asarray([1e6, -1e6, 1e6], dtype=xp.float32)
-    W = SO3.hat(w)
+    W = SO3.hat(w, **xp_kwargs)
 
     assert W.dtype == w.dtype
 
@@ -214,13 +228,15 @@ def test_hat_vee_large_values(backend):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
-def test_hat_vee_small_values(backend):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_hat_vee_small_values(backend, pass_xp):
     """Test hat and vee with very small values."""
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     w = xp.asarray([1e-10, -1e-10, 1e-10], dtype=xp.float32)
-    W = SO3.hat(w)
+    W = SO3.hat(w, **xp_kwargs)
 
     assert W.dtype == w.dtype
 

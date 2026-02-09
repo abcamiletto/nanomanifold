@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, random_se3
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_se3
 
 from nanomanifold import SE3
 
@@ -8,16 +8,18 @@ from nanomanifold import SE3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_matrix_conversion_cycle(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_matrix_conversion_cycle(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
 
-    matrix = SE3.to_matrix(se3)
+    matrix = SE3.to_matrix(se3, **xp_kwargs)
 
     assert matrix.dtype == se3.dtype
     assert matrix.shape[:-2] == se3.shape[:-1]
     assert matrix.shape[-2:] == (4, 4)
 
-    se3_converted = SE3.from_matrix(matrix)
+    se3_converted = SE3.from_matrix(matrix, **xp_kwargs)
 
     assert se3_converted.dtype == se3.dtype
     assert se3_converted.shape == se3.shape
@@ -38,10 +40,12 @@ def test_matrix_conversion_cycle(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_matrix_properties(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_matrix_properties(backend, batch_dims, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=32)
 
-    matrix = SE3.to_matrix(se3)
+    matrix = SE3.to_matrix(se3, **xp_kwargs)
     matrix_np = np.array(matrix)
 
     expected_bottom_row = np.zeros(matrix_np.shape[:-2] + (4,))

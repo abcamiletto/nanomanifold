@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, identity_se3, random_points, random_se3
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, identity_se3, random_points, random_se3
 
 from nanomanifold import SE3
 
@@ -8,10 +8,12 @@ from nanomanifold import SE3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_inverse_identity(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_inverse_identity(backend, batch_dims, precision, pass_xp):
     """Test that inverse of identity is identity."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     identity = identity_se3(batch_dims=batch_dims, backend=backend, precision=precision)
-    identity_inv = SE3.inverse(identity)
+    identity_inv = SE3.inverse(identity, **xp_kwargs)
 
     assert identity_inv.dtype == identity.dtype
     assert identity_inv.shape == identity.shape
@@ -35,11 +37,13 @@ def test_inverse_identity(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_inverse_involution(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_inverse_involution(backend, batch_dims, precision, pass_xp):
     """Test that inverse of inverse is the original transformation."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
-    se3_inv = SE3.inverse(se3)
-    se3_inv_inv = SE3.inverse(se3_inv)
+    se3_inv = SE3.inverse(se3, **xp_kwargs)
+    se3_inv_inv = SE3.inverse(se3_inv, **xp_kwargs)
 
     assert se3_inv_inv.dtype == se3.dtype
     assert se3_inv_inv.shape == se3.shape
@@ -63,15 +67,17 @@ def test_inverse_involution(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_inverse_multiply_identity(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_inverse_multiply_identity(backend, batch_dims, precision, pass_xp):
     """Test that SE3 * SE3^(-1) = Identity."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
-    se3_inv = SE3.inverse(se3)
+    se3_inv = SE3.inverse(se3, **xp_kwargs)
 
     # Test se3 * se3_inv = identity
-    result1 = SE3.multiply(se3, se3_inv)
+    result1 = SE3.multiply(se3, se3_inv, **xp_kwargs)
     # Test se3_inv * se3 = identity
-    result2 = SE3.multiply(se3_inv, se3)
+    result2 = SE3.multiply(se3_inv, se3, **xp_kwargs)
 
     assert result1.dtype == se3.dtype
     assert result1.shape == se3.shape
@@ -104,14 +110,16 @@ def test_inverse_multiply_identity(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_inverse_matrix_equivalence(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_inverse_matrix_equivalence(backend, batch_dims, precision, pass_xp):
     """Test that SE3 inverse matches matrix inverse."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
-    se3_inv = SE3.inverse(se3)
+    se3_inv = SE3.inverse(se3, **xp_kwargs)
 
     # Convert to matrices
-    matrix = SE3.to_matrix(se3)
-    SE3.to_matrix(se3_inv)
+    matrix = SE3.to_matrix(se3, **xp_kwargs)
+    SE3.to_matrix(se3_inv, **xp_kwargs)
 
     # Compute matrix inverse using numpy (with float16 workaround)
     matrix_np = np.array(matrix)
@@ -147,13 +155,15 @@ def test_inverse_matrix_equivalence(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_inverse_scipy(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_inverse_scipy(backend, batch_dims, pass_xp):
     """Test inverse against scipy spatial transform."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     pytest.importorskip("scipy.spatial")
     from scipy.spatial.transform import Rotation as R
 
     se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=32)
-    se3_inv = SE3.inverse(se3)
+    se3_inv = SE3.inverse(se3, **xp_kwargs)
 
     # Convert to numpy for scipy
     se3_np = np.array(se3)

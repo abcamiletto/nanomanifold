@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, identity_quaternion, random_quaternion
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, identity_quaternion, random_quaternion
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3
@@ -9,15 +9,17 @@ from nanomanifold import SO3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_multiply_identity(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_multiply_identity(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random quaternion and identity
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     identity = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Test identity * quat = quat
-    result1 = SO3.multiply(identity, quat)
+    result1 = SO3.multiply(identity, quat, **xp_kwargs)
     # Test quat * identity = quat
-    result2 = SO3.multiply(quat, identity)
+    result2 = SO3.multiply(quat, identity, **xp_kwargs)
 
     assert result1.dtype == quat.dtype
     assert result1.shape == quat.shape
@@ -39,15 +41,17 @@ def test_multiply_identity(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_multiply_inverse(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_multiply_inverse(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random quaternion
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    quat_inv = SO3.inverse(quat)
+    quat_inv = SO3.inverse(quat, **xp_kwargs)
 
     # Test quat * quat_inv = identity
-    result1 = SO3.multiply(quat, quat_inv)
+    result1 = SO3.multiply(quat, quat_inv, **xp_kwargs)
     # Test quat_inv * quat = identity
-    result2 = SO3.multiply(quat_inv, quat)
+    result2 = SO3.multiply(quat_inv, quat, **xp_kwargs)
 
     assert result1.dtype == quat.dtype
     assert result1.shape == quat.shape
@@ -70,17 +74,19 @@ def test_multiply_inverse(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_multiply_matrix_equivalence(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_multiply_matrix_equivalence(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create two random quaternions
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Multiply quaternions
-    q_result = SO3.multiply(q1, q2)
+    q_result = SO3.multiply(q1, q2, **xp_kwargs)
 
     # Convert to matrices and multiply
-    R1 = SO3.to_matrix(q1)
-    R2 = SO3.to_matrix(q2)
+    R1 = SO3.to_matrix(q1, **xp_kwargs)
+    R2 = SO3.to_matrix(q2, **xp_kwargs)
     R_result = np.matmul(np.array(R1), np.array(R2))
 
     # Convert result matrix back to quaternion
@@ -100,13 +106,15 @@ def test_multiply_matrix_equivalence(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_multiply_scipy(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_multiply_scipy(backend, batch_dims, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create two random quaternions
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
     # Multiply using nanomanifold
-    q_result = SO3.multiply(q1, q2)
+    q_result = SO3.multiply(q1, q2, **xp_kwargs)
 
     # Convert to numpy for scipy
     q1_np = np.array(q1)

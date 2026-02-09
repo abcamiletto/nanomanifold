@@ -32,7 +32,7 @@ def to_6d(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any,
     if xp is None:
         xp = get_namespace(q)
     R = to_matrix(q, xp=xp)
-    return xp.concat([R[..., :, 0], R[..., :, 1]], axis=-1)
+    return xp.concatenate([R[..., :, 0], R[..., :, 1]], axis=-1)
 
 
 def from_6d(d6: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:

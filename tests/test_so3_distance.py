@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, identity_quaternion, random_quaternion
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, identity_quaternion, random_quaternion
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3
@@ -9,10 +9,12 @@ from nanomanifold import SO3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_distance_identity(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_distance_identity(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Distance from any quaternion to itself should be 0
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    distance = SO3.distance(quat, quat)
+    distance = SO3.distance(quat, quat, **xp_kwargs)
 
     assert distance.dtype == quat.dtype
     assert distance.shape == batch_dims
@@ -26,12 +28,14 @@ def test_distance_identity(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_distance_identity_quaternion(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_distance_identity_quaternion(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Distance between any quaternion and identity should equal distance to canonical identity
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     identity = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
-    distance = SO3.distance(quat, identity)
+    distance = SO3.distance(quat, identity, **xp_kwargs)
 
     assert distance.dtype == quat.dtype
     assert distance.shape == batch_dims
@@ -47,13 +51,15 @@ def test_distance_identity_quaternion(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_distance_symmetry(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_distance_symmetry(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Distance should be symmetric: d(q1, q2) = d(q2, q1)
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
-    dist1 = SO3.distance(q1, q2)
-    dist2 = SO3.distance(q2, q1)
+    dist1 = SO3.distance(q1, q2, **xp_kwargs)
+    dist2 = SO3.distance(q2, q1, **xp_kwargs)
 
     assert dist1.dtype == q1.dtype
     assert dist1.shape == batch_dims
@@ -68,12 +74,14 @@ def test_distance_symmetry(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_distance_quaternion_double_cover(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_distance_quaternion_double_cover(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Distance between q and -q should be 0 (same rotation)
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     quat_neg = -quat
 
-    distance = SO3.distance(quat, quat_neg)
+    distance = SO3.distance(quat, quat_neg, **xp_kwargs)
 
     assert distance.dtype == quat.dtype
     assert distance.shape == batch_dims
@@ -85,13 +93,15 @@ def test_distance_quaternion_double_cover(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_distance_scipy(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_distance_scipy(backend, batch_dims, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Compare with scipy's angle calculation
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
     # Compute distance using nanomanifold
-    distance = SO3.distance(q1, q2)
+    distance = SO3.distance(q1, q2, **xp_kwargs)
 
     # Convert to numpy for scipy
     q1_np = np.array(q1)

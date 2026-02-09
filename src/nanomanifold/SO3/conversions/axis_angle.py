@@ -61,7 +61,7 @@ def from_axis_angle(axis_angle: Float[Any, "... 3"], *, xp: ModuleType | None = 
 
     xyz = xp.where(small_angle_mask[..., None], xyz_small, xyz_normal)
 
-    q = xp.concat([w, xyz], axis=-1)
+    q = xp.concatenate([w, xyz], axis=-1)
 
     mask = q[..., 0:1] < 0
     q = xp.where(mask, -q, q)

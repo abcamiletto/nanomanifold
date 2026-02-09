@@ -27,7 +27,7 @@ def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX", *, xp: Modul
 
     ones = xp.ones_like(euler[..., :1])
     zeros = xp.zeros_like(euler)
-    q = xp.concat([ones, zeros], axis=-1)
+    q = xp.concatenate([ones, zeros], axis=-1)
 
     is_extrinsic = convention.islower()
     conv = convention.lower()

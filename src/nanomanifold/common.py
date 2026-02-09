@@ -1,11 +1,13 @@
+from types import ModuleType
+
 import array_api_compat
 
 
-def get_namespace(array):
+def get_namespace(array) -> ModuleType:
     return array_api_compat.get_namespace(array)
 
 
-def get_namespace_by_name(name: str):
+def get_namespace_by_name(name: str) -> ModuleType:
     if name == "numpy":
         import numpy as np
 

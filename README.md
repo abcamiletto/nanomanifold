@@ -97,6 +97,7 @@ Array API convention and accept arbitrarily batched inputs.
 | `vee(W)`                              | `(...,3,3) -> (...,3)`                    |
 | `weighted_mean(quats, weights)`       | `sequence of (...,4), (...,N) -> (...,4)` |
 | `mean(quats)`                         | `sequence of (...,4) -> (...,4)`          |
+| `random(*shape)`                      | `(...,4)`                                 |
 
 ### SE3 (Rigid Transforms)
 
@@ -117,6 +118,7 @@ Array API convention and accept arbitrarily batched inputs.
 | `vee(M)`                              | `(...,4,4) -> (...,6)`                    |
 | `weighted_mean(transforms, weights)`  | `sequence of (...,7), (...,N) -> (...,7)` |
 | `mean(transforms)`                    | `sequence of (...,7) -> (...,7)`          |
+| `random(*shape)`                      | `(...,7)`                                 |
 
 ## Backend-Explicit Mode
 

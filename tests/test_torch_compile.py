@@ -282,6 +282,22 @@ def test_compile_se3_hat():
     compiled(torch.randn(2, 6))
 
 
+def test_compile_so3_random():
+    def f():
+        return SO3.random(2, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled()
+
+
+def test_compile_se3_random():
+    def f():
+        return SE3.random(2, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled()
+
+
 def test_compile_se3_vee():
     def f(M):
         return SE3.vee(M, xp=torch)

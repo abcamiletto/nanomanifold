@@ -9,6 +9,7 @@ from .hat import hat
 from .inverse import inverse
 from .log import log
 from .multiply import multiply
+from .random import random
 from .rotate_points import rotate_points
 from .slerp import slerp
 from .vee import vee
@@ -37,4 +38,5 @@ __all__ = [
     "slerp",
     "weighted_mean",
     "mean",
+    "random",
 ]

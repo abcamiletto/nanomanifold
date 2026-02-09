@@ -6,6 +6,7 @@ from .hat import hat
 from .inverse import inverse
 from .log import log
 from .multiply import multiply
+from .random import random
 from .slerp import slerp
 from .transform_points import transform_points
 from .vee import vee
@@ -27,4 +28,5 @@ __all__ = [
     "slerp",
     "weighted_mean",
     "mean",
+    "random",
 ]

@@ -47,3 +47,41 @@ def slerp_linear_threshold(dtype, xp) -> float:
     """Dtype-dependent threshold for switching slerp to linear interpolation.
     Uses 1 - sqrt(eps): ~0.969 for f16, ~0.9997 for f32, ~1-1.5e-8 for f64."""
     return 1.0 - math.sqrt(float(xp.finfo(dtype).eps))
+
+
+def random_uniform(shape: tuple[int, ...], *, dtype=None, key=None, xp: ModuleType | None = None):
+    """Return U[0,1) samples of the given shape.
+
+    Backend dispatch:
+      - JAX: uses jax.random.uniform (key is required)
+      - PyTorch: uses torch.rand
+      - NumPy (default): uses numpy.random.uniform
+    """
+    if xp is None:
+        import numpy as np
+
+        arr = np.random.uniform(0, 1, shape)
+        if dtype is not None:
+            arr = arr.astype(dtype)
+        return arr
+
+    name = xp.__name__
+    if "jax" in name:
+        import jax.random
+
+        if key is None:
+            raise ValueError("A PRNG key is required for JAX: pass key=jax.random.PRNGKey(...)")
+        kwargs = {"dtype": dtype} if dtype is not None else {}
+        return jax.random.uniform(key, shape, **kwargs)
+    elif "torch" in name:
+        import torch
+
+        kwargs = {"dtype": dtype} if dtype is not None else {}
+        return torch.rand(shape, **kwargs)
+    else:
+        import numpy as np
+
+        arr = np.random.uniform(0, 1, shape)
+        if dtype is not None:
+            arr = arr.astype(dtype)
+        return arr

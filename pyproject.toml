@@ -1,6 +1,6 @@
 [project]
 name = "nanomanifold"
-version = "0.1.6"
+version = "0.2.0"
 description = "SO3/SE3 operations on any backend"
 readme = "README.md"
 authors = [
@@ -26,3 +26,6 @@ dev = [
 line-length = 140
 lint.ignore = ["E741", "E743", "F722"] # ignore ambiguous variable names
 lint.extend-select = ["I"]
+
+[tool.ty.src]
+exclude = ["tests/"]

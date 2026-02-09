@@ -1,3 +1,4 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
@@ -7,18 +8,20 @@ from nanomanifold.common import get_namespace
 from .conversions.quaternion import canonicalize
 
 
-def rotate_points(q: Float[Any, "... 4"], points: Float[Any, "... N 3"]) -> Float[Any, "... N 3"]:
+def rotate_points(q: Float[Any, "... 4"], points: Float[Any, "... N 3"], *, xp: ModuleType | None = None) -> Float[Any, "... N 3"]:
     """Rotate points using quaternion rotation.
 
     Args:
         q: Quaternion in [w, x, y, z] format of shape (..., 4)
         points: Points to rotate of shape (..., N, 3)
+        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
         Rotated points of shape (..., N, 3)
     """
-    xp = get_namespace(q)
-    q = canonicalize(q)
+    if xp is None:
+        xp = get_namespace(q)
+    q = canonicalize(q, xp=xp)
 
     w, x, y, z = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
 

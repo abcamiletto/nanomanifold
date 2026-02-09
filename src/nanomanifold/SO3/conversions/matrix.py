@@ -1,5 +1,6 @@
 """Matrix conversions for SO(3) rotations."""
 
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
@@ -10,17 +11,19 @@ from .quaternion import canonicalize
 from .quaternion import from_quat_xyzw
 
 
-def to_matrix(q: Float[Any, "... 4"], xyzw: bool = False) -> Float[Any, "... 3 3"]:
+def to_matrix(q: Float[Any, "... 4"], xyzw: bool = False, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     """Convert quaternion to 3x3 rotation matrix.
 
     Args:
         q: Quaternion in [w, x, y, z] format or [x, y, z, w] if xyzw=True
         xyzw: Whether to interpret the quaternion as [x, y, z, w]
+        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
     """
-    xp = get_namespace(q)
+    if xp is None:
+        xp = get_namespace(q)
     if xyzw:
-        q = from_quat_xyzw(q)
-    q = canonicalize(q)
+        q = from_quat_xyzw(q, xp=xp)
+    q = canonicalize(q, xp=xp)
     w, x, y, z = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
 
     R = xp.stack(
@@ -35,8 +38,9 @@ def to_matrix(q: Float[Any, "... 4"], xyzw: bool = False) -> Float[Any, "... 3 3
     return R
 
 
-def from_matrix(R: Float[Any, "... 3 3"]) -> Float[Any, "... 4"]:
-    xp = get_namespace(R)
+def from_matrix(R: Float[Any, "... 3 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+    if xp is None:
+        xp = get_namespace(R)
 
     trace = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]
 
@@ -85,4 +89,4 @@ def from_matrix(R: Float[Any, "... 3 3"]) -> Float[Any, "... 4"]:
 
     q = xp.stack([w, x, y, z], axis=-1)
 
-    return canonicalize(q)
+    return canonicalize(q, xp=xp)

@@ -1,3 +1,4 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
@@ -9,7 +10,7 @@ from nanomanifold.SO3 import rotate_points
 from .canonicalize import canonicalize
 
 
-def multiply(se3_1: Float[Any, "... 7"], se3_2: Float[Any, "... 7"], xyzw: bool = False) -> Float[Any, "... 7"]:
+def multiply(se3_1: Float[Any, "... 7"], se3_2: Float[Any, "... 7"], xyzw: bool = False, *, xp: ModuleType | None = None) -> Float[Any, "... 7"]:
     """Multiply two SE(3) transformations.
 
     The multiplication order matches transformation matrix multiplication:
@@ -27,25 +28,27 @@ def multiply(se3_1: Float[Any, "... 7"], se3_2: Float[Any, "... 7"], xyzw: bool 
         se3_2: Second SE(3) transformation in [w, x, y, z, tx, ty, tz] format
             (or [x, y, z, w, tx, ty, tz] if xyzw=True)
         xyzw: Whether to interpret inputs (and return output) as [x, y, z, w, tx, ty, tz]
+        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
         Product SE(3) transformation representing the composed transformation
     """
-    xp = get_namespace(se3_1)
+    if xp is None:
+        xp = get_namespace(se3_1)
 
-    se3_1 = canonicalize(se3_1, xyzw=xyzw)
-    se3_2 = canonicalize(se3_2, xyzw=xyzw)
+    se3_1 = canonicalize(se3_1, xyzw=xyzw, xp=xp)
+    se3_2 = canonicalize(se3_2, xyzw=xyzw, xp=xp)
 
     q1 = se3_1[..., :4]
     t1 = se3_1[..., 4:7]
     q2 = se3_2[..., :4]
     t2 = se3_2[..., 4:7]
 
-    q_result = so3_multiply(q1, q2, xyzw=xyzw)
+    q_result = so3_multiply(q1, q2, xyzw=xyzw, xp=xp)
 
-    t2_rotated = rotate_points(q1, t2[..., None, :]).squeeze(-2)
+    t2_rotated = rotate_points(q1, t2[..., None, :], xp=xp).squeeze(-2)
     t_result = t2_rotated + t1
 
     result = xp.concatenate([q_result, t_result], axis=-1)
 
-    return canonicalize(result, xyzw=xyzw)
+    return canonicalize(result, xyzw=xyzw, xp=xp)

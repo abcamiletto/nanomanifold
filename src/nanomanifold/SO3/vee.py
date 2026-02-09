@@ -1,3 +1,4 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
@@ -5,7 +6,7 @@ from jaxtyping import Float
 from ..common import get_namespace
 
 
-def vee(W: Float[Any, "... 3 3"]) -> Float[Any, "... 3"]:
+def vee(W: Float[Any, "... 3 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
     """Map skew-symmetric matrix to vector (vee operator).
 
     Args:
@@ -14,7 +15,8 @@ def vee(W: Float[Any, "... 3 3"]) -> Float[Any, "... 3"]:
     Returns:
         (..., 3) tangent vectors in so(3)
     """
-    xp = get_namespace(W)
+    if xp is None:
+        xp = get_namespace(W)
 
     # Extract components from skew-symmetric matrix:
     # [[ 0, -w3,  w2],

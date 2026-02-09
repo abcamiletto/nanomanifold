@@ -1,3 +1,4 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
@@ -5,7 +6,7 @@ from jaxtyping import Float
 from nanomanifold.common import get_namespace
 
 
-def distance(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"]) -> Float[Any, "..."]:
+def distance(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "..."]:
     """Compute the angular distance between two quaternions representing SO(3) rotations.
 
     The angular distance is the smallest angle needed to rotate from one orientation
@@ -15,11 +16,13 @@ def distance(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"]) -> Float[Any, "..
     Args:
         q1: First quaternion in [w, x, y, z] format
         q2: Second quaternion in [w, x, y, z] format
+        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
         Angular distance in radians, in range [0, π]
     """
-    xp = get_namespace(q1)
+    if xp is None:
+        xp = get_namespace(q1)
 
     norm1 = xp.sqrt(xp.sum(q1**2, axis=-1, keepdims=True))
     norm2 = xp.sqrt(xp.sum(q2**2, axis=-1, keepdims=True))

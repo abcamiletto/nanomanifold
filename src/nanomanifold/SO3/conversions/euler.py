@@ -1,3 +1,4 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
@@ -9,14 +10,17 @@ from .quaternion import canonicalize
 from . import matrix
 
 
-def to_euler(q: Float[Any, "... 4"], convention: str = "ZYX") -> Float[Any, "... 3"]:
-    q = canonicalize(q)
-    R = matrix.to_matrix(q)
-    return _matrix_to_euler(R, convention)
+def to_euler(q: Float[Any, "... 4"], convention: str = "ZYX", *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
+    if xp is None:
+        xp = get_namespace(q)
+    q = canonicalize(q, xp=xp)
+    R = matrix.to_matrix(q, xp=xp)
+    return _matrix_to_euler(R, convention, xp=xp)
 
 
-def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX") -> Float[Any, "... 4"]:
-    xp = get_namespace(euler)
+def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX", *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+    if xp is None:
+        xp = get_namespace(euler)
     half_angles = euler * 0.5
     cos_half = xp.cos(half_angles)
     sin_half = xp.sin(half_angles)
@@ -30,9 +34,9 @@ def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX") -> Float[Any
 
     for i, axis in enumerate(conv):
         q_axis = _axis_quaternion(cos_half[..., i], sin_half[..., i], axis, xp)
-        q = multiply(q_axis, q) if is_extrinsic else multiply(q, q_axis)
+        q = multiply(q_axis, q, xp=xp) if is_extrinsic else multiply(q, q_axis, xp=xp)
 
-    return canonicalize(q)
+    return canonicalize(q, xp=xp)
 
 
 def _axis_quaternion(cos_half, sin_half, axis, xp):
@@ -46,9 +50,10 @@ def _axis_quaternion(cos_half, sin_half, axis, xp):
     raise ValueError(f"Invalid axis: {axis}")
 
 
-def _euler_to_matrix(euler, convention):
+def _euler_to_matrix(euler, convention, *, xp: ModuleType | None = None):
     """Convert Euler angles to rotation matrix."""
-    xp = get_namespace(euler)
+    if xp is None:
+        xp = get_namespace(euler)
 
     eye = xp.eye(3, dtype=euler.dtype)
     output_shape = euler.shape[:-1] + (3, 3)
@@ -59,7 +64,7 @@ def _euler_to_matrix(euler, convention):
 
     for i, axis in enumerate(conv):
         angle = euler[..., i]
-        R_axis = _rotation_matrix(angle, axis)
+        R_axis = _rotation_matrix(angle, axis, xp=xp)
 
         if is_extrinsic:
             R = xp.matmul(R_axis, R)
@@ -69,9 +74,10 @@ def _euler_to_matrix(euler, convention):
     return R
 
 
-def _rotation_matrix(angle, axis):
+def _rotation_matrix(angle, axis, *, xp: ModuleType | None = None):
     """Create rotation matrix for given angle and axis."""
-    xp = get_namespace(angle)
+    if xp is None:
+        xp = get_namespace(angle)
 
     cos_a = xp.cos(angle)
     sin_a = xp.sin(angle)
@@ -99,9 +105,10 @@ def _rotation_matrix(angle, axis):
     return mat
 
 
-def _matrix_to_euler(matrix, convention):
+def _matrix_to_euler(matrix, convention, *, xp: ModuleType | None = None):
     """Convert rotation matrix to Euler angles."""
-    xp = get_namespace(matrix)
+    if xp is None:
+        xp = get_namespace(matrix)
 
     is_extrinsic = convention.islower()
 
@@ -109,7 +116,7 @@ def _matrix_to_euler(matrix, convention):
         convention = convention.upper()
         convention = convention[::-1]
 
-    eulers = _matrix_to_euler_angles(matrix, convention)
+    eulers = _matrix_to_euler_angles(matrix, convention, xp=xp)
 
     if is_extrinsic:
         return xp.stack([eulers[..., 2], eulers[..., 1], eulers[..., 0]], axis=-1)
@@ -117,9 +124,10 @@ def _matrix_to_euler(matrix, convention):
     return eulers
 
 
-def _matrix_to_euler_angles(matrix, convention):
+def _matrix_to_euler_angles(matrix, convention, *, xp: ModuleType | None = None):
     """Extract Euler angles from rotation matrix using systematic approach."""
-    xp = get_namespace(matrix)
+    if xp is None:
+        xp = get_namespace(matrix)
 
     if len(convention) != 3:
         raise ValueError("Convention must have 3 letters.")

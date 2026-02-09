@@ -1,3 +1,4 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
@@ -6,9 +7,10 @@ from nanomanifold.common import get_namespace
 from .quaternion import canonicalize
 
 
-def to_axis_angle(q: Float[Any, "... 4"]) -> Float[Any, "... 3"]:
-    xp = get_namespace(q)
-    q_canonical = canonicalize(q)
+def to_axis_angle(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
+    if xp is None:
+        xp = get_namespace(q)
+    q_canonical = canonicalize(q, xp=xp)
 
     w = q_canonical[..., 0:1]
     xyz = q_canonical[..., 1:4]
@@ -34,8 +36,9 @@ def to_axis_angle(q: Float[Any, "... 4"]) -> Float[Any, "... 3"]:
     return axis_angle
 
 
-def from_axis_angle(axis_angle: Float[Any, "... 3"]) -> Float[Any, "... 4"]:
-    xp = get_namespace(axis_angle)
+def from_axis_angle(axis_angle: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+    if xp is None:
+        xp = get_namespace(axis_angle)
 
     angle = xp.linalg.norm(axis_angle, axis=-1)
 

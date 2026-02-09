@@ -1,6 +1,15 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, identity_quaternion, random_quaternion
+from conftest import (
+    ATOL,
+    TEST_BACKENDS,
+    TEST_BATCH_DIMS,
+    TEST_PASS_XP,
+    TEST_PRECISIONS,
+    get_xp_kwargs,
+    identity_quaternion,
+    random_quaternion,
+)
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3
@@ -9,10 +18,12 @@ from nanomanifold import SO3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_identity(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_log_identity(backend, batch_dims, precision, pass_xp):
     # Log of identity should be zero vector
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     identity = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    log_result = SO3.log(identity)
+    log_result = SO3.log(identity, **xp_kwargs)
 
     assert log_result.shape == batch_dims + (3,)
 
@@ -23,8 +34,10 @@ def test_log_identity(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_exp_zero(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_exp_zero(backend, batch_dims, precision, pass_xp):
     # Exp of zero vector should be identity quaternion
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -36,7 +49,7 @@ def test_exp_zero(backend, batch_dims, precision):
         dtype = xp.float64
 
     zero_vec = xp.zeros(batch_dims + (3,), dtype=dtype)
-    exp_result = SO3.exp(zero_vec)
+    exp_result = SO3.exp(zero_vec, **xp_kwargs)
 
     identity = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
@@ -53,12 +66,14 @@ def test_exp_zero(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_exp_inverse(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_log_exp_inverse(backend, batch_dims, precision, pass_xp):
     # Test that exp(log(q)) = q for random quaternions
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
-    log_quat = SO3.log(quat)
-    exp_log_quat = SO3.exp(log_quat)
+    log_quat = SO3.log(quat, **xp_kwargs)
+    exp_log_quat = SO3.exp(log_quat, **xp_kwargs)
 
     assert exp_log_quat.shape == quat.shape
 
@@ -73,8 +88,10 @@ def test_log_exp_inverse(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_exp_log_inverse(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_exp_log_inverse(backend, batch_dims, precision, pass_xp):
     # Test that log(exp(v)) = v for small tangent vectors
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -84,8 +101,8 @@ def test_exp_log_inverse(backend, batch_dims, precision):
     tangent_vec_np = 0.5 * np.random.normal(0, 1, size=shape).astype(f"float{precision}")
     tangent_vec = xp.asarray(tangent_vec_np)
 
-    exp_vec = SO3.exp(tangent_vec)
-    log_exp_vec = SO3.log(exp_vec)
+    exp_vec = SO3.exp(tangent_vec, **xp_kwargs)
+    log_exp_vec = SO3.log(exp_vec, **xp_kwargs)
 
     assert log_exp_vec.shape == tangent_vec.shape
 
@@ -96,12 +113,14 @@ def test_exp_log_inverse(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_log_exp_scipy(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_log_exp_scipy(backend, batch_dims, pass_xp):
     # Compare with scipy for known cases
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
     # Compute log using nanomanifold
-    log_result = SO3.log(quat)
+    log_result = SO3.log(quat, **xp_kwargs)
 
     # Convert to numpy for scipy
     quat_np = np.array(quat)

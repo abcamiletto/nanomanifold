@@ -1,13 +1,13 @@
 [project]
 name = "nanomanifold"
-version = "0.1.6"
+version = "0.2.0"
 description = "SO3/SE3 operations on any backend"
 readme = "README.md"
 authors = [
     { name = "Andrea Boscolo Camiletto", email = "abcamiletto@gmail.com" },
 ]
-requires-python = ">=3.10"
-dependencies = ["array-api-compat>=1.12.0", "jaxtyping>=0.3.2", "numpy>=2.2.0"]
+requires-python = ">=3.11"
+dependencies = ["array-api-compat>=1.12.0,<2", "jaxtyping>=0.3.2,<1", "numpy>=2.2.0,<3"]
 
 [build-system]
 requires = ["hatchling"]
@@ -15,8 +15,9 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "jax>=0.7.1; python_version >= '3.11'",
+    "jax>=0.7.1",
     "pytest>=8.4.1",
+    "ruff>=0.9.0",
     "scipy>=1.15,<1.16",
     "torch>=2.8.0",
 ]
@@ -25,3 +26,6 @@ dev = [
 line-length = 140
 lint.ignore = ["E741", "E743", "F722"] # ignore ambiguous variable names
 lint.extend-select = ["I"]
+
+[tool.ty.src]
+exclude = ["tests/"]

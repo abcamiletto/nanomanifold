@@ -1,13 +1,15 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 from nanomanifold.SO3 import exp as so3_exp
 from nanomanifold.SO3 import hat
 
 
-def exp(tangent_vector: Float[Any, "... 6"]) -> Float[Any, "... 7"]:
+def exp(tangent_vector: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 7"]:
     """Compute the exponential map from se(3) tangent space to SE(3) manifold.
 
     The exponential map takes a tangent vector in the Lie algebra se(3)
@@ -24,23 +26,24 @@ def exp(tangent_vector: Float[Any, "... 6"]) -> Float[Any, "... 7"]:
 
     Args:
         tangent_vector: Tangent vector in se(3) as [ω, ρ] of shape (..., 6)
+        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
         SE(3) transformation in [w, x, y, z, tx, ty, tz] format of shape (..., 7)
     """
-    xp = get_namespace(tangent_vector)
+    if xp is None:
+        xp = get_namespace(tangent_vector)
 
     omega = tangent_vector[..., :3]
     rho = tangent_vector[..., 3:6]
 
-    q = so3_exp(omega)
+    q = so3_exp(omega, xp=xp)
     omega_norm = xp.linalg.norm(omega, axis=-1, keepdims=True)
 
-    eps = xp.finfo(omega.dtype).eps
-    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=omega.dtype)
-    small_angle_mask = omega_norm < small_angle_threshold
+    thresh = xp.asarray(common.small_angle_threshold(omega.dtype, xp), dtype=omega.dtype)
+    small_angle_mask = omega_norm < thresh
 
-    omega_cross = hat(omega)
+    omega_cross = hat(omega, xp=xp)
     omega_cross_sq = xp.matmul(omega_cross, omega_cross)
 
     identity = xp.eye(3, dtype=omega.dtype)

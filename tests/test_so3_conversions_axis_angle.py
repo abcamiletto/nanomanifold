@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, random_quaternion
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3
@@ -9,18 +9,20 @@ from nanomanifold import SO3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_axis_angle_conversion_cycle(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_axis_angle_conversion_cycle(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create a random SO3 quaternion
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Convert to axis-angle representation
-    axis_angle = SO3.to_axis_angle(quat)
+    axis_angle = SO3.to_axis_angle(quat, **xp_kwargs)
 
     assert axis_angle.dtype == quat.dtype
     assert axis_angle.shape[:-1] == quat.shape[:-1]
 
     # Convert back to quaternion
-    quat_converted = SO3.from_axis_angle(axis_angle)
+    quat_converted = SO3.from_axis_angle(axis_angle, **xp_kwargs)
 
     assert quat_converted.dtype == quat.dtype
     assert quat_converted.shape == quat.shape
@@ -36,12 +38,14 @@ def test_axis_angle_conversion_cycle(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_axis_angle_conversion_scipy(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_axis_angle_conversion_scipy(backend, batch_dims, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create a random SO3 quaternion
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
     # Convert to axis-angle representation using nanomanifold
-    axis_angle = SO3.to_axis_angle(quat)
+    axis_angle = SO3.to_axis_angle(quat, **xp_kwargs)
 
     # Convert to axis-angle representation using scipy
     quat_np = np.array(quat)

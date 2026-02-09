@@ -1,3 +1,4 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
@@ -5,7 +6,7 @@ from jaxtyping import Float
 from ..common import get_namespace
 
 
-def hat(w: Float[Any, "... 3"]) -> Float[Any, "... 3 3"]:
+def hat(w: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     """Map vector to skew-symmetric matrix (hat operator).
 
     Args:
@@ -14,7 +15,8 @@ def hat(w: Float[Any, "... 3"]) -> Float[Any, "... 3 3"]:
     Returns:
         (..., 3, 3) skew-symmetric matrices
     """
-    xp = get_namespace(w)
+    if xp is None:
+        xp = get_namespace(w)
 
     w1 = w[..., 0]
     w2 = w[..., 1]

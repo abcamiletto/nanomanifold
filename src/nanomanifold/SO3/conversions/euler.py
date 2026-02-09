@@ -1,41 +1,46 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 from ..multiply import multiply
-from .quaternion import canonicalize
 from . import matrix
+from .quaternion import canonicalize
 
 
-def to_euler(q: Float[Any, "... 4"], convention: str = "ZYX") -> Float[Any, "... 3"]:
-    q = canonicalize(q)
-    R = matrix.to_matrix(q)
-    return _matrix_to_euler(R, convention)
+def to_euler(q: Float[Any, "... 4"], convention: str = "ZYX", *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
+    if xp is None:
+        xp = get_namespace(q)
+    q = canonicalize(q, xp=xp)
+    R = matrix.to_matrix(q, xp=xp)
+    return _matrix_to_euler(R, convention, xp=xp)
 
 
-def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX") -> Float[Any, "... 4"]:
-    xp = get_namespace(euler)
+def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX", *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+    if xp is None:
+        xp = get_namespace(euler)
     half_angles = euler * 0.5
     cos_half = xp.cos(half_angles)
     sin_half = xp.sin(half_angles)
 
     ones = xp.ones_like(euler[..., :1])
     zeros = xp.zeros_like(euler)
-    q = xp.concat([ones, zeros], axis=-1)
+    q = xp.concatenate([ones, zeros], axis=-1)
 
     is_extrinsic = convention.islower()
     conv = convention.lower()
 
     for i, axis in enumerate(conv):
         q_axis = _axis_quaternion(cos_half[..., i], sin_half[..., i], axis, xp)
-        q = multiply(q_axis, q) if is_extrinsic else multiply(q, q_axis)
+        q = multiply(q_axis, q, xp=xp) if is_extrinsic else multiply(q, q_axis, xp=xp)
 
-    return canonicalize(q)
+    return canonicalize(q, xp=xp)
 
 
-def _axis_quaternion(cos_half, sin_half, axis, xp):
+def _axis_quaternion(cos_half: Float[Any, "..."], sin_half: Float[Any, "..."], axis: str, xp: ModuleType) -> Float[Any, "... 4"]:
     zero = xp.zeros_like(cos_half)
     if axis == "x":
         return xp.stack([cos_half, sin_half, zero, zero], axis=-1)
@@ -46,9 +51,10 @@ def _axis_quaternion(cos_half, sin_half, axis, xp):
     raise ValueError(f"Invalid axis: {axis}")
 
 
-def _euler_to_matrix(euler, convention):
+def _euler_to_matrix(euler: Float[Any, "... 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     """Convert Euler angles to rotation matrix."""
-    xp = get_namespace(euler)
+    if xp is None:
+        xp = get_namespace(euler)
 
     eye = xp.eye(3, dtype=euler.dtype)
     output_shape = euler.shape[:-1] + (3, 3)
@@ -59,7 +65,7 @@ def _euler_to_matrix(euler, convention):
 
     for i, axis in enumerate(conv):
         angle = euler[..., i]
-        R_axis = _rotation_matrix(angle, axis)
+        R_axis = _rotation_matrix(angle, axis, xp=xp)
 
         if is_extrinsic:
             R = xp.matmul(R_axis, R)
@@ -69,9 +75,10 @@ def _euler_to_matrix(euler, convention):
     return R
 
 
-def _rotation_matrix(angle, axis):
+def _rotation_matrix(angle: Float[Any, "..."], axis: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     """Create rotation matrix for given angle and axis."""
-    xp = get_namespace(angle)
+    if xp is None:
+        xp = get_namespace(angle)
 
     cos_a = xp.cos(angle)
     sin_a = xp.sin(angle)
@@ -99,9 +106,10 @@ def _rotation_matrix(angle, axis):
     return mat
 
 
-def _matrix_to_euler(matrix, convention):
+def _matrix_to_euler(matrix: Float[Any, "... 3 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
     """Convert rotation matrix to Euler angles."""
-    xp = get_namespace(matrix)
+    if xp is None:
+        xp = get_namespace(matrix)
 
     is_extrinsic = convention.islower()
 
@@ -109,7 +117,7 @@ def _matrix_to_euler(matrix, convention):
         convention = convention.upper()
         convention = convention[::-1]
 
-    eulers = _matrix_to_euler_angles(matrix, convention)
+    eulers = _matrix_to_euler_angles(matrix, convention, xp=xp)
 
     if is_extrinsic:
         return xp.stack([eulers[..., 2], eulers[..., 1], eulers[..., 0]], axis=-1)
@@ -117,9 +125,10 @@ def _matrix_to_euler(matrix, convention):
     return eulers
 
 
-def _matrix_to_euler_angles(matrix, convention):
+def _matrix_to_euler_angles(matrix: Float[Any, "... 3 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
     """Extract Euler angles from rotation matrix using systematic approach."""
-    xp = get_namespace(matrix)
+    if xp is None:
+        xp = get_namespace(matrix)
 
     if len(convention) != 3:
         raise ValueError("Convention must have 3 letters.")
@@ -138,7 +147,7 @@ def _matrix_to_euler_angles(matrix, convention):
         x = matrix[..., i0, i2] * sign
 
         one = xp.ones_like(x)
-        eps = xp.finfo(x.dtype).eps * one
+        eps = common.safe_eps(x.dtype, xp, scale=1.0)
         central_angle = xp.arcsin(xp.clip(x, -one + eps, one - eps))
     else:
         central_angle = xp.arccos(xp.clip(matrix[..., i0, i0], -1, 1))
@@ -149,7 +158,9 @@ def _matrix_to_euler_angles(matrix, convention):
     return xp.stack([first_angle, central_angle, third_angle], axis=-1)
 
 
-def _angle_from_tan(axis, other_axis, data, horizontal, tait_bryan, xp):
+def _angle_from_tan(
+    axis: str, other_axis: str, data: Float[Any, "... 3"], horizontal: bool, tait_bryan: bool, xp: ModuleType
+) -> Float[Any, "..."]:
     """Compute angle from tangent using systematic indexing."""
     i1, i2 = {"X": (2, 1), "Y": (0, 2), "Z": (1, 0)}[axis]
     if horizontal:
@@ -162,7 +173,7 @@ def _angle_from_tan(axis, other_axis, data, horizontal, tait_bryan, xp):
     return xp.atan2(data[..., i2], -data[..., i1])
 
 
-def _index_from_letter(letter):
+def _index_from_letter(letter: str) -> int:
     """Convert axis letter to index."""
     if letter == "X":
         return 0

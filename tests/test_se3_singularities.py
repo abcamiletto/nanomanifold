@@ -1,14 +1,16 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, random_se3
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_se3
 
 from nanomanifold import SE3, SO3
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_exact_pi_rotation_with_translation(backend, precision):
+def test_exact_pi_rotation_with_translation(backend, pass_xp, precision):
     """Test SE3 logarithm with exactly π rotation and various translations."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -26,7 +28,7 @@ def test_exact_pi_rotation_with_translation(backend, precision):
         se3 = xp.asarray(quat + trans)
 
         # Test log
-        log_result = SE3.log(se3)
+        log_result = SE3.log(se3, **xp_kwargs)
         log_np = np.array(log_result)
 
         # Angular part magnitude should be π
@@ -35,7 +37,7 @@ def test_exact_pi_rotation_with_translation(backend, precision):
         assert np.allclose(omega_magnitude, np.pi, atol=ATOL[precision])
 
         # Test exp(log(se3)) = se3
-        exp_result = SE3.exp(log_result)
+        exp_result = SE3.exp(log_result, **xp_kwargs)
         exp_np = np.array(exp_result)
         se3_np = np.array(se3)
 
@@ -52,9 +54,11 @@ def test_exact_pi_rotation_with_translation(backend, precision):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_v_matrix_singularity(backend, precision):
+def test_v_matrix_singularity(backend, pass_xp, precision):
     """Test the V matrix computation near singularity (rotation angle near π)."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -64,21 +68,21 @@ def test_v_matrix_singularity(backend, precision):
     for angle in angles_near_pi:
         # Create rotation around z-axis using from_axis_angle
         axis_angle = xp.asarray([0.0, 0.0, angle])
-        q = SO3.from_axis_angle(axis_angle)
+        q = SO3.from_axis_angle(axis_angle, **xp_kwargs)
 
         # Add translation
         translation = [1.0, 2.0, 3.0]
         se3 = xp.concatenate([q, xp.asarray(translation)])
 
         # Test log - should handle V^(-1) computation at singularity
-        log_result = SE3.log(se3)
+        log_result = SE3.log(se3, **xp_kwargs)
         log_np = np.array(log_result)
 
         # Test that result is finite
         assert np.all(np.isfinite(log_np))
 
         # Test round-trip
-        exp_result = SE3.exp(log_result)
+        exp_result = SE3.exp(log_result, **xp_kwargs)
         exp_np = np.array(exp_result)
         se3_np = np.array(se3)
 
@@ -94,9 +98,11 @@ def test_v_matrix_singularity(backend, precision):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_large_translation_with_pi_rotation(backend, precision):
+def test_large_translation_with_pi_rotation(backend, pass_xp, precision):
     """Test SE3 with large translations and π rotations."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -111,7 +117,7 @@ def test_large_translation_with_pi_rotation(backend, precision):
         se3 = xp.concatenate([q_pi, translation])
 
         # Test log
-        log_result = SE3.log(se3)
+        log_result = SE3.log(se3, **xp_kwargs)
         log_np = np.array(log_result)
 
         # Check that result is finite
@@ -123,7 +129,7 @@ def test_large_translation_with_pi_rotation(backend, precision):
         assert np.allclose(omega_magnitude, np.pi, atol=ATOL[precision])
 
         # Test exp(log(se3)) = se3
-        exp_result = SE3.exp(log_result)
+        exp_result = SE3.exp(log_result, **xp_kwargs)
         exp_np = np.array(exp_result)
         se3_np = np.array(se3)
 
@@ -139,9 +145,11 @@ def test_large_translation_with_pi_rotation(backend, precision):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_pure_translation_edge_cases(backend, precision):
+def test_pure_translation_edge_cases(backend, pass_xp, precision):
     """Test SE3 operations with pure translations (identity rotation)."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -160,7 +168,7 @@ def test_pure_translation_edge_cases(backend, precision):
         se3 = xp.concatenate([q_identity, xp.asarray(trans)])
 
         # Test log
-        log_result = SE3.log(se3)
+        log_result = SE3.log(se3, **xp_kwargs)
         log_np = np.array(log_result)
 
         # Angular part should be zero
@@ -172,7 +180,7 @@ def test_pure_translation_edge_cases(backend, precision):
         assert np.allclose(rho, trans, atol=ATOL[precision])
 
         # Test round-trip
-        exp_result = SE3.exp(log_result)
+        exp_result = SE3.exp(log_result, **xp_kwargs)
         exp_np = np.array(exp_result)
         se3_np = np.array(se3)
 
@@ -180,9 +188,11 @@ def test_pure_translation_edge_cases(backend, precision):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_screw_motion_singularities(backend, precision):
+def test_screw_motion_singularities(backend, pass_xp, precision):
     """Test screw motions (coupled rotation and translation along axis)."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -210,7 +220,7 @@ def test_screw_motion_singularities(backend, precision):
                 tangent = xp.asarray(np.concatenate([omega, rho]))
 
                 # Test exp
-                se3 = SE3.exp(tangent)
+                se3 = SE3.exp(tangent, **xp_kwargs)
                 se3_np = np.array(se3)
 
                 # Verify it's a valid SE3 element
@@ -219,7 +229,7 @@ def test_screw_motion_singularities(backend, precision):
 
                 # Test log(exp(v)) = v (within the domain)
                 if angle < np.pi:
-                    log_result = SE3.log(se3)
+                    log_result = SE3.log(se3, **xp_kwargs)
                     log_np = np.array(log_result)
                     tangent_np = np.array(tangent)
 
@@ -228,10 +238,12 @@ def test_screw_motion_singularities(backend, precision):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_se3_multiplication_at_singularities(backend, batch_dims, precision):
+def test_se3_multiplication_at_singularities(backend, pass_xp, batch_dims, precision):
     """Test SE3 multiplication involving singularities."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -252,7 +264,7 @@ def test_se3_multiplication_at_singularities(backend, batch_dims, precision):
     se3_2 = xp.concatenate([q_pi_y, t2], axis=-1)
 
     # Test multiplication
-    product = SE3.multiply(se3_1, se3_2)
+    product = SE3.multiply(se3_1, se3_2, **xp_kwargs)
     product_np = np.array(product)
 
     # Verify product is valid
@@ -264,11 +276,11 @@ def test_se3_multiplication_at_singularities(backend, batch_dims, precision):
     se3_3 = random_se3(batch_dims, backend, precision)
 
     # (se3_1 * se3_2) * se3_3
-    prod_12_3 = SE3.multiply(product, se3_3)
+    prod_12_3 = SE3.multiply(product, se3_3, **xp_kwargs)
 
     # se3_1 * (se3_2 * se3_3)
-    prod_23 = SE3.multiply(se3_2, se3_3)
-    prod_1_23 = SE3.multiply(se3_1, prod_23)
+    prod_23 = SE3.multiply(se3_2, se3_3, **xp_kwargs)
+    prod_1_23 = SE3.multiply(se3_1, prod_23, **xp_kwargs)
 
     # Check associativity
     prod_12_3_np = np.array(prod_12_3)
@@ -287,9 +299,11 @@ def test_se3_multiplication_at_singularities(backend, batch_dims, precision):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_se3_inverse_at_singularities(backend, precision):
+def test_se3_inverse_at_singularities(backend, pass_xp, precision):
     """Test SE3 inverse operation at singularities."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -304,11 +318,11 @@ def test_se3_inverse_at_singularities(backend, precision):
         se3 = xp.asarray(quat + trans)
 
         # Compute inverse
-        se3_inv = SE3.inverse(se3)
+        se3_inv = SE3.inverse(se3, **xp_kwargs)
 
         # Verify inverse properties
         # se3 * se3_inv = identity
-        product = SE3.multiply(se3, se3_inv)
+        product = SE3.multiply(se3, se3_inv, **xp_kwargs)
         product_np = np.array(product)
 
         # Should be identity
@@ -325,7 +339,7 @@ def test_se3_inverse_at_singularities(backend, precision):
         assert np.allclose(t_prod, [0.0, 0.0, 0.0], atol=ATOL[precision])
 
         # Test se3_inv * se3 = identity
-        product2 = SE3.multiply(se3_inv, se3)
+        product2 = SE3.multiply(se3_inv, se3, **xp_kwargs)
         product2_np = np.array(product2)
 
         q_prod2 = product2_np[:4]
@@ -337,15 +351,17 @@ def test_se3_inverse_at_singularities(backend, precision):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
-def test_se3_numerical_stability_chain(backend):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_se3_numerical_stability_chain(backend, pass_xp):
     """Test numerical stability of repeated operations near singularities."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
     # Start with a near-π rotation
     angle = np.pi - 1e-4
     axis_angle_start = xp.asarray([angle, 0.0, 0.0])  # Rotation around x-axis
-    q_start = SO3.from_axis_angle(axis_angle_start)
+    q_start = SO3.from_axis_angle(axis_angle_start, **xp_kwargs)
     t_start = xp.asarray([1.0, 2.0, 3.0])
     se3_start = xp.concatenate([q_start, t_start])
 
@@ -355,8 +371,8 @@ def test_se3_numerical_stability_chain(backend):
 
     for i in range(num_iterations):
         # Log then exp
-        tangent = SE3.log(current)
-        current = SE3.exp(tangent)
+        tangent = SE3.log(current, **xp_kwargs)
+        current = SE3.exp(tangent, **xp_kwargs)
 
         # Verify still valid
         current_np = np.array(current)
@@ -376,10 +392,12 @@ def test_se3_numerical_stability_chain(backend):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_near_two_pi_rotation_behaviour(backend, precision):
+def test_log_near_two_pi_rotation_behaviour(backend, pass_xp, precision):
     """SE3 log should agree with the minimal representation near 2π rotations."""
 
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -419,7 +437,7 @@ def test_log_near_two_pi_rotation_behaviour(backend, precision):
                 se3_np = np.concatenate([q_np, translation_np])
                 se3 = xp.asarray(se3_np)
 
-                log_np = np.array(SE3.log(se3))
+                log_np = np.array(SE3.log(se3, **xp_kwargs))
 
                 omega_np = log_np[:3]
                 expected_omega = -delta * axis_np
@@ -435,10 +453,12 @@ def test_log_near_two_pi_rotation_behaviour(backend, precision):
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_matches_canonicalized_input(backend, precision):
+def test_log_matches_canonicalized_input(backend, pass_xp, precision):
     """Log should be insensitive to quaternion sign for SE3 inputs."""
 
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -470,13 +490,13 @@ def test_log_matches_canonicalized_input(backend, precision):
             se3_np = np.concatenate([q_np, translation])
             se3 = xp.asarray(se3_np)
 
-            log_direct = np.array(SE3.log(se3))
+            log_direct = np.array(SE3.log(se3, **xp_kwargs))
 
             canonical_q = np.array(SO3.canonicalize(q_np), dtype=np_dtype)
             se3_canonical_np = np.concatenate([canonical_q, translation])
             se3_canonical = xp.asarray(se3_canonical_np)
 
-            log_canonical = np.array(SE3.log(se3_canonical))
+            log_canonical = np.array(SE3.log(se3_canonical, **xp_kwargs))
 
             assert np.allclose(
                 log_direct,
@@ -501,10 +521,12 @@ def _quaternion_to_axis_angle_np(q: np.ndarray) -> np.ndarray:
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_log_exp_round_trip_beyond_pi(backend, precision):
+def test_log_exp_round_trip_beyond_pi(backend, pass_xp, precision):
     """Round-trip exp/log should respect canonical axis-angle beyond π rotations."""
 
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     common = pytest.importorskip("nanomanifold.common")
     xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
 
@@ -546,10 +568,10 @@ def test_log_exp_round_trip_beyond_pi(backend, precision):
 
                 tangent = xp.asarray(tangent_np)
 
-                se3 = SE3.exp(tangent)
+                se3 = SE3.exp(tangent, **xp_kwargs)
                 se3_np = np.array(se3)
 
-                log_result = SE3.log(se3)
+                log_result = SE3.log(se3, **xp_kwargs)
                 log_np = np.array(log_result)
 
                 expected_axis_angle = _quaternion_to_axis_angle_np(se3_np[:4])
@@ -557,7 +579,7 @@ def test_log_exp_round_trip_beyond_pi(backend, precision):
                 atol = max(ATOL[precision] * 10, 1e-6)
                 assert np.allclose(log_np[:3], expected_axis_angle, atol=atol)
 
-                reconstructed = SE3.exp(log_result)
+                reconstructed = SE3.exp(log_result, **xp_kwargs)
                 reconstructed_np = np.array(reconstructed)
 
                 assert np.allclose(

@@ -1,6 +1,16 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, identity_se3, random_points, random_se3
+from conftest import (
+    ATOL,
+    TEST_BACKENDS,
+    TEST_BATCH_DIMS,
+    TEST_PASS_XP,
+    TEST_PRECISIONS,
+    get_xp_kwargs,
+    identity_se3,
+    random_points,
+    random_se3,
+)
 
 from nanomanifold import SE3
 
@@ -8,15 +18,17 @@ from nanomanifold import SE3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_multiply_identity(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_multiply_identity(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random SE3 transformation and identity
     se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
     identity = identity_se3(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Test identity * se3 = se3
-    result1 = SE3.multiply(identity, se3)
+    result1 = SE3.multiply(identity, se3, **xp_kwargs)
     # Test se3 * identity = se3
-    result2 = SE3.multiply(se3, identity)
+    result2 = SE3.multiply(se3, identity, **xp_kwargs)
 
     assert result1.dtype == se3.dtype
     assert result1.shape == se3.shape
@@ -49,17 +61,19 @@ def test_multiply_identity(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_multiply_inverse(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_multiply_inverse(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random SE3 transformation
     se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Compute inverse using SE3.inverse
-    se3_inv = SE3.inverse(se3)
+    se3_inv = SE3.inverse(se3, **xp_kwargs)
 
     # Test se3 * se3_inv = identity
-    result1 = SE3.multiply(se3, se3_inv)
+    result1 = SE3.multiply(se3, se3_inv, **xp_kwargs)
     # Test se3_inv * se3 = identity
-    result2 = SE3.multiply(se3_inv, se3)
+    result2 = SE3.multiply(se3_inv, se3, **xp_kwargs)
 
     assert result1.dtype == se3.dtype
     assert result1.shape == se3.shape
@@ -92,17 +106,19 @@ def test_multiply_inverse(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_multiply_matrix_equivalence(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_multiply_matrix_equivalence(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create two random SE3 transformations
     se3_1 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
     se3_2 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Multiply SE3 transformations
-    se3_result = SE3.multiply(se3_1, se3_2)
+    se3_result = SE3.multiply(se3_1, se3_2, **xp_kwargs)
 
     # Convert to matrices and multiply
-    matrix1 = SE3.to_matrix(se3_1)
-    matrix2 = SE3.to_matrix(se3_2)
+    matrix1 = SE3.to_matrix(se3_1, **xp_kwargs)
+    matrix2 = SE3.to_matrix(se3_2, **xp_kwargs)
     matrix_result = np.matmul(np.array(matrix1), np.array(matrix2))
 
     # Convert result matrix back to SE3
@@ -129,7 +145,9 @@ def test_multiply_matrix_equivalence(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_multiply_scipy(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_multiply_scipy(backend, batch_dims, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     pytest.importorskip("scipy.spatial")
     from scipy.spatial.transform import Rotation as R
 
@@ -138,7 +156,7 @@ def test_multiply_scipy(backend, batch_dims):
     se3_2 = random_se3(batch_dims=batch_dims, backend=backend, precision=32)
 
     # Multiply using nanomanifold
-    se3_result = SE3.multiply(se3_1, se3_2)
+    se3_result = SE3.multiply(se3_1, se3_2, **xp_kwargs)
 
     # Convert to numpy for scipy
     se3_1_np = np.array(se3_1)

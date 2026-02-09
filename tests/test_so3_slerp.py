@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, random_quaternion
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial.transform import Slerp
 
@@ -22,8 +22,10 @@ def get_dtype(backend, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_slerp_endpoints(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_slerp_endpoints(backend, batch_dims, precision, pass_xp):
     """Test that slerp(q1, q2, [0]) = q1 and slerp(q1, q2, [1]) = q2"""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
@@ -34,11 +36,11 @@ def test_slerp_endpoints(backend, batch_dims, precision):
 
     # Test t=[0] case
     t_0 = xp.asarray([0.0], dtype=dtype)
-    result_0 = SO3.slerp(q1, q2, t_0)
+    result_0 = SO3.slerp(q1, q2, t_0, **xp_kwargs)
 
     # Test t=[1] case
     t_1 = xp.asarray([1.0], dtype=dtype)
-    result_1 = SO3.slerp(q1, q2, t_1)
+    result_1 = SO3.slerp(q1, q2, t_1, **xp_kwargs)
 
     assert result_0.dtype == q1.dtype
     assert result_0.shape == batch_dims + (1, 4)
@@ -64,8 +66,10 @@ def test_slerp_endpoints(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_slerp_multiple_points(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_slerp_multiple_points(backend, batch_dims, precision, pass_xp):
     """Test slerp with multiple interpolation points"""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
@@ -78,7 +82,7 @@ def test_slerp_multiple_points(backend, batch_dims, precision):
     t_values = [0.0, 0.25, 0.5, 0.75, 1.0]
     t_array = xp.asarray(t_values, dtype=dtype)
 
-    result = SO3.slerp(q1, q2, t_array)
+    result = SO3.slerp(q1, q2, t_array, **xp_kwargs)
 
     assert result.dtype == q1.dtype
     assert result.shape == batch_dims + (5, 4)
@@ -92,8 +96,10 @@ def test_slerp_multiple_points(backend, batch_dims, precision):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_slerp_same_quaternion(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_slerp_same_quaternion(backend, batch_dims, precision, pass_xp):
     """Test that slerp(q, q, t) = q for any t"""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     q = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Get appropriate backend namespace
@@ -105,7 +111,7 @@ def test_slerp_same_quaternion(backend, batch_dims, precision):
     t_values = [0.0, 0.25, 0.5, 0.75, 1.0]
     t_array = xp.asarray(t_values, dtype=dtype)
 
-    result = SO3.slerp(q, q, t_array)
+    result = SO3.slerp(q, q, t_array, **xp_kwargs)
 
     assert result.dtype == q.dtype
     assert result.shape == batch_dims + (5, 4)
@@ -125,8 +131,10 @@ def test_slerp_same_quaternion(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_slerp_scipy_comparison(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_slerp_scipy_comparison(backend, batch_dims, pass_xp):
     """Compare slerp results with scipy implementation"""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
@@ -139,7 +147,7 @@ def test_slerp_scipy_comparison(backend, batch_dims):
     t_values = [0.0, 0.25, 0.5, 0.75, 1.0]
     t_array = xp.asarray(t_values, dtype=dtype)
 
-    result = SO3.slerp(q1, q2, t_array)
+    result = SO3.slerp(q1, q2, t_array, **xp_kwargs)
 
     # Convert to numpy for scipy
     q1_np = np.array(q1)

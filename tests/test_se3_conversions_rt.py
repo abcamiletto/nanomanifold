@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, random_quaternion
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
 
 from nanomanifold import SE3
 
@@ -8,7 +8,9 @@ from nanomanifold import SE3
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-def test_rt_conversion_cycle(backend, batch_dims, precision):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_rt_conversion_cycle(backend, batch_dims, precision, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random quaternion and translation
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
@@ -21,7 +23,7 @@ def test_rt_conversion_cycle(backend, batch_dims, precision):
     translation = xp.asarray(translation_np)
 
     # Convert to SE(3) representation
-    se3 = SE3.from_rt(quat, translation)
+    se3 = SE3.from_rt(quat, translation, **xp_kwargs)
 
     assert se3.dtype == quat.dtype
     assert se3.shape[:-1] == quat.shape[:-1]
@@ -51,8 +53,10 @@ def test_rt_conversion_cycle(backend, batch_dims, precision):
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_rt_matrix_consistency(backend, batch_dims):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_rt_matrix_consistency(backend, batch_dims, pass_xp):
     """Test that from_rt -> to_matrix -> from_matrix -> to_rt gives same result."""
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random quaternion and translation
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
@@ -64,9 +68,9 @@ def test_rt_matrix_consistency(backend, batch_dims):
     translation = xp.asarray(translation_np)
 
     # Route 1: from_rt -> to_matrix -> from_matrix -> to_rt
-    se3_from_rt = SE3.from_rt(quat, translation)
-    matrix = SE3.to_matrix(se3_from_rt)
-    se3_from_matrix = SE3.from_matrix(matrix)
+    se3_from_rt = SE3.from_rt(quat, translation, **xp_kwargs)
+    matrix = SE3.to_matrix(se3_from_rt, **xp_kwargs)
+    se3_from_matrix = SE3.from_matrix(matrix, **xp_kwargs)
     quat_final, translation_final = SE3.to_rt(se3_from_matrix)
 
     # Convert to numpy for comparison

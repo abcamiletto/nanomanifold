@@ -1,13 +1,17 @@
+from types import ModuleType
 from typing import Any, Sequence
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 from .conversions.quaternion import canonicalize
 
 
-def weighted_mean(quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any, "... N"]) -> Float[Any, "... 4"]:
+def weighted_mean(
+    quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any, "... N"], *, xp: ModuleType | None = None
+) -> Float[Any, "... 4"]:
     """Compute the weighted mean of SO(3) rotations represented as quaternions.
 
     This function implements the Riemannian mean on SO(3) by computing the weighted
@@ -20,6 +24,7 @@ def weighted_mean(quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any
                     quaternion components.
         weights: Array of weights with shape [..., N] where N is the number of quaternions.
                 The weights are normalized internally.
+        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
         Weighted mean quaternion with shape [..., 4] in [w, x, y, z] format.
@@ -29,14 +34,15 @@ def weighted_mean(quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any
         This implementation follows the algorithm from:
         "Averaging Quaternions" by F. Landis Markley et al.
     """
-    xp = get_namespace(quaternions[0])
+    if xp is None:
+        xp = get_namespace(quaternions[0])
     original_dtype = quaternions[0].dtype
 
     quats = xp.stack([xp.asarray(q, dtype=original_dtype) for q in quaternions], axis=-2)
     weights_array = xp.asarray(weights, dtype=original_dtype)
 
     norms = xp.linalg.norm(quats, axis=-1, keepdims=True)
-    eps = xp.finfo(original_dtype).eps * 10
+    eps = common.safe_eps(original_dtype, xp)
     safe_norms = xp.where(norms < eps, eps, norms)
     quats_normalized = quats / safe_norms
 
@@ -60,10 +66,10 @@ def weighted_mean(quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any
 
     avg_quat = avg_quat / xp.linalg.norm(avg_quat, axis=-1, keepdims=True)
 
-    return canonicalize(avg_quat)
+    return canonicalize(avg_quat, xp=xp)
 
 
-def mean(quaternions: Sequence[Float[Any, "... 4"]]) -> Float[Any, "... 4"]:
+def mean(quaternions: Sequence[Float[Any, "... 4"]], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
     """Compute the mean of SO(3) rotations represented as quaternions.
 
     This is equivalent to weighted_mean with uniform weights.
@@ -72,6 +78,7 @@ def mean(quaternions: Sequence[Float[Any, "... 4"]]) -> Float[Any, "... 4"]:
         quaternions: Sequence of quaternions in [w, x, y, z] format. Each quaternion
                     should have shape [..., 4] where the last dimension contains the
                     quaternion components.
+        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
         Mean quaternion with shape [..., 4] in [w, x, y, z] format.
@@ -80,10 +87,11 @@ def mean(quaternions: Sequence[Float[Any, "... 4"]]) -> Float[Any, "... 4"]:
     if len(quaternions) == 0:
         raise ValueError("Cannot compute mean of empty quaternion sequence")
 
-    xp = get_namespace(quaternions[0])
+    if xp is None:
+        xp = get_namespace(quaternions[0])
 
     batch_shape = quaternions[0].shape[:-1]
     num_quats = len(quaternions)
     weights = xp.broadcast_to(xp.ones_like(quaternions[0][..., :1]), batch_shape + (num_quats,))
 
-    return weighted_mean(quaternions, weights)
+    return weighted_mean(quaternions, weights, xp=xp)

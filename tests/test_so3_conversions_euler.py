@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PRECISIONS, random_quaternion
+from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3
@@ -37,18 +37,20 @@ ALL_EULER_CONVENTIONS = [
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 @pytest.mark.parametrize("convention", ALL_EULER_CONVENTIONS)
-def test_euler_conversion_cycle(backend, batch_dims, precision, convention):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_euler_conversion_cycle(backend, batch_dims, precision, convention, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create a random SO3 quaternion
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
     # Convert to Euler angles representation
-    euler = SO3.to_euler(quat, convention=convention)
+    euler = SO3.to_euler(quat, convention=convention, **xp_kwargs)
 
     assert euler.dtype == quat.dtype
     assert euler.shape[:-1] == quat.shape[:-1]
 
     # Convert back to quaternion
-    quat_converted = SO3.from_euler(euler, convention=convention)
+    quat_converted = SO3.from_euler(euler, convention=convention, **xp_kwargs)
 
     assert quat_converted.dtype == quat.dtype
     assert quat_converted.shape == quat.shape
@@ -65,12 +67,14 @@ def test_euler_conversion_cycle(backend, batch_dims, precision, convention):
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("convention", ALL_EULER_CONVENTIONS)
-def test_euler_conversion_scipy(backend, batch_dims, convention):
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_euler_conversion_scipy(backend, batch_dims, convention, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create a random SO3 quaternion
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
     # Convert to Euler angles representation using nanomanifold
-    euler = SO3.to_euler(quat, convention=convention)
+    euler = SO3.to_euler(quat, convention=convention, **xp_kwargs)
 
     # Convert to Euler angles representation using scipy
     quat_np = np.array(quat)

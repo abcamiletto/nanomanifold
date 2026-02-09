@@ -11,12 +11,21 @@ TEST_BATCH_DIMS = [
     (2, 3),
     (2, 3, 4, 1, 2),
 ]
+TEST_PASS_XP = [False, True]
 
 ATOL = {
     16: 2e-2,
     32: 2e-6,
     64: 1e-12,
 }
+
+
+def get_xp_kwargs(backend, pass_xp):
+    """Return xp keyword arguments based on whether to pass xp explicitly."""
+    if not pass_xp:
+        return {}
+    return {"xp": get_namespace_by_name(backend)}
+
 
 np.random.seed(0)
 

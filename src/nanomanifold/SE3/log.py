@@ -1,7 +1,9 @@
+from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 from nanomanifold.SO3 import hat
 from nanomanifold.SO3 import log as so3_log
@@ -9,7 +11,7 @@ from nanomanifold.SO3 import log as so3_log
 from .canonicalize import canonicalize
 
 
-def log(se3: Float[Any, "... 7"]) -> Float[Any, "... 6"]:
+def log(se3: Float[Any, "... 7"], *, xp: ModuleType | None = None) -> Float[Any, "... 6"]:
     """Compute the logarithmic map of SE(3) to its Lie algebra se(3).
 
     The logarithmic map takes an SE(3) transformation and returns the corresponding
@@ -25,24 +27,25 @@ def log(se3: Float[Any, "... 7"]) -> Float[Any, "... 6"]:
 
     Args:
         se3: SE(3) transformation in [w, x, y, z, tx, ty, tz] format of shape (..., 7)
+        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
         Tangent vector in se(3) as [ω, ρ] of shape (..., 6)
     """
-    xp = get_namespace(se3)
-    se3 = canonicalize(se3)
+    if xp is None:
+        xp = get_namespace(se3)
+    se3 = canonicalize(se3, xp=xp)
 
     q = se3[..., :4]
     t = se3[..., 4:7]
 
-    omega = so3_log(q)
+    omega = so3_log(q, xp=xp)
     omega_norm = xp.linalg.norm(omega, axis=-1, keepdims=True)
 
-    eps = xp.finfo(omega.dtype).eps
-    small_angle_threshold = xp.asarray(max(1e-6, float(eps) * 10.0), dtype=omega.dtype)
-    small_angle_mask = omega_norm < small_angle_threshold
+    thresh = xp.asarray(common.small_angle_threshold(omega.dtype, xp), dtype=omega.dtype)
+    small_angle_mask = omega_norm < thresh
 
-    omega_cross = hat(omega)
+    omega_cross = hat(omega, xp=xp)
     omega_cross_sq = xp.matmul(omega_cross, omega_cross)
 
     identity = xp.eye(3, dtype=omega.dtype)

@@ -62,7 +62,7 @@ def slerp(
     # Keep the acos argument away from exactly 1.0 so the unselected spherical
     # path does not introduce NaN gradients at the linear/spherical boundary.
     one = xp.ones_like(dot_product)
-    eps = xp.asarray(xp.finfo(dot_product.dtype).eps, dtype=dot_product.dtype)
+    eps = xp.asarray(common.safe_eps(dot_product.dtype, xp, scale=1.0), dtype=dot_product.dtype)
     dot_for_trig = xp.minimum(dot_product, one - eps)
     omega = xp.acos(dot_for_trig)
     sin_omega = xp.sin(omega)

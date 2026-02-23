@@ -5,7 +5,7 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
-from .conversions.quaternion import canonicalize
+from .primitives.quaternion import canonicalize
 
 
 def rotate_points(q: Float[Any, "... 4"], points: Float[Any, "... N 3"], *, xp: ModuleType | None = None) -> Float[Any, "... N 3"]:

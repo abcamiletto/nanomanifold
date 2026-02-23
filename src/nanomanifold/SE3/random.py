@@ -7,7 +7,7 @@ from typing import Any
 from jaxtyping import Float
 
 from nanomanifold.common import get_namespace_by_name, random_uniform
-from nanomanifold.SO3.conversions.quaternion import canonicalize
+from nanomanifold.SO3.primitives.quaternion import canonicalize
 
 
 def random(*shape: int, dtype=None, key=None, xp: ModuleType | None = None) -> Float[Any, "... 7"]:

@@ -120,6 +120,47 @@ Array API convention and accept arbitrarily batched inputs.
 | `mean(transforms)`                    | `sequence of (...,7) -> (...,7)`          |
 | `random(*shape)`                      | `(...,7)`                                 |
 
+## Pairwise Conversions (`SO3.conversions`)
+
+Convert directly between any two rotation representations without going through
+quaternions manually. All 30 pairwise functions follow the naming pattern
+`from_{source}_to_{target}`.
+
+Representations: `axis_angle`, `euler`, `matrix`, `quat_wxyz`, `quat_xyzw`, `sixd`.
+
+| Function                                                        | Signature                   |
+| --------------------------------------------------------------- | --------------------------- |
+| `SO3.conversions.from_axis_angle_to_matrix(aa)`                 | `(...,3) -> (...,3,3)`      |
+| `SO3.conversions.from_axis_angle_to_euler(aa, convention)`      | `(...,3) -> (...,3)`        |
+| `SO3.conversions.from_axis_angle_to_quat_wxyz(aa)`              | `(...,3) -> (...,4)`        |
+| `SO3.conversions.from_axis_angle_to_quat_xyzw(aa)`              | `(...,3) -> (...,4)`        |
+| `SO3.conversions.from_axis_angle_to_sixd(aa)`                   | `(...,3) -> (...,6)`        |
+| `SO3.conversions.from_euler_to_axis_angle(e, convention)`       | `(...,3) -> (...,3)`        |
+| `SO3.conversions.from_euler_to_matrix(e, convention)`           | `(...,3) -> (...,3,3)`      |
+| `SO3.conversions.from_euler_to_quat_wxyz(e, convention)`        | `(...,3) -> (...,4)`        |
+| `SO3.conversions.from_euler_to_quat_xyzw(e, convention)`        | `(...,3) -> (...,4)`        |
+| `SO3.conversions.from_euler_to_sixd(e, convention)`             | `(...,3) -> (...,6)`        |
+| `SO3.conversions.from_matrix_to_axis_angle(R)`                  | `(...,3,3) -> (...,3)`      |
+| `SO3.conversions.from_matrix_to_euler(R, convention)`           | `(...,3,3) -> (...,3)`      |
+| `SO3.conversions.from_matrix_to_quat_wxyz(R)`                   | `(...,3,3) -> (...,4)`      |
+| `SO3.conversions.from_matrix_to_quat_xyzw(R)`                   | `(...,3,3) -> (...,4)`      |
+| `SO3.conversions.from_matrix_to_sixd(R)`                        | `(...,3,3) -> (...,6)`      |
+| `SO3.conversions.from_quat_wxyz_to_axis_angle(q)`               | `(...,4) -> (...,3)`        |
+| `SO3.conversions.from_quat_wxyz_to_euler(q, convention)`        | `(...,4) -> (...,3)`        |
+| `SO3.conversions.from_quat_wxyz_to_matrix(q)`                   | `(...,4) -> (...,3,3)`      |
+| `SO3.conversions.from_quat_wxyz_to_quat_xyzw(q)`               | `(...,4) -> (...,4)`        |
+| `SO3.conversions.from_quat_wxyz_to_sixd(q)`                     | `(...,4) -> (...,6)`        |
+| `SO3.conversions.from_quat_xyzw_to_axis_angle(q)`               | `(...,4) -> (...,3)`        |
+| `SO3.conversions.from_quat_xyzw_to_euler(q, convention)`        | `(...,4) -> (...,3)`        |
+| `SO3.conversions.from_quat_xyzw_to_matrix(q)`                   | `(...,4) -> (...,3,3)`      |
+| `SO3.conversions.from_quat_xyzw_to_quat_wxyz(q)`               | `(...,4) -> (...,4)`        |
+| `SO3.conversions.from_quat_xyzw_to_sixd(q)`                     | `(...,4) -> (...,6)`        |
+| `SO3.conversions.from_sixd_to_axis_angle(d6)`                   | `(...,6) -> (...,3)`        |
+| `SO3.conversions.from_sixd_to_euler(d6, convention)`            | `(...,6) -> (...,3)`        |
+| `SO3.conversions.from_sixd_to_matrix(d6)`                       | `(...,6) -> (...,3,3)`      |
+| `SO3.conversions.from_sixd_to_quat_wxyz(d6)`                    | `(...,6) -> (...,4)`        |
+| `SO3.conversions.from_sixd_to_quat_xyzw(d6)`                    | `(...,6) -> (...,4)`        |
+
 ## Backend-Explicit Mode
 
 By default, nanomanifold auto-detects the array backend via `array_api_compat`. Every function also

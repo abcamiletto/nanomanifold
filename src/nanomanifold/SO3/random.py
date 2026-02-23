@@ -8,7 +8,7 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace_by_name, random_uniform
 
-from .conversions.quaternion import canonicalize
+from .primitives.quaternion import canonicalize
 
 
 def random(*shape: int, dtype=None, key=None, xp: ModuleType | None = None) -> Float[Any, "... 4"]:

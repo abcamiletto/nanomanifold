@@ -1,14 +1,15 @@
-from .conversions.axis_angle import from_axis_angle, to_axis_angle
-from .conversions.euler import from_euler, to_euler
-from .conversions.matrix import from_matrix, to_matrix
-from .conversions.quaternion import canonicalize, from_quat_xyzw, to_quat_xyzw
-from .conversions.sixd import from_6d, to_6d
+from . import conversions
 from .distance import distance
 from .exp import exp
 from .hat import hat
 from .inverse import inverse
 from .log import log
 from .multiply import multiply
+from .primitives.axis_angle import from_axis_angle, to_axis_angle
+from .primitives.euler import from_euler, to_euler
+from .primitives.matrix import from_matrix, to_matrix
+from .primitives.quaternion import canonicalize, from_quat_xyzw, to_quat_xyzw
+from .primitives.sixd import from_6d, to_6d
 from .random import random
 from .rotate_points import rotate_points
 from .slerp import slerp
@@ -16,6 +17,7 @@ from .vee import vee
 from .weighted_mean import mean, weighted_mean
 
 __all__ = [
+    "conversions",
     "to_axis_angle",
     "from_axis_angle",
     "to_euler",

@@ -3,7 +3,7 @@ from typing import Any
 
 from jaxtyping import Float
 
-from .conversions.axis_angle import from_axis_angle
+from .primitives.axis_angle import from_axis_angle
 
 
 def exp(tangent_vector: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:

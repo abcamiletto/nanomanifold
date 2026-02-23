@@ -40,13 +40,13 @@ def small_angle_threshold(dtype, xp) -> float:
     """Dtype-dependent threshold for small-angle approximations.
     Uses sqrt(eps): ~0.031 for f16, ~3.5e-4 for f32, ~1.5e-8 for f64.
     At theta ~ sqrt(eps), Taylor series error is O(eps)."""
-    return math.sqrt(float(xp.finfo(dtype).eps))
+    return math.sqrt(safe_eps(dtype, xp, scale=1.0))
 
 
 def slerp_linear_threshold(dtype, xp) -> float:
     """Dtype-dependent threshold for switching slerp to linear interpolation.
     Uses 1 - sqrt(eps): ~0.969 for f16, ~0.9997 for f32, ~1-1.5e-8 for f64."""
-    return 1.0 - math.sqrt(float(xp.finfo(dtype).eps))
+    return 1.0 - math.sqrt(safe_eps(dtype, xp, scale=1.0))
 
 
 def random_uniform(shape: tuple[int, ...], *, dtype=None, key=None, xp: ModuleType | None = None):

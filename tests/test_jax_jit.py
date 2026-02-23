@@ -191,13 +191,15 @@ def test_jit_se3_hat():
 
 
 def test_jit_so3_random():
-    compiled = jax.jit(lambda: SO3.random(2, xp=jnp))
-    compiled()
+    key = jax.random.PRNGKey(42)
+    compiled = jax.jit(lambda k: SO3.random(2, key=k, xp=jnp))
+    compiled(key)
 
 
 def test_jit_se3_random():
-    compiled = jax.jit(lambda: SE3.random(2, xp=jnp))
-    compiled()
+    key = jax.random.PRNGKey(42)
+    compiled = jax.jit(lambda k: SE3.random(2, key=k, xp=jnp))
+    compiled(key)
 
 
 def test_jit_se3_vee():

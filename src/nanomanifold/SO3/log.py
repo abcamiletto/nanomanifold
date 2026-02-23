@@ -3,7 +3,7 @@ from typing import Any
 
 from jaxtyping import Float
 
-from .conversions.axis_angle import to_axis_angle
+from .primitives.axis_angle import to_axis_angle
 
 
 def log(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:

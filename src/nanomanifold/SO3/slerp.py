@@ -6,7 +6,7 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .conversions.quaternion import canonicalize
+from .primitives.quaternion import canonicalize
 
 
 def slerp(

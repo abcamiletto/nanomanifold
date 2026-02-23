@@ -3,6 +3,7 @@ from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 
@@ -24,15 +25,14 @@ def distance(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], *, xp: ModuleType
     if xp is None:
         xp = get_namespace(q1)
 
-    norm1 = xp.sqrt(xp.sum(q1**2, axis=-1, keepdims=True))
-    norm2 = xp.sqrt(xp.sum(q2**2, axis=-1, keepdims=True))
-    q1_unit = q1 / norm1
-    q2_unit = q2 / norm2
+    eps = common.safe_eps(q1.dtype, xp)
+    eps_arr = xp.asarray(eps, dtype=q1.dtype)
+    eps_sq = eps_arr * eps_arr
 
-    # Flip sign of q2 when dot(q1, q2) < 0 so the relative rotation
-    # always measures the shorter geodesic on the double cover.
-    dot_keepdims = xp.sum(q1_unit * q2_unit, axis=-1, keepdims=True)
-    q2_unit = xp.where(dot_keepdims < 0, -q2_unit, q2_unit)
+    norm1 = xp.linalg.norm(q1, axis=-1, keepdims=True)
+    norm2 = xp.linalg.norm(q2, axis=-1, keepdims=True)
+    q1_unit = q1 / xp.maximum(norm1, eps_arr)
+    q2_unit = q2 / xp.maximum(norm2, eps_arr)
 
     w1 = q1_unit[..., :1]
     v1 = q1_unit[..., 1:]
@@ -49,7 +49,10 @@ def distance(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], *, xp: ModuleType
     )
 
     vec = w1 * v2 - w2 * v1 - cross
-    vec_norm = xp.sqrt(xp.sum(vec**2, axis=-1))
+    vec_sq = xp.sum(vec * vec, axis=-1)
+    vec_norm = xp.sqrt(xp.maximum(vec_sq, eps_sq))
     w = w1 * w2 + xp.sum(v1 * v2, axis=-1, keepdims=True)
+    w_abs = xp.abs(w[..., 0])
+    angle = 2.0 * xp.atan2(vec_norm, w_abs)
 
-    return 2.0 * xp.atan2(vec_norm, w[..., 0])
+    return xp.where(vec_sq <= eps_sq, xp.zeros_like(angle), angle)

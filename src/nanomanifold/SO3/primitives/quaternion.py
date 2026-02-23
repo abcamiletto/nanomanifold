@@ -5,6 +5,7 @@ from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 
@@ -31,6 +32,9 @@ def canonicalize(q: Float[Any, "... 4"], xyzw: bool = False, *, xp: ModuleType |
         q = _from_quat_xyzw(q, xp=xp)
 
     norm = xp.sqrt(xp.sum(q**2, axis=-1, keepdims=True))
+    eps = common.safe_eps(q.dtype, xp)
+    if bool(xp.any(norm <= eps)):
+        raise ValueError("Cannot canonicalize zero-norm quaternion")
     q_normalized = q / norm
 
     mask = q_normalized[..., 0:1] < 0

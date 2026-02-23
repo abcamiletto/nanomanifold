@@ -50,28 +50,28 @@ def from_matrix(R: Float[Any, "... 3 3"], *, xp: ModuleType | None = None) -> Fl
     quarter = one * 0.25
     two = one * 2
 
-    s1 = xp.sqrt(xp.maximum(zero, trace + one)) * two  # s = 4 * w
+    s1 = xp.sqrt(xp.maximum(zero + eps, trace + one)) * two  # s = 4 * w
     s1_safe = xp.where(s1 < eps, eps, s1)  # Avoid division by zero
     w1 = quarter * s1
     x1 = (R[..., 2, 1] - R[..., 1, 2]) / s1_safe
     y1 = (R[..., 0, 2] - R[..., 2, 0]) / s1_safe
     z1 = (R[..., 1, 0] - R[..., 0, 1]) / s1_safe
 
-    s2 = xp.sqrt(xp.maximum(zero, one + R[..., 0, 0] - R[..., 1, 1] - R[..., 2, 2])) * two  # s = 4 * x
+    s2 = xp.sqrt(xp.maximum(zero + eps, one + R[..., 0, 0] - R[..., 1, 1] - R[..., 2, 2])) * two  # s = 4 * x
     s2_safe = xp.where(s2 < eps, eps, s2)  # Avoid division by zero
     w2 = (R[..., 2, 1] - R[..., 1, 2]) / s2_safe
     x2 = quarter * s2
     y2 = (R[..., 0, 1] + R[..., 1, 0]) / s2_safe
     z2 = (R[..., 0, 2] + R[..., 2, 0]) / s2_safe
 
-    s3 = xp.sqrt(xp.maximum(zero, one + R[..., 1, 1] - R[..., 0, 0] - R[..., 2, 2])) * two  # s = 4 * y
+    s3 = xp.sqrt(xp.maximum(zero + eps, one + R[..., 1, 1] - R[..., 0, 0] - R[..., 2, 2])) * two  # s = 4 * y
     s3_safe = xp.where(s3 < eps, eps, s3)  # Avoid division by zero
     w3 = (R[..., 0, 2] - R[..., 2, 0]) / s3_safe
     x3 = (R[..., 0, 1] + R[..., 1, 0]) / s3_safe
     y3 = quarter * s3
     z3 = (R[..., 1, 2] + R[..., 2, 1]) / s3_safe
 
-    s4 = xp.sqrt(xp.maximum(zero, one + R[..., 2, 2] - R[..., 0, 0] - R[..., 1, 1])) * two  # s = 4 * z
+    s4 = xp.sqrt(xp.maximum(zero + eps, one + R[..., 2, 2] - R[..., 0, 0] - R[..., 1, 1])) * two  # s = 4 * z
     s4_safe = xp.where(s4 < eps, eps, s4)  # Avoid division by zero
     w4 = (R[..., 1, 0] - R[..., 0, 1]) / s4_safe
     x4 = (R[..., 0, 2] + R[..., 2, 0]) / s4_safe

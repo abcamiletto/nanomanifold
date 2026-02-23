@@ -1,23 +1,9 @@
-"""Pairwise SO(3) representation conversions.
+"""Generic pairwise SO(3) conversions that route through the internal quaternion representation.
 
-Every function converts directly from one rotation representation to another
-without requiring the caller to chain two calls through the internal
-quaternion format.
-
-Representations
----------------
-- ``axis_angle``  -- axis-angle vector, shape ``(..., 3)``
-- ``euler``       -- Euler angles, shape ``(..., 3)``
-- ``matrix``      -- rotation matrix, shape ``(..., 3, 3)``
-- ``quat_wxyz``   -- unit quaternion ``[w, x, y, z]``, shape ``(..., 4)``
-- ``quat_xyzw``   -- unit quaternion ``[x, y, z, w]``, shape ``(..., 4)``
-- ``sixd``        -- 6-D rotation (first two columns of matrix), shape ``(..., 6)``
-
-Usage::
-
-    from nanomanifold import SO3
-
-    matrix = SO3.conversions.from_axis_angle_to_matrix(axis_angle)
+Each function composes a ``from_<source>`` primitive with a ``to_<target>``
+primitive, going through the ``quat_wxyz`` hub.  When a specialised direct
+conversion exists (e.g. ``axis_angle_to_matrix.py``), the package
+``__init__`` should prefer that implementation over the generic one here.
 """
 
 from types import ModuleType
@@ -25,17 +11,17 @@ from typing import Any
 
 from jaxtyping import Float
 
-from .primitives.axis_angle import from_axis_angle as _from_axis_angle
-from .primitives.axis_angle import to_axis_angle as _to_axis_angle
-from .primitives.euler import from_euler as _from_euler
-from .primitives.euler import to_euler as _to_euler
-from .primitives.matrix import from_matrix as _from_matrix
-from .primitives.matrix import to_matrix as _to_matrix
-from .primitives.quaternion import canonicalize as _canonicalize
-from .primitives.quaternion import from_quat_xyzw as _from_quat_xyzw
-from .primitives.quaternion import to_quat_xyzw as _to_quat_xyzw
-from .primitives.sixd import from_6d as _from_6d
-from .primitives.sixd import to_6d as _to_6d
+from ..primitives.axis_angle import from_axis_angle as _from_axis_angle
+from ..primitives.axis_angle import to_axis_angle as _to_axis_angle
+from ..primitives.euler import from_euler as _from_euler
+from ..primitives.euler import to_euler as _to_euler
+from ..primitives.matrix import from_matrix as _from_matrix
+from ..primitives.matrix import to_matrix as _to_matrix
+from ..primitives.quaternion import canonicalize as _canonicalize
+from ..primitives.quaternion import from_quat_xyzw as _from_quat_xyzw
+from ..primitives.quaternion import to_quat_xyzw as _to_quat_xyzw
+from ..primitives.sixd import from_6d as _from_6d
+from ..primitives.sixd import to_6d as _to_6d
 
 # ---------------------------------------------------------------------------
 # axis_angle -> *
@@ -191,37 +177,3 @@ def from_sixd_to_quat_wxyz(sixd: Float[Any, "... 6"], *, xp: ModuleType | None =
 
 def from_sixd_to_quat_xyzw(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
     return _to_quat_xyzw(_from_6d(sixd, xp=xp), xp=xp)
-
-
-__all__ = [
-    "from_axis_angle_to_euler",
-    "from_axis_angle_to_matrix",
-    "from_axis_angle_to_quat_wxyz",
-    "from_axis_angle_to_quat_xyzw",
-    "from_axis_angle_to_sixd",
-    "from_euler_to_axis_angle",
-    "from_euler_to_matrix",
-    "from_euler_to_quat_wxyz",
-    "from_euler_to_quat_xyzw",
-    "from_euler_to_sixd",
-    "from_matrix_to_axis_angle",
-    "from_matrix_to_euler",
-    "from_matrix_to_quat_wxyz",
-    "from_matrix_to_quat_xyzw",
-    "from_matrix_to_sixd",
-    "from_quat_wxyz_to_axis_angle",
-    "from_quat_wxyz_to_euler",
-    "from_quat_wxyz_to_matrix",
-    "from_quat_wxyz_to_quat_xyzw",
-    "from_quat_wxyz_to_sixd",
-    "from_quat_xyzw_to_axis_angle",
-    "from_quat_xyzw_to_euler",
-    "from_quat_xyzw_to_matrix",
-    "from_quat_xyzw_to_quat_wxyz",
-    "from_quat_xyzw_to_sixd",
-    "from_sixd_to_axis_angle",
-    "from_sixd_to_euler",
-    "from_sixd_to_matrix",
-    "from_sixd_to_quat_wxyz",
-    "from_sixd_to_quat_xyzw",
-]

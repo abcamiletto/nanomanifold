@@ -9,6 +9,13 @@ from nanomanifold.common import get_namespace
 from .primitives.quaternion import canonicalize
 
 
+def _as_dtype_preserve_grad(x, dtype, xp):
+    """Cast while preserving autograd for torch tensors."""
+    if "torch" in xp.__name__ and hasattr(x, "to"):
+        return x.to(dtype=dtype)
+    return xp.asarray(x, dtype=dtype)
+
+
 def weighted_mean(
     quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any, "... N"], *, xp: ModuleType | None = None
 ) -> Float[Any, "... 4"]:
@@ -38,8 +45,8 @@ def weighted_mean(
         xp = get_namespace(quaternions[0])
     original_dtype = quaternions[0].dtype
 
-    quats = xp.stack([xp.asarray(q, dtype=original_dtype) for q in quaternions], axis=-2)
-    weights_array = xp.asarray(weights, dtype=original_dtype)
+    quats = xp.stack([_as_dtype_preserve_grad(q, original_dtype, xp) for q in quaternions], axis=-2)
+    weights_array = _as_dtype_preserve_grad(weights, original_dtype, xp)
 
     norms = xp.linalg.norm(quats, axis=-1, keepdims=True)
     eps = common.safe_eps(original_dtype, xp)
@@ -56,9 +63,9 @@ def weighted_mean(
     M = xp.einsum("...nj,...nk->...jk", weighted_quats, quats_canonical)
 
     if original_dtype == xp.float16:
-        M_compute = xp.asarray(M, dtype=xp.float32)
+        M_compute = _as_dtype_preserve_grad(M, xp.float32, xp)
         eigenvalues, eigenvectors = xp.linalg.eigh(M_compute)
-        eigenvectors = xp.asarray(eigenvectors, dtype=original_dtype)
+        eigenvectors = _as_dtype_preserve_grad(eigenvectors, original_dtype, xp)
     else:
         eigenvalues, eigenvectors = xp.linalg.eigh(M)
 

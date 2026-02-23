@@ -59,10 +59,14 @@ def slerp(
     linear_norm = xp.sqrt(xp.sum(linear_result**2, axis=-1, keepdims=True))
     linear_result = linear_result / linear_norm
 
-    omega = xp.acos(dot_product)
+    # Keep the acos argument away from exactly 1.0 so the unselected spherical
+    # path does not introduce NaN gradients at the linear/spherical boundary.
+    one = xp.ones_like(dot_product)
+    eps = xp.asarray(xp.finfo(dot_product.dtype).eps, dtype=dot_product.dtype)
+    dot_for_trig = xp.minimum(dot_product, one - eps)
+    omega = xp.acos(dot_for_trig)
     sin_omega = xp.sin(omega)
 
-    eps = xp.finfo(dot_product.dtype).eps
     sin_omega_safe = xp.where(xp.abs(sin_omega) < eps, eps, sin_omega)
 
     weight1 = xp.sin((1.0 - t_expanded) * omega) / sin_omega_safe

@@ -33,9 +33,8 @@ def canonicalize(q: Float[Any, "... 4"], xyzw: bool = False, *, xp: ModuleType |
 
     norm = xp.sqrt(xp.sum(q**2, axis=-1, keepdims=True))
     eps = common.safe_eps(q.dtype, xp)
-    if bool(xp.any(norm <= eps)):
-        raise ValueError("Cannot canonicalize zero-norm quaternion")
-    q_normalized = q / norm
+    safe_norm = xp.maximum(norm, xp.asarray(eps, dtype=q.dtype))
+    q_normalized = q / safe_norm
 
     mask = q_normalized[..., 0:1] < 0
     q_canonical = xp.where(mask, -q_normalized, q_normalized)

@@ -1,3 +1,4 @@
+import math
 from types import ModuleType
 from typing import Any
 
@@ -49,7 +50,7 @@ def slerp(
 
     dot_product = xp.clip(dot_product, 0.0, 1.0)
 
-    threshold = common.slerp_linear_threshold(dot_product.dtype, xp)
+    threshold = 1.0 - math.sqrt(common.safe_eps(dot_product.dtype, xp, scale=1.0))
 
     t_expanded = t[..., None]
 

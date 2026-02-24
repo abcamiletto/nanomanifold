@@ -1,3 +1,4 @@
+import math
 from types import ModuleType
 from typing import Any
 
@@ -40,14 +41,13 @@ def exp(tangent_vector: Float[Any, "... 6"], *, xp: ModuleType | None = None) ->
     q = so3_exp(omega, xp=xp)
     omega_norm = xp.linalg.norm(omega, axis=-1, keepdims=True)
 
-    thresh = xp.asarray(common.small_angle_threshold(omega.dtype, xp), dtype=omega.dtype)
+    thresh = xp.asarray(math.sqrt(common.safe_eps(omega.dtype, xp, scale=1.0)), dtype=omega.dtype)
     small_angle_mask = omega_norm < thresh
 
     omega_cross = hat(omega, xp=xp)
     omega_cross_sq = xp.matmul(omega_cross, omega_cross)
 
-    identity = common.eye(3, dtype=omega.dtype, xp=xp, like=omega)
-    identity = xp.broadcast_to(identity, omega.shape[:-1] + (3, 3))
+    identity = common.eye_as(omega, batch_dims=omega.shape[:-1])
 
     V_small = identity + 0.5 * omega_cross + (1.0 / 12.0) * omega_cross_sq
 

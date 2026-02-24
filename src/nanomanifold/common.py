@@ -1,10 +1,10 @@
-import math
 from types import ModuleType
+from typing import Any
 
 import array_api_compat
 
 
-def get_namespace(array) -> ModuleType:
+def get_namespace(array: Any) -> ModuleType:
     return array_api_compat.get_namespace(array)
 
 
@@ -31,22 +31,28 @@ def get_namespace_by_name(name: str) -> ModuleType:
         raise ValueError(f"Unknown array namespace '{name}'. Supported: 'numpy', 'torch', 'jax'.")
 
 
-def safe_eps(dtype, xp, scale=10.0) -> float:
+def safe_eps(dtype: Any, xp: ModuleType, scale: float = 10.0) -> float:
     """Machine epsilon * scale. Used for division-by-zero guards."""
     return float(xp.finfo(dtype).eps) * scale
 
 
-def small_angle_threshold(dtype, xp) -> float:
-    """Dtype-dependent threshold for small-angle approximations.
-    Uses sqrt(eps): ~0.031 for f16, ~3.5e-4 for f32, ~1.5e-8 for f64.
-    At theta ~ sqrt(eps), Taylor series error is O(eps)."""
-    return math.sqrt(safe_eps(dtype, xp, scale=1.0))
+def zeros_as(ref: Any, *, shape: tuple[int, ...]) -> Any:
+    """Create zeros matching ref backend/device/dtype with explicit shape."""
+    xp = get_namespace(ref)
+    if "torch" in xp.__name__:
+        return xp.zeros(shape, dtype=ref.dtype, device=ref.device)
+    return xp.zeros(shape, dtype=ref.dtype)
 
 
-def slerp_linear_threshold(dtype, xp) -> float:
-    """Dtype-dependent threshold for switching slerp to linear interpolation.
-    Uses 1 - sqrt(eps): ~0.969 for f16, ~0.9997 for f32, ~1-1.5e-8 for f64."""
-    return 1.0 - math.sqrt(safe_eps(dtype, xp, scale=1.0))
+def eye_as(ref: Any, *, batch_dims: tuple[int, ...]) -> Any:
+    """Create batched identity matrices matching ref backend/device/dtype."""
+    xp = get_namespace(ref)
+    n = ref.shape[-1]
+    if "torch" in xp.__name__:
+        eye = xp.eye(n, dtype=ref.dtype, device=ref.device)
+    else:
+        eye = xp.eye(n, dtype=ref.dtype)
+    return xp.broadcast_to(eye, (*batch_dims, n, n))
 
 
 def random_uniform(shape: tuple[int, ...], *, dtype=None, key=None, xp: ModuleType | None = None):
@@ -85,15 +91,3 @@ def random_uniform(shape: tuple[int, ...], *, dtype=None, key=None, xp: ModuleTy
         if dtype is not None:
             arr = arr.astype(dtype)
         return arr
-
-
-def eye(n: int, *, dtype, xp: ModuleType, like=None):
-    """Identity matrix with backend-aware device placement.
-
-    For torch, passing ``like`` keeps the identity on the same device as ``like``.
-    Other backends ignore ``like`` and use the standard ``xp.eye`` behavior.
-    """
-    name = xp.__name__
-    if "torch" in name and like is not None:
-        return xp.eye(n, dtype=dtype, device=like.device)
-    return xp.eye(n, dtype=dtype)

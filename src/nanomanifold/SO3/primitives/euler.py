@@ -56,9 +56,7 @@ def _euler_to_matrix(euler: Float[Any, "... 3"], convention: str, *, xp: ModuleT
     if xp is None:
         xp = get_namespace(euler)
 
-    eye = common.eye(3, dtype=euler.dtype, xp=xp, like=euler)
-    output_shape = euler.shape[:-1] + (3, 3)
-    R = xp.broadcast_to(eye, output_shape)
+    R = common.eye_as(euler, batch_dims=euler.shape[:-1])
 
     is_extrinsic = convention.islower()
     conv = convention.lower()

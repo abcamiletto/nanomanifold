@@ -1,5 +1,6 @@
 """Pairwise SO(3) representation conversions."""
 
+import math
 from types import ModuleType
 from typing import Any
 
@@ -29,7 +30,7 @@ def _axis_angle_to_matrix_direct(axis_angle: Float[Any, "... 3"], xp) -> Float[A
     theta2 = theta * theta
     one = xp.ones_like(theta)
 
-    thresh = xp.asarray(common.small_angle_threshold(axis_angle.dtype, xp), dtype=axis_angle.dtype)
+    thresh = xp.asarray(math.sqrt(common.safe_eps(axis_angle.dtype, xp, scale=1.0)), dtype=axis_angle.dtype)
     small = theta < thresh
     safe_theta = xp.where(small, one, theta)
     safe_theta2 = safe_theta * safe_theta
@@ -42,8 +43,7 @@ def _axis_angle_to_matrix_direct(axis_angle: Float[Any, "... 3"], xp) -> Float[A
     K = _hat(axis_angle, xp=xp)
     K2 = xp.matmul(K, K)
 
-    I = common.eye(3, dtype=axis_angle.dtype, xp=xp, like=axis_angle)
-    I = xp.broadcast_to(I, axis_angle.shape[:-1] + (3, 3))
+    I = common.eye_as(axis_angle, batch_dims=axis_angle.shape[:-1])
     return I + a[..., None] * K + b[..., None] * K2
 
 

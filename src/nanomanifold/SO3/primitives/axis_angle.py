@@ -1,3 +1,4 @@
+import math
 from types import ModuleType
 from typing import Any
 
@@ -19,7 +20,7 @@ def to_axis_angle(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Fl
 
     norm_xyz = xp.linalg.norm(xyz, axis=-1, keepdims=True)
 
-    thresh = xp.asarray(common.small_angle_threshold(q.dtype, xp), dtype=q.dtype)
+    thresh = xp.asarray(math.sqrt(common.safe_eps(q.dtype, xp, scale=1.0)), dtype=q.dtype)
     small_angle_mask = norm_xyz < thresh
 
     axis_angle_small = 2.0 * xyz
@@ -43,7 +44,7 @@ def from_axis_angle(axis_angle: Float[Any, "... 3"], *, xp: ModuleType | None = 
 
     angle = xp.linalg.norm(axis_angle, axis=-1)
 
-    thresh = xp.asarray(common.small_angle_threshold(axis_angle.dtype, xp), dtype=axis_angle.dtype)
+    thresh = xp.asarray(math.sqrt(common.safe_eps(axis_angle.dtype, xp, scale=1.0)), dtype=axis_angle.dtype)
     small_angle_mask = angle < thresh
     safe_angle = xp.where(small_angle_mask, xp.ones_like(angle), angle)
     axis = axis_angle / safe_angle[..., None]

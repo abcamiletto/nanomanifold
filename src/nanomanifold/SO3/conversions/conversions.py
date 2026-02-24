@@ -5,6 +5,7 @@ from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 from ..primitives.axis_angle import from_axis_angle as _from_axis_angle
@@ -22,6 +23,41 @@ from ..primitives.sixd import from_6d as _from_6d
 from ..primitives.sixd import to_6d as _to_6d
 
 
+def _axis_angle_to_matrix_direct(axis_angle: Float[Any, "... 3"], xp) -> Float[Any, "... 3 3"]:
+    theta = xp.linalg.norm(axis_angle, axis=-1, keepdims=True)
+    theta2 = theta * theta
+    one = xp.ones_like(theta)
+
+    thresh = xp.asarray(common.small_angle_threshold(axis_angle.dtype, xp), dtype=axis_angle.dtype)
+    small = theta < thresh
+    safe_theta = xp.where(small, one, theta)
+    safe_theta2 = safe_theta * safe_theta
+
+    a_small = one - theta2 / 6.0
+    b_small = 0.5 * one - theta2 / 24.0
+    a = xp.where(small, a_small, xp.sin(theta) / safe_theta)
+    b = xp.where(small, b_small, (one - xp.cos(theta)) / safe_theta2)
+
+    x = axis_angle[..., 0:1]
+    y = axis_angle[..., 1:2]
+    z = axis_angle[..., 2:3]
+    zero = xp.zeros_like(x)
+
+    K = xp.stack(
+        [
+            xp.concatenate([zero, -z, y], axis=-1),
+            xp.concatenate([z, zero, -x], axis=-1),
+            xp.concatenate([-y, x, zero], axis=-1),
+        ],
+        axis=-2,
+    )
+    K2 = xp.matmul(K, K)
+
+    I = xp.eye(3, dtype=axis_angle.dtype)
+    I = xp.broadcast_to(I, axis_angle.shape[:-1] + (3, 3))
+    return I + a[..., None] * K + b[..., None] * K2
+
+
 def from_axis_angle_to_euler(
     axis_angle: Float[Any, "... 3"], *, convention: str = "ZYX", xp: ModuleType | None = None
 ) -> Float[Any, "... 3"]:
@@ -29,7 +65,9 @@ def from_axis_angle_to_euler(
 
 
 def from_axis_angle_to_matrix(axis_angle: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
-    return _to_matrix(_from_axis_angle(axis_angle, xp=xp), xp=xp)
+    if xp is None:
+        xp = get_namespace(axis_angle)
+    return _axis_angle_to_matrix_direct(axis_angle, xp)
 
 
 def from_axis_angle_to_quat_wxyz(axis_angle: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
@@ -41,7 +79,10 @@ def from_axis_angle_to_quat_xyzw(axis_angle: Float[Any, "... 3"], *, xp: ModuleT
 
 
 def from_axis_angle_to_sixd(axis_angle: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 6"]:
-    return _to_6d(_from_axis_angle(axis_angle, xp=xp), xp=xp)
+    if xp is None:
+        xp = get_namespace(axis_angle)
+    matrix = _axis_angle_to_matrix_direct(axis_angle, xp)
+    return xp.concatenate([matrix[..., :, 0], matrix[..., :, 1]], axis=-1)
 
 
 def from_euler_to_axis_angle(euler: Float[Any, "... 3"], *, convention: str = "ZYX", xp: ModuleType | None = None) -> Float[Any, "... 3"]:

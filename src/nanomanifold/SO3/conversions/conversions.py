@@ -13,6 +13,7 @@ from ..primitives.axis_angle import to_axis_angle as _to_axis_angle
 from ..primitives.euler import _euler_to_matrix, _matrix_to_euler
 from ..primitives.euler import from_euler as _from_euler
 from ..primitives.euler import to_euler as _to_euler
+from ..hat import hat as _hat
 from ..primitives.matrix import from_matrix as _from_matrix
 from ..primitives.matrix import to_matrix as _to_matrix
 from ..primitives.quaternion import canonicalize as _canonicalize
@@ -38,19 +39,7 @@ def _axis_angle_to_matrix_direct(axis_angle: Float[Any, "... 3"], xp) -> Float[A
     a = xp.where(small, a_small, xp.sin(theta) / safe_theta)
     b = xp.where(small, b_small, (one - xp.cos(theta)) / safe_theta2)
 
-    x = axis_angle[..., 0:1]
-    y = axis_angle[..., 1:2]
-    z = axis_angle[..., 2:3]
-    zero = xp.zeros_like(x)
-
-    K = xp.stack(
-        [
-            xp.concatenate([zero, -z, y], axis=-1),
-            xp.concatenate([z, zero, -x], axis=-1),
-            xp.concatenate([-y, x, zero], axis=-1),
-        ],
-        axis=-2,
-    )
+    K = _hat(axis_angle, xp=xp)
     K2 = xp.matmul(K, K)
 
     I = xp.eye(3, dtype=axis_angle.dtype)
@@ -82,7 +71,7 @@ def from_axis_angle_to_sixd(axis_angle: Float[Any, "... 3"], *, xp: ModuleType |
     if xp is None:
         xp = get_namespace(axis_angle)
     matrix = _axis_angle_to_matrix_direct(axis_angle, xp)
-    return xp.concatenate([matrix[..., :, 0], matrix[..., :, 1]], axis=-1)
+    return from_matrix_to_sixd(matrix, xp=xp)
 
 
 def from_euler_to_axis_angle(euler: Float[Any, "... 3"], *, convention: str = "ZYX", xp: ModuleType | None = None) -> Float[Any, "... 3"]:

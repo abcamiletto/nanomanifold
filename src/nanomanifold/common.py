@@ -85,3 +85,15 @@ def random_uniform(shape: tuple[int, ...], *, dtype=None, key=None, xp: ModuleTy
         if dtype is not None:
             arr = arr.astype(dtype)
         return arr
+
+
+def eye(n: int, *, dtype, xp: ModuleType, like=None):
+    """Identity matrix with backend-aware device placement.
+
+    For torch, passing ``like`` keeps the identity on the same device as ``like``.
+    Other backends ignore ``like`` and use the standard ``xp.eye`` behavior.
+    """
+    name = xp.__name__
+    if "torch" in name and like is not None:
+        return xp.eye(n, dtype=dtype, device=like.device)
+    return xp.eye(n, dtype=dtype)

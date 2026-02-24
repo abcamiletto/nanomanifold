@@ -8,12 +8,12 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
+from ..hat import hat as _hat
 from ..primitives.axis_angle import from_axis_angle as _from_axis_angle
 from ..primitives.axis_angle import to_axis_angle as _to_axis_angle
 from ..primitives.euler import _euler_to_matrix, _matrix_to_euler
 from ..primitives.euler import from_euler as _from_euler
 from ..primitives.euler import to_euler as _to_euler
-from ..hat import hat as _hat
 from ..primitives.matrix import from_matrix as _from_matrix
 from ..primitives.matrix import to_matrix as _to_matrix
 from ..primitives.quaternion import canonicalize as _canonicalize

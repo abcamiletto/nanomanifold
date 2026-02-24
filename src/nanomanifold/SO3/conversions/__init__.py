@@ -60,8 +60,10 @@ from ._generic import (
 # To override a generic conversion with a specialised one, add an import here:
 # from ._axis_angle_to_matrix import from_axis_angle_to_matrix  # noqa: F811
 from ._euler_to_matrix import from_euler_to_matrix  # noqa: F811
+from ._euler_to_sixd import from_euler_to_sixd  # noqa: F811
 from ._matrix_to_euler import from_matrix_to_euler  # noqa: F811
 from ._matrix_to_sixd import from_matrix_to_sixd  # noqa: F811
+from ._sixd_to_euler import from_sixd_to_euler  # noqa: F811
 from ._sixd_to_matrix import from_sixd_to_matrix  # noqa: F811
 
 __all__ = [

@@ -181,6 +181,7 @@ def from_sixd_to_quat_wxyz(sixd: Float[Any, "... 6"], *, xp: ModuleType | None =
 def from_sixd_to_quat_xyzw(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
     return _to_quat_xyzw(_from_6d(sixd, xp=xp), xp=xp)
 
+
 __all__ = [
     "from_axis_angle_to_euler",
     "from_axis_angle_to_matrix",

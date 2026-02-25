@@ -43,7 +43,7 @@ def _axis_angle_to_matrix_direct(axis_angle: Float[Any, "... 3"], xp) -> Float[A
     K = _hat(axis_angle, xp=xp)
     K2 = xp.matmul(K, K)
 
-    I = common.eye_as(axis_angle, batch_dims=axis_angle.shape[:-1])
+    I = common.eye_as(axis_angle, batch_dims=axis_angle.shape[:-1], xp=xp)
     return I + a[..., None] * K + b[..., None] * K2
 
 

@@ -47,7 +47,7 @@ def exp(tangent_vector: Float[Any, "... 6"], *, xp: ModuleType | None = None) ->
     omega_cross = hat(omega, xp=xp)
     omega_cross_sq = xp.matmul(omega_cross, omega_cross)
 
-    identity = common.eye_as(omega, batch_dims=omega.shape[:-1])
+    identity = common.eye_as(omega, batch_dims=omega.shape[:-1], xp=xp)
 
     V_small = identity + 0.5 * omega_cross + (1.0 / 12.0) * omega_cross_sq
 

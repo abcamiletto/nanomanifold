@@ -36,17 +36,19 @@ def safe_eps(dtype: Any, xp: ModuleType, scale: float = 10.0) -> float:
     return float(xp.finfo(dtype).eps) * scale
 
 
-def zeros_as(ref: Any, *, shape: tuple[int, ...]) -> Any:
+def zeros_as(ref: Any, *, shape: tuple[int, ...], xp: ModuleType | None = None) -> Any:
     """Create zeros matching ref backend/device/dtype with explicit shape."""
-    xp = get_namespace(ref)
+    if xp is None:
+        xp = get_namespace(ref)
     if "torch" in xp.__name__:
         return xp.zeros(shape, dtype=ref.dtype, device=ref.device)
     return xp.zeros(shape, dtype=ref.dtype)
 
 
-def eye_as(ref: Any, *, batch_dims: tuple[int, ...]) -> Any:
+def eye_as(ref: Any, *, batch_dims: tuple[int, ...], xp: ModuleType | None = None) -> Any:
     """Create batched identity matrices matching ref backend/device/dtype."""
-    xp = get_namespace(ref)
+    if xp is None:
+        xp = get_namespace(ref)
     n = ref.shape[-1]
     if "torch" in xp.__name__:
         eye = xp.eye(n, dtype=ref.dtype, device=ref.device)

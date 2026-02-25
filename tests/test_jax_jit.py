@@ -20,6 +20,27 @@ def _random_quat(batch_size=2):
     return q
 
 
+def _conv_input(rep: str):
+    q = _random_quat()
+    if rep == "axis_angle":
+        return SO3.to_axis_angle(q, xp=jnp)
+    if rep == "euler":
+        return SO3.to_euler(q, "ZYX", xp=jnp)
+    if rep == "matrix":
+        return SO3.to_matrix(q, xp=jnp)
+    if rep == "quat_wxyz":
+        return q
+    if rep == "quat_xyzw":
+        return SO3.to_quat_xyzw(q, xp=jnp)
+    if rep == "sixd":
+        return SO3.to_6d(q, xp=jnp)
+    raise ValueError(rep)
+
+
+_CONV_REPS = ["axis_angle", "euler", "matrix", "quat_wxyz", "quat_xyzw", "sixd"]
+_CONV_PAIRS = [(s, t) for s in _CONV_REPS for t in _CONV_REPS if s != t]
+
+
 # ── SO3 conversions ──────────────────────────────────────────────────────────
 
 
@@ -61,6 +82,13 @@ def test_jit_from_6d():
 def test_jit_to_6d():
     compiled = jax.jit(lambda q: SO3.to_6d(q, xp=jnp))
     compiled(_random_quat())
+
+
+@pytest.mark.parametrize("source,target", _CONV_PAIRS, ids=[f"{s}->{t}" for s, t in _CONV_PAIRS])
+def test_jit_so3_pairwise_conversions(source, target):
+    fn = getattr(SO3.conversions, f"from_{source}_to_{target}")
+    compiled = jax.jit(lambda x: fn(x, xp=jnp))
+    compiled(_conv_input(source))
 
 
 # ── SO3 operations ───────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,27 +21,20 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.11"
-      - name: Detect version change
+      - name: Detect unreleased version
         id: version
         run: |
-          new_version=$(uv version --short)
-          echo "version=$new_version" >> "$GITHUB_OUTPUT"
-          tmp_dir=$(mktemp -d)
-          git show HEAD^:pyproject.toml 2>/dev/null > "$tmp_dir/pyproject.toml" || true
-          if [ -s "$tmp_dir/pyproject.toml" ]; then
-            old_version=$(uv version --short --project "$tmp_dir")
-          else
-            old_version=""
-          fi
-          if [ "$new_version" != "$old_version" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
+          version=$(uv version --short)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          git fetch --tags
+          if git rev-parse "v$version" >/dev/null 2>&1; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Push tag
         if: steps.version.outputs.changed == 'true'
         run: |
-          git fetch --tags
           if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
             echo "Tag v${{ steps.version.outputs.version }} already exists"
             exit 0

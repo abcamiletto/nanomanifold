@@ -10,6 +10,7 @@ import pytest
 jax = pytest.importorskip("jax")
 import jax.numpy as jnp  # noqa: E402
 
+import nanomanifold.common as common  # noqa: E402
 from nanomanifold import SE3, SO3  # noqa: E402
 
 
@@ -170,6 +171,21 @@ def test_jit_slerp():
 
 def test_jit_canonicalize():
     compiled = jax.jit(lambda q: SO3.canonicalize(q, xp=jnp))
+    compiled(_random_quat())
+
+
+def test_jit_zeros_as():
+    compiled = jax.jit(lambda q: common.zeros_as(q, shape=q.shape, xp=jnp))
+    compiled(_random_quat())
+
+
+def test_jit_eye_as():
+    compiled = jax.jit(lambda q: common.eye_as(q[..., :3], batch_dims=q.shape[:-1], xp=jnp))
+    compiled(_random_quat())
+
+
+def test_jit_identity_as():
+    compiled = jax.jit(lambda q: SO3.identity_as(q, rotation_type="matrix", xp=jnp))
     compiled(_random_quat())
 
 

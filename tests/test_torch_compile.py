@@ -8,7 +8,7 @@ call that Dynamo cannot trace through.
 import pytest
 
 torch = pytest.importorskip("torch")
-
+import nanomanifold.common as common  # noqa: E402
 from nanomanifold import SE3, SO3  # noqa: E402
 
 
@@ -234,6 +234,30 @@ def test_compile_slerp():
 def test_compile_canonicalize():
     def f(q):
         return SO3.canonicalize(q, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(_random_quat())
+
+
+def test_compile_zeros_as():
+    def f(q):
+        return common.zeros_as(q, shape=q.shape, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(_random_quat())
+
+
+def test_compile_eye_as():
+    def f(q):
+        return common.eye_as(q[..., :3], batch_dims=q.shape[:-1], xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(_random_quat())
+
+
+def test_compile_identity_as():
+    def f(q):
+        return SO3.identity_as(q, rotation_type="matrix", xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(_random_quat())

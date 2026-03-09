@@ -81,6 +81,7 @@ Array API convention and accept arbitrarily batched inputs.
 | `to_euler(q, convention="ZYX")`       | `(...,4) -> (...,3)`                      |
 | `from_euler(euler, convention="ZYX")` | `(...,3) -> (...,4)`                      |
 | `convert(x, src=..., dst=...)`        | dynamic                                   |
+| `identity_as(ref, rotation_type=...)` | dynamic                                   |
 | `to_matrix(q)`                        | `(...,4) -> (...,3,3)`                    |
 | `from_matrix(R)`                      | `(...,3,3) -> (...,4)`                    |
 | `from_quat_xyzw(quat)`                | `(...,4) -> (...,4)`                      |

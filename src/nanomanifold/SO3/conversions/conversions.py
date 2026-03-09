@@ -10,6 +10,7 @@ from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 from ..hat import hat as _hat
+from ..identity import identity_as
 from ..primitives.axis_angle import from_axis_angle as _from_axis_angle
 from ..primitives.axis_angle import to_axis_angle as _to_axis_angle
 from ..primitives.euler import _euler_to_matrix, _matrix_to_euler
@@ -43,7 +44,7 @@ def _axis_angle_to_matrix_direct(axis_angle: Float[Any, "... 3"], xp) -> Float[A
     K = _hat(axis_angle, xp=xp)
     K2 = xp.matmul(K, K)
 
-    I = common.eye_as(axis_angle, batch_dims=axis_angle.shape[:-1], xp=xp)
+    I = identity_as(axis_angle, batch_dims=axis_angle.shape[:-1], rotation_type="matrix", xp=xp)
     return I + a[..., None] * K + b[..., None] * K2
 
 

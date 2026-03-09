@@ -6,6 +6,7 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
+from ..identity import identity_as
 from ..multiply import multiply
 from . import matrix
 from .quaternion import canonicalize
@@ -56,7 +57,7 @@ def _euler_to_matrix(euler: Float[Any, "... 3"], convention: str, *, xp: ModuleT
     if xp is None:
         xp = get_namespace(euler)
 
-    R = common.eye_as(euler, batch_dims=euler.shape[:-1], xp=xp)
+    R = identity_as(euler, batch_dims=euler.shape[:-1], rotation_type="matrix", xp=xp)
 
     is_extrinsic = convention.islower()
     conv = convention.lower()

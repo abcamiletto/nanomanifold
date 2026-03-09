@@ -12,17 +12,13 @@ from .convert import RotationRep
 def identity_as(
     ref: Float[Any, "..."],
     *,
+    batch_dims: tuple[int, ...],
     rotation_type: RotationRep = "quat",
     xp: ModuleType | None = None,
 ) -> Float[Any, "..."]:
-    """Return an identity rotation matching ref backend, dtype, and batch dimensions."""
+    """Return an identity rotation matching ref backend and dtype."""
     if xp is None:
         xp = get_namespace(ref)
-
-    if ref.shape[-2:] == (3, 3):
-        batch_dims = ref.shape[:-2]
-    else:
-        batch_dims = ref.shape[:-1]
 
     if rotation_type == "matrix":
         if "torch" in xp.__name__:

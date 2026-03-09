@@ -246,18 +246,9 @@ def test_compile_zeros_as():
     compiled = torch.compile(f, fullgraph=True)
     compiled(_random_quat())
 
-
-def test_compile_eye_as():
-    def f(q):
-        return common.eye_as(q[..., :3], batch_dims=q.shape[:-1], xp=torch)
-
-    compiled = torch.compile(f, fullgraph=True)
-    compiled(_random_quat())
-
-
 def test_compile_identity_as():
     def f(q):
-        return SO3.identity_as(q, rotation_type="matrix", xp=torch)
+        return SO3.identity_as(q, batch_dims=q.shape[:-1], rotation_type="matrix", xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(_random_quat())

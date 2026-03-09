@@ -45,18 +45,6 @@ def zeros_as(ref: Any, *, shape: tuple[int, ...], xp: ModuleType | None = None) 
     return xp.zeros(shape, dtype=ref.dtype)
 
 
-def eye_as(ref: Any, *, batch_dims: tuple[int, ...], xp: ModuleType | None = None) -> Any:
-    """Create batched identity matrices matching ref backend/device/dtype."""
-    if xp is None:
-        xp = get_namespace(ref)
-    n = ref.shape[-1]
-    if "torch" in xp.__name__:
-        eye = xp.eye(n, dtype=ref.dtype, device=ref.device)
-    else:
-        eye = xp.eye(n, dtype=ref.dtype)
-    return xp.broadcast_to(eye, (*batch_dims, n, n))
-
-
 def random_uniform(shape: tuple[int, ...], *, dtype=None, key=None, xp: ModuleType | None = None):
     """Return U[0,1) samples of the given shape.
 

@@ -178,14 +178,8 @@ def test_jit_zeros_as():
     compiled = jax.jit(lambda q: common.zeros_as(q, shape=q.shape, xp=jnp))
     compiled(_random_quat())
 
-
-def test_jit_eye_as():
-    compiled = jax.jit(lambda q: common.eye_as(q[..., :3], batch_dims=q.shape[:-1], xp=jnp))
-    compiled(_random_quat())
-
-
 def test_jit_identity_as():
-    compiled = jax.jit(lambda q: SO3.identity_as(q, rotation_type="matrix", xp=jnp))
+    compiled = jax.jit(lambda q: SO3.identity_as(q, batch_dims=q.shape[:-1], rotation_type="matrix", xp=jnp))
     compiled(_random_quat())
 
 

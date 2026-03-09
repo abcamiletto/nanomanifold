@@ -80,6 +80,7 @@ Array API convention and accept arbitrarily batched inputs.
 | `from_axis_angle(axis_angle)`         | `(...,3) -> (...,4)`                      |
 | `to_euler(q, convention="ZYX")`       | `(...,4) -> (...,3)`                      |
 | `from_euler(euler, convention="ZYX")` | `(...,3) -> (...,4)`                      |
+| `convert(x, src=..., dst=...)`        | dynamic                                   |
 | `to_matrix(q)`                        | `(...,4) -> (...,3,3)`                    |
 | `from_matrix(R)`                      | `(...,3,3) -> (...,4)`                    |
 | `from_quat_xyzw(quat)`                | `(...,4) -> (...,4)`                      |
@@ -160,6 +161,17 @@ Representations: `axis_angle`, `euler`, `matrix`, `quat_wxyz`, `quat_xyzw`, `six
 | `SO3.conversions.from_sixd_to_matrix(d6)`                       | `(...,6) -> (...,3,3)`      |
 | `SO3.conversions.from_sixd_to_quat_wxyz(d6)`                    | `(...,6) -> (...,4)`        |
 | `SO3.conversions.from_sixd_to_quat_xyzw(d6)`                    | `(...,6) -> (...,4)`        |
+
+For runtime-selected conversions, use `SO3.convert`. Euler uses the usual
+axis-order convention strings, while quaternion order is controlled via
+`"wxyz"` or `"xyzw"` and defaults to the repo convention `"wxyz"`:
+
+```python
+matrix = SO3.convert(axis_angle, src="axis_angle", dst="matrix")
+quat_xyzw = SO3.convert(euler, src="euler", dst="quat", src_convention="XYZ", dst_convention="xyzw")
+quat_wxyz = SO3.convert(quat_xyzw, src="quat", dst="quat", src_convention="xyzw")
+euler = SO3.convert(matrix, src="matrix", dst="euler", dst_convention="ZYX")
+```
 
 ## Backend-Explicit Mode
 

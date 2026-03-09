@@ -167,3 +167,23 @@ def test_euler_convention_threading(convention, backend):
     result2 = SO3.conversions.from_axis_angle_to_euler(aa, convention=convention)
     expected2 = _manual_convert(aa, "axis_angle", "euler", convention=convention)
     assert np.allclose(np.array(result2), np.array(expected2), atol=ATOL[32])
+
+
+@pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_from_euler_to_euler_rethreads_convention(backend, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+    q = random_quaternion(batch_dims=(5,), backend=backend)
+    euler_xyz = SO3.to_euler(q, convention="XYZ")
+
+    result = SO3.conversions.from_euler_to_euler(
+        euler_xyz,
+        source_convention="XYZ",
+        target_convention="ZYX",
+        **xp_kwargs,
+    )
+    expected = SO3.to_euler(SO3.from_euler(euler_xyz, convention="XYZ"), convention="ZYX")
+
+    assert result.dtype == expected.dtype
+    assert result.shape == expected.shape
+    assert np.allclose(np.array(result), np.array(expected), atol=ATOL[32])

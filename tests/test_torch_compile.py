@@ -19,7 +19,7 @@ def _random_quat(batch_size=2):
     return q
 
 
-def _conv_input(rep: str):
+def _conv_input(rep: str, quat_convention: str = "wxyz"):
     q = _random_quat()
     if rep == "axis_angle":
         return SO3.to_axis_angle(q, xp=torch)
@@ -27,17 +27,24 @@ def _conv_input(rep: str):
         return SO3.to_euler(q, "ZYX", xp=torch)
     if rep == "matrix":
         return SO3.to_matrix(q, xp=torch)
-    if rep == "quat_wxyz":
-        return q
-    if rep == "quat_xyzw":
-        return SO3.to_quat_xyzw(q, xp=torch)
+    if rep == "quat":
+        return SO3.to_quat_xyzw(q, xp=torch) if quat_convention == "xyzw" else q
     if rep == "sixd":
         return SO3.to_6d(q, xp=torch)
     raise ValueError(rep)
 
 
-_CONV_REPS = ["axis_angle", "euler", "matrix", "quat_wxyz", "quat_xyzw", "sixd"]
+_CONV_REPS = ["axis_angle", "euler", "matrix", "quat", "sixd"]
 _CONV_PAIRS = [(s, t) for s in _CONV_REPS for t in _CONV_REPS if s != t]
+_DYNAMIC_CONV_CASES = [
+    ("axis_angle", "matrix"),
+    ("euler", "quat"),
+    ("matrix", "euler"),
+    ("quat", "sixd"),
+    ("quat", "quat"),
+    ("sixd", "axis_angle"),
+    ("euler", "euler"),
+]
 
 
 # ── SO3 conversions ──────────────────────────────────────────────────────────
@@ -91,6 +98,14 @@ def test_compile_to_euler():
     compiled(_random_quat())
 
 
+def test_compile_from_euler_to_euler():
+    def f(e):
+        return SO3.conversions.from_euler_to_euler(e, source_convention="XYZ", target_convention="ZYX", xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(torch.randn(2, 3))
+
+
 def test_compile_from_6d():
     def f(d6):
         return SO3.from_6d(d6, xp=torch)
@@ -117,6 +132,25 @@ def test_compile_so3_pairwise_conversions(source, target):
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(_conv_input(source))
+
+
+@pytest.mark.parametrize("source,target", _DYNAMIC_CONV_CASES, ids=[f"{s}->{t}" for s, t in _DYNAMIC_CONV_CASES])
+def test_compile_so3_convert(source, target):
+    torch._dynamo.reset()
+    source_input = _conv_input(source, quat_convention="xyzw" if source == "quat" else "wxyz")
+
+    def f(x):
+        return SO3.convert(
+            x,
+            src=source,
+            dst=target,
+            src_convention="xyzw" if source == "quat" else "ZYX",
+            dst_convention="xyzw" if target == "quat" else "XYZ",
+            xp=torch,
+        )
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(source_input)
 
 
 # ── SO3 operations ───────────────────────────────────────────────────────────

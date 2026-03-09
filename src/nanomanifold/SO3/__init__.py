@@ -1,4 +1,5 @@
 from . import conversions
+from .convert import RotationRep, convert
 from .distance import distance
 from .exp import exp
 from .hat import hat
@@ -18,6 +19,8 @@ from .weighted_mean import mean, weighted_mean
 
 __all__ = [
     "conversions",
+    "RotationRep",
+    "convert",
     "to_axis_angle",
     "from_axis_angle",
     "to_euler",

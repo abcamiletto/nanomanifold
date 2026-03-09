@@ -20,7 +20,7 @@ def _random_quat(batch_size=2):
     return q
 
 
-def _conv_input(rep: str):
+def _conv_input(rep: str, quat_convention: str = "wxyz"):
     q = _random_quat()
     if rep == "axis_angle":
         return SO3.to_axis_angle(q, xp=jnp)
@@ -28,17 +28,24 @@ def _conv_input(rep: str):
         return SO3.to_euler(q, "ZYX", xp=jnp)
     if rep == "matrix":
         return SO3.to_matrix(q, xp=jnp)
-    if rep == "quat_wxyz":
-        return q
-    if rep == "quat_xyzw":
-        return SO3.to_quat_xyzw(q, xp=jnp)
+    if rep == "quat":
+        return SO3.to_quat_xyzw(q, xp=jnp) if quat_convention == "xyzw" else q
     if rep == "sixd":
         return SO3.to_6d(q, xp=jnp)
     raise ValueError(rep)
 
 
-_CONV_REPS = ["axis_angle", "euler", "matrix", "quat_wxyz", "quat_xyzw", "sixd"]
+_CONV_REPS = ["axis_angle", "euler", "matrix", "quat", "sixd"]
 _CONV_PAIRS = [(s, t) for s in _CONV_REPS for t in _CONV_REPS if s != t]
+_DYNAMIC_CONV_CASES = [
+    ("axis_angle", "matrix"),
+    ("euler", "quat"),
+    ("matrix", "euler"),
+    ("quat", "sixd"),
+    ("quat", "quat"),
+    ("sixd", "axis_angle"),
+    ("euler", "euler"),
+]
 
 
 # ── SO3 conversions ──────────────────────────────────────────────────────────
@@ -74,6 +81,11 @@ def test_jit_to_euler():
     compiled(_random_quat())
 
 
+def test_jit_from_euler_to_euler():
+    compiled = jax.jit(lambda e: SO3.conversions.from_euler_to_euler(e, source_convention="XYZ", target_convention="ZYX", xp=jnp))
+    compiled(jax.random.normal(jax.random.PRNGKey(0), (2, 3)))
+
+
 def test_jit_from_6d():
     compiled = jax.jit(lambda d6: SO3.from_6d(d6, xp=jnp))
     compiled(jax.random.normal(jax.random.PRNGKey(0), (2, 6)))
@@ -89,6 +101,22 @@ def test_jit_so3_pairwise_conversions(source, target):
     fn = getattr(SO3.conversions, f"from_{source}_to_{target}")
     compiled = jax.jit(lambda x: fn(x, xp=jnp))
     compiled(_conv_input(source))
+
+
+@pytest.mark.parametrize("source,target", _DYNAMIC_CONV_CASES, ids=[f"{s}->{t}" for s, t in _DYNAMIC_CONV_CASES])
+def test_jit_so3_convert(source, target):
+    source_input = _conv_input(source, quat_convention="xyzw" if source == "quat" else "wxyz")
+    compiled = jax.jit(
+        lambda x: SO3.convert(
+            x,
+            src=source,
+            dst=target,
+            src_convention="xyzw" if source == "quat" else "ZYX",
+            dst_convention="xyzw" if target == "quat" else "XYZ",
+            xp=jnp,
+        )
+    )
+    compiled(source_input)
 
 
 # ── SO3 operations ───────────────────────────────────────────────────────────

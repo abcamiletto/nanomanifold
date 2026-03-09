@@ -78,6 +78,16 @@ def from_euler_to_axis_angle(euler: Float[Any, "... 3"], *, convention: str = "Z
     return _to_axis_angle(_from_euler(euler, convention=convention, xp=xp), xp=xp)
 
 
+def from_euler_to_euler(
+    euler: Float[Any, "... 3"],
+    *,
+    source_convention: str = "ZYX",
+    target_convention: str = "ZYX",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 3"]:
+    return _to_euler(_from_euler(euler, convention=source_convention, xp=xp), convention=target_convention, xp=xp)
+
+
 def from_euler_to_matrix(euler: Float[Any, "... 3"], *, convention: str = "ZYX", xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     return _euler_to_matrix(euler, convention, xp=xp)
 
@@ -189,6 +199,7 @@ __all__ = [
     "from_axis_angle_to_quat_xyzw",
     "from_axis_angle_to_sixd",
     "from_euler_to_axis_angle",
+    "from_euler_to_euler",
     "from_euler_to_matrix",
     "from_euler_to_quat_wxyz",
     "from_euler_to_quat_xyzw",

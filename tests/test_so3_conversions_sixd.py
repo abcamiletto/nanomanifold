@@ -13,13 +13,13 @@ def test_sixd_conversion_cycle(backend, batch_dims, precision, pass_xp):
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
-    d6 = SO3.to_6d(quat, **xp_kwargs)
+    sixd = SO3.to_sixd(quat, **xp_kwargs)
 
-    assert d6.dtype == quat.dtype
-    assert d6.shape[:-1] == quat.shape[:-1]
-    assert d6.shape[-1] == 6
+    assert sixd.dtype == quat.dtype
+    assert sixd.shape[:-1] == quat.shape[:-1]
+    assert sixd.shape[-1] == 6
 
-    quat_converted = SO3.from_6d(d6, **xp_kwargs)
+    quat_converted = SO3.from_sixd(sixd, **xp_kwargs)
 
     assert quat_converted.dtype == quat.dtype
     assert quat_converted.shape == quat.shape
@@ -40,13 +40,13 @@ def test_sixd_differentiality_torch(batch_dims):
     quat = random_quaternion(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
 
     def f(q):
-        return SO3.to_6d(q)
+        return SO3.to_sixd(q)
 
     assert torch.autograd.gradcheck(f, (quat,), eps=1e-6, atol=1e-5)
 
-    d6 = SO3.to_6d(quat.detach()).requires_grad_(True)
+    sixd = SO3.to_sixd(quat.detach()).requires_grad_(True)
 
     def g(x):
-        return SO3.from_6d(x)
+        return SO3.from_sixd(x)
 
-    assert torch.autograd.gradcheck(g, (d6,), eps=1e-6, atol=1e-5)
+    assert torch.autograd.gradcheck(g, (sixd,), eps=1e-6, atol=1e-5)

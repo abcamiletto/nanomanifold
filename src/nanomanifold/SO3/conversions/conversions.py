@@ -21,9 +21,9 @@ from ..primitives.matrix import to_matrix as _to_matrix
 from ..primitives.quaternion import canonicalize as _canonicalize
 from ..primitives.quaternion import from_quat_xyzw as _from_quat_xyzw
 from ..primitives.quaternion import to_quat_xyzw as _to_quat_xyzw
-from ..primitives.sixd import _from_6d_to_matrix
-from ..primitives.sixd import from_6d as _from_6d
-from ..primitives.sixd import to_6d as _to_6d
+from ..primitives.sixd import _from_sixd_to_matrix
+from ..primitives.sixd import from_sixd as _from_sixd
+from ..primitives.sixd import to_sixd as _to_sixd
 
 
 def _axis_angle_to_matrix_direct(axis_angle: Float[Any, "... 3"], xp) -> Float[Any, "... 3 3"]:
@@ -146,7 +146,7 @@ def from_quat_wxyz_to_quat_xyzw(quat_wxyz: Float[Any, "... 4"], *, xp: ModuleTyp
 
 
 def from_quat_wxyz_to_sixd(quat_wxyz: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 6"]:
-    return _to_6d(quat_wxyz, xp=xp)
+    return _to_sixd(quat_wxyz, xp=xp)
 
 
 def from_quat_xyzw_to_axis_angle(quat_xyzw: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
@@ -168,11 +168,11 @@ def from_quat_xyzw_to_quat_wxyz(quat_xyzw: Float[Any, "... 4"], *, xp: ModuleTyp
 
 
 def from_quat_xyzw_to_sixd(quat_xyzw: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 6"]:
-    return _to_6d(_from_quat_xyzw(quat_xyzw, xp=xp), xp=xp)
+    return _to_sixd(_from_quat_xyzw(quat_xyzw, xp=xp), xp=xp)
 
 
 def from_sixd_to_axis_angle(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
-    return _to_axis_angle(_from_6d(sixd, xp=xp), xp=xp)
+    return _to_axis_angle(_from_sixd(sixd, xp=xp), xp=xp)
 
 
 def from_sixd_to_euler(sixd: Float[Any, "... 6"], *, convention: str = "ZYX", xp: ModuleType | None = None) -> Float[Any, "... 3"]:
@@ -182,15 +182,15 @@ def from_sixd_to_euler(sixd: Float[Any, "... 6"], *, convention: str = "ZYX", xp
 def from_sixd_to_matrix(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     if xp is None:
         xp = get_namespace(sixd)
-    return _from_6d_to_matrix(sixd, xp)
+    return _from_sixd_to_matrix(sixd, xp)
 
 
 def from_sixd_to_quat_wxyz(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
-    return _canonicalize(_from_6d(sixd, xp=xp), xp=xp)
+    return _canonicalize(_from_sixd(sixd, xp=xp), xp=xp)
 
 
 def from_sixd_to_quat_xyzw(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
-    return _to_quat_xyzw(_from_6d(sixd, xp=xp), xp=xp)
+    return _to_quat_xyzw(_from_sixd(sixd, xp=xp), xp=xp)
 
 
 __all__ = [

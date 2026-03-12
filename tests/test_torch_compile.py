@@ -30,12 +30,13 @@ def _conv_input(rep: str, quat_convention: str = "wxyz"):
     if rep == "quat":
         return SO3.to_quat_xyzw(q, xp=torch) if quat_convention == "xyzw" else q
     if rep == "sixd":
-        return SO3.to_6d(q, xp=torch)
+        return SO3.to_sixd(q, xp=torch)
     raise ValueError(rep)
 
 
 _CONV_REPS = ["axis_angle", "euler", "matrix", "quat", "sixd"]
-_CONV_PAIRS = [(s, t) for s in _CONV_REPS for t in _CONV_REPS if s != t]
+_PAIRWISE_REPS = ["axis_angle", "euler", "matrix", "quat_wxyz", "quat_xyzw", "sixd"]
+_CONV_PAIRS = [(s, t) for s in _PAIRWISE_REPS for t in _PAIRWISE_REPS if s != t]
 _DYNAMIC_CONV_CASES = [
     ("axis_angle", "matrix"),
     ("euler", "quat"),
@@ -45,6 +46,23 @@ _DYNAMIC_CONV_CASES = [
     ("sixd", "axis_angle"),
     ("euler", "euler"),
 ]
+
+
+def _pairwise_input(rep: str):
+    q = _random_quat()
+    if rep == "axis_angle":
+        return SO3.to_axis_angle(q, xp=torch)
+    if rep == "euler":
+        return SO3.to_euler(q, "ZYX", xp=torch)
+    if rep == "matrix":
+        return SO3.to_matrix(q, xp=torch)
+    if rep == "quat_wxyz":
+        return q
+    if rep == "quat_xyzw":
+        return SO3.to_quat_xyzw(q, xp=torch)
+    if rep == "sixd":
+        return SO3.to_sixd(q, xp=torch)
+    raise ValueError(rep)
 
 
 # ── SO3 conversions ──────────────────────────────────────────────────────────
@@ -106,17 +124,17 @@ def test_compile_from_euler_to_euler():
     compiled(torch.randn(2, 3))
 
 
-def test_compile_from_6d():
-    def f(d6):
-        return SO3.from_6d(d6, xp=torch)
+def test_compile_from_sixd():
+    def f(sixd):
+        return SO3.from_sixd(sixd, xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(torch.randn(2, 6))
 
 
-def test_compile_to_6d():
+def test_compile_to_sixd():
     def f(q):
-        return SO3.to_6d(q, xp=torch)
+        return SO3.to_sixd(q, xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(_random_quat())
@@ -131,7 +149,7 @@ def test_compile_so3_pairwise_conversions(source, target):
         return fn(x, xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
-    compiled(_conv_input(source))
+    compiled(_pairwise_input(source))
 
 
 @pytest.mark.parametrize("source,target", _DYNAMIC_CONV_CASES, ids=[f"{s}->{t}" for s, t in _DYNAMIC_CONV_CASES])

@@ -32,12 +32,13 @@ def _conv_input(rep: str, quat_convention: str = "wxyz"):
     if rep == "quat":
         return SO3.to_quat_xyzw(q, xp=jnp) if quat_convention == "xyzw" else q
     if rep == "sixd":
-        return SO3.to_6d(q, xp=jnp)
+        return SO3.to_sixd(q, xp=jnp)
     raise ValueError(rep)
 
 
 _CONV_REPS = ["axis_angle", "euler", "matrix", "quat", "sixd"]
-_CONV_PAIRS = [(s, t) for s in _CONV_REPS for t in _CONV_REPS if s != t]
+_PAIRWISE_REPS = ["axis_angle", "euler", "matrix", "quat_wxyz", "quat_xyzw", "sixd"]
+_CONV_PAIRS = [(s, t) for s in _PAIRWISE_REPS for t in _PAIRWISE_REPS if s != t]
 _DYNAMIC_CONV_CASES = [
     ("axis_angle", "matrix"),
     ("euler", "quat"),
@@ -47,6 +48,23 @@ _DYNAMIC_CONV_CASES = [
     ("sixd", "axis_angle"),
     ("euler", "euler"),
 ]
+
+
+def _pairwise_input(rep: str):
+    q = _random_quat()
+    if rep == "axis_angle":
+        return SO3.to_axis_angle(q, xp=jnp)
+    if rep == "euler":
+        return SO3.to_euler(q, "ZYX", xp=jnp)
+    if rep == "matrix":
+        return SO3.to_matrix(q, xp=jnp)
+    if rep == "quat_wxyz":
+        return q
+    if rep == "quat_xyzw":
+        return SO3.to_quat_xyzw(q, xp=jnp)
+    if rep == "sixd":
+        return SO3.to_sixd(q, xp=jnp)
+    raise ValueError(rep)
 
 
 # ── SO3 conversions ──────────────────────────────────────────────────────────
@@ -87,13 +105,13 @@ def test_jit_from_euler_to_euler():
     compiled(jax.random.normal(jax.random.PRNGKey(0), (2, 3)))
 
 
-def test_jit_from_6d():
-    compiled = jax.jit(lambda d6: SO3.from_6d(d6, xp=jnp))
+def test_jit_from_sixd():
+    compiled = jax.jit(lambda sixd: SO3.from_sixd(sixd, xp=jnp))
     compiled(jax.random.normal(jax.random.PRNGKey(0), (2, 6)))
 
 
-def test_jit_to_6d():
-    compiled = jax.jit(lambda q: SO3.to_6d(q, xp=jnp))
+def test_jit_to_sixd():
+    compiled = jax.jit(lambda q: SO3.to_sixd(q, xp=jnp))
     compiled(_random_quat())
 
 
@@ -101,7 +119,7 @@ def test_jit_to_6d():
 def test_jit_so3_pairwise_conversions(source, target):
     fn = getattr(SO3.conversions, f"from_{source}_to_{target}")
     compiled = jax.jit(lambda x: fn(x, xp=jnp))
-    compiled(_conv_input(source))
+    compiled(_pairwise_input(source))
 
 
 @pytest.mark.parametrize("source,target", _DYNAMIC_CONV_CASES, ids=[f"{s}->{t}" for s, t in _DYNAMIC_CONV_CASES])
@@ -177,6 +195,7 @@ def test_jit_canonicalize():
 def test_jit_zeros_as():
     compiled = jax.jit(lambda q: common.zeros_as(q, shape=q.shape, xp=jnp))
     compiled(_random_quat())
+
 
 def test_jit_identity_as():
     compiled = jax.jit(lambda q: SO3.identity_as(q, batch_dims=q.shape[:-1], rotation_type="matrix", xp=jnp))

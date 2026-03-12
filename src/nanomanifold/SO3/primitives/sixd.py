@@ -1,4 +1,4 @@
-"""6D rotation representation conversions for SO(3)."""
+"""sixd rotation representation conversions for SO(3)."""
 
 from types import ModuleType
 from typing import Any
@@ -24,9 +24,9 @@ def _cross(a: Float[Any, "... 3"], b: Float[Any, "... 3"], xp) -> Float[Any, "..
     return xp.stack([ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx], axis=-1)
 
 
-def _from_6d_to_matrix(d6: Float[Any, "... 6"], xp) -> Float[Any, "... 3 3"]:
-    a1 = d6[..., 0:3]
-    a2 = d6[..., 3:6]
+def _from_sixd_to_matrix(sixd: Float[Any, "... 6"], xp) -> Float[Any, "... 3 3"]:
+    a1 = sixd[..., 0:3]
+    a2 = sixd[..., 3:6]
 
     b1 = _normalize(a1, xp)
     dot = xp.sum(b1 * a2, axis=-1, keepdims=True)
@@ -36,10 +36,10 @@ def _from_6d_to_matrix(d6: Float[Any, "... 6"], xp) -> Float[Any, "... 3 3"]:
     return xp.stack([b1, b2, b3], axis=-1)
 
 
-def to_6d(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 6"]:
-    """Convert quaternion rotation to 6D representation.
+def to_sixd(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 6"]:
+    """Convert quaternion rotation to sixd representation.
 
-    The 6D representation is formed by concatenating the first two columns of
+    The sixd representation is formed by concatenating the first two columns of
     the rotation matrix.
     """
     if xp is None:
@@ -48,12 +48,12 @@ def to_6d(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any,
     return xp.concatenate([R[..., :, 0], R[..., :, 1]], axis=-1)
 
 
-def from_6d(d6: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
-    """Convert 6D rotation representation to a quaternion.
+def from_sixd(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+    """Convert sixd rotation representation to a quaternion.
 
     Applies Gram-Schmidt orthonormalization to ensure a valid rotation matrix.
     """
     if xp is None:
-        xp = get_namespace(d6)
-    R = _from_6d_to_matrix(d6, xp)
+        xp = get_namespace(sixd)
+    R = _from_sixd_to_matrix(sixd, xp)
     return from_matrix(R, xp=xp)

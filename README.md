@@ -86,8 +86,8 @@ Array API convention and accept arbitrarily batched inputs.
 | `from_matrix(R)`                      | `(...,3,3) -> (...,4)`                    |
 | `from_quat_xyzw(quat)`                | `(...,4) -> (...,4)`                      |
 | `to_quat_xyzw(quat)`                  | `(...,4) -> (...,4)`                      |
-| `to_6d(q)`                            | `(...,4) -> (...,6)`                      |
-| `from_6d(d6)`                         | `(...,6) -> (...,4)`                      |
+| `to_sixd(q)`                          | `(...,4) -> (...,6)`                      |
+| `from_sixd(sixd)`                     | `(...,6) -> (...,4)`                      |
 | `multiply(q1, q2)`                    | `(...,4), (...,4) -> (...,4)`             |
 | `inverse(q)`                          | `(...,4) -> (...,4)`                      |
 | `rotate_points(q, points)`            | `(...,4), (...,N,3) -> (...,N,3)`         |
@@ -157,11 +157,11 @@ Representations: `axis_angle`, `euler`, `matrix`, `quat_wxyz`, `quat_xyzw`, `six
 | `SO3.conversions.from_quat_xyzw_to_matrix(q)`                   | `(...,4) -> (...,3,3)`      |
 | `SO3.conversions.from_quat_xyzw_to_quat_wxyz(q)`               | `(...,4) -> (...,4)`        |
 | `SO3.conversions.from_quat_xyzw_to_sixd(q)`                     | `(...,4) -> (...,6)`        |
-| `SO3.conversions.from_sixd_to_axis_angle(d6)`                   | `(...,6) -> (...,3)`        |
-| `SO3.conversions.from_sixd_to_euler(d6, convention)`            | `(...,6) -> (...,3)`        |
-| `SO3.conversions.from_sixd_to_matrix(d6)`                       | `(...,6) -> (...,3,3)`      |
-| `SO3.conversions.from_sixd_to_quat_wxyz(d6)`                    | `(...,6) -> (...,4)`        |
-| `SO3.conversions.from_sixd_to_quat_xyzw(d6)`                    | `(...,6) -> (...,4)`        |
+| `SO3.conversions.from_sixd_to_axis_angle(sixd)`                 | `(...,6) -> (...,3)`        |
+| `SO3.conversions.from_sixd_to_euler(sixd, convention)`          | `(...,6) -> (...,3)`        |
+| `SO3.conversions.from_sixd_to_matrix(sixd)`                     | `(...,6) -> (...,3,3)`      |
+| `SO3.conversions.from_sixd_to_quat_wxyz(sixd)`                  | `(...,6) -> (...,4)`        |
+| `SO3.conversions.from_sixd_to_quat_xyzw(sixd)`                  | `(...,6) -> (...,4)`        |
 
 For runtime-selected conversions, use `SO3.convert`. Euler uses the usual
 axis-order convention strings, while quaternion order is controlled via

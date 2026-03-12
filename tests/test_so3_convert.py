@@ -19,7 +19,7 @@ def _make_input(rep: str, batch_dims, backend, precision=32, convention="ZYX", q
     if rep == "quat":
         return SO3.to_quat_xyzw(q) if quat_convention == "xyzw" else q
     if rep == "sixd":
-        return SO3.to_6d(q)
+        return SO3.to_sixd(q)
     raise ValueError(rep)
 
 
@@ -46,7 +46,7 @@ def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX
     elif source == "quat":
         q = SO3.from_quat_xyzw(x) if src_convention == "xyzw" else SO3.canonicalize(x)
     else:
-        q = SO3.from_6d(x)
+        q = SO3.from_sixd(x)
 
     if target == "axis_angle":
         return SO3.to_axis_angle(q)
@@ -56,7 +56,7 @@ def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX
         return SO3.to_matrix(q)
     if target == "quat":
         return SO3.to_quat_xyzw(q) if dst_convention == "xyzw" else SO3.canonicalize(q)
-    return SO3.to_6d(q)
+    return SO3.to_sixd(q)
 
 
 @pytest.mark.parametrize("source,target", _PAIRS, ids=[f"{s}->{t}" for s, t in _PAIRS])

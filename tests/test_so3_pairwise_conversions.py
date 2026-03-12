@@ -27,7 +27,7 @@ def _make_input(source: str, batch_dims, backend, precision=32, convention="ZYX"
     if source == "quat_xyzw":
         return SO3.to_quat_xyzw(q)
     if source == "sixd":
-        return SO3.to_6d(q)
+        return SO3.to_sixd(q)
     raise ValueError(source)
 
 
@@ -45,7 +45,7 @@ def _manual_convert(x, source, target, convention="ZYX"):
     elif source == "quat_xyzw":
         q = SO3.from_quat_xyzw(x)
     elif source == "sixd":
-        q = SO3.from_6d(x)
+        q = SO3.from_sixd(x)
     else:
         raise ValueError(source)
 
@@ -61,7 +61,7 @@ def _manual_convert(x, source, target, convention="ZYX"):
     if target == "quat_xyzw":
         return SO3.to_quat_xyzw(q)
     if target == "sixd":
-        return SO3.to_6d(q)
+        return SO3.to_sixd(q)
     raise ValueError(target)
 
 

@@ -11,7 +11,7 @@ from .primitives.axis_angle import from_axis_angle, to_axis_angle
 from .primitives.euler import from_euler, to_euler
 from .primitives.matrix import from_matrix, to_matrix
 from .primitives.quaternion import canonicalize, from_quat_xyzw, to_quat_xyzw
-from .primitives.sixd import from_6d, to_6d
+from .primitives.sixd import from_sixd, to_sixd
 from .random import random
 from .rotate_points import rotate_points
 from .slerp import slerp
@@ -31,8 +31,8 @@ __all__ = [
     "from_matrix",
     "from_quat_xyzw",
     "to_quat_xyzw",
-    "to_6d",
-    "from_6d",
+    "to_sixd",
+    "from_sixd",
     "canonicalize",
     "rotate_points",
     "inverse",

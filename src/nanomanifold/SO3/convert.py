@@ -8,6 +8,7 @@ from jaxtyping import Float
 from . import conversions
 
 RotationRep = Literal["axis_angle", "euler", "matrix", "quat", "sixd"]
+DispatchRotationRep = Literal["axis_angle", "euler", "matrix", "quat_wxyz", "quat_xyzw", "sixd"]
 
 _REPRESENTATIONS = ("axis_angle", "euler", "matrix", "quat", "sixd")
 
@@ -29,110 +30,114 @@ def convert(
         supported = ", ".join(_REPRESENTATIONS)
         raise ValueError(f"Unsupported rotation representation '{dst}'. Supported values: {supported}.")
 
-    if src == "euler" and src_convention is None:
-        src_convention = "ZYX"
-    if dst == "euler" and dst_convention is None:
-        dst_convention = "ZYX"
+    src_euler_convention = "ZYX" if src_convention is None else src_convention
+    dst_euler_convention = "ZYX" if dst_convention is None else dst_convention
 
+    src_rep: DispatchRotationRep
     if src == "quat":
         if src_convention is None or src_convention == "wxyz":
-            src = "quat_wxyz"
+            src_rep = "quat_wxyz"
         elif src_convention == "xyzw":
-            src = "quat_xyzw"
+            src_rep = "quat_xyzw"
         else:
             raise ValueError(f"Unsupported quaternion convention '{src_convention}'.")
+    else:
+        src_rep = src
 
+    dst_rep: DispatchRotationRep
     if dst == "quat":
         if dst_convention is None or dst_convention == "wxyz":
-            dst = "quat_wxyz"
+            dst_rep = "quat_wxyz"
         elif dst_convention == "xyzw":
-            dst = "quat_xyzw"
+            dst_rep = "quat_xyzw"
         else:
             raise ValueError(f"Unsupported quaternion convention '{dst_convention}'.")
+    else:
+        dst_rep = dst
 
-    if src == dst:
-        if src == "euler" and src_convention != dst_convention:
+    if src_rep == dst_rep:
+        if src_rep == "euler" and src_euler_convention != dst_euler_convention:
             return conversions.from_euler_to_euler(
                 value,
-                source_convention=src_convention,
-                target_convention=dst_convention,
+                source_convention=src_euler_convention,
+                target_convention=dst_euler_convention,
                 xp=xp,
             )
         return value
 
-    if src == "axis_angle":
-        if dst == "euler":
-            return conversions.from_axis_angle_to_euler(value, convention=dst_convention, xp=xp)
-        if dst == "matrix":
+    if src_rep == "axis_angle":
+        if dst_rep == "euler":
+            return conversions.from_axis_angle_to_euler(value, convention=dst_euler_convention, xp=xp)
+        if dst_rep == "matrix":
             return conversions.from_axis_angle_to_matrix(value, xp=xp)
-        if dst == "quat_wxyz":
+        if dst_rep == "quat_wxyz":
             return conversions.from_axis_angle_to_quat_wxyz(value, xp=xp)
-        if dst == "quat_xyzw":
+        if dst_rep == "quat_xyzw":
             return conversions.from_axis_angle_to_quat_xyzw(value, xp=xp)
-        if dst == "sixd":
+        if dst_rep == "sixd":
             return conversions.from_axis_angle_to_sixd(value, xp=xp)
 
-    if src == "euler":
-        if dst == "axis_angle":
-            return conversions.from_euler_to_axis_angle(value, convention=src_convention, xp=xp)
-        if dst == "matrix":
-            return conversions.from_euler_to_matrix(value, convention=src_convention, xp=xp)
-        if dst == "quat_wxyz":
-            return conversions.from_euler_to_quat_wxyz(value, convention=src_convention, xp=xp)
-        if dst == "quat_xyzw":
-            return conversions.from_euler_to_quat_xyzw(value, convention=src_convention, xp=xp)
-        if dst == "sixd":
-            return conversions.from_euler_to_sixd(value, convention=src_convention, xp=xp)
+    if src_rep == "euler":
+        if dst_rep == "axis_angle":
+            return conversions.from_euler_to_axis_angle(value, convention=src_euler_convention, xp=xp)
+        if dst_rep == "matrix":
+            return conversions.from_euler_to_matrix(value, convention=src_euler_convention, xp=xp)
+        if dst_rep == "quat_wxyz":
+            return conversions.from_euler_to_quat_wxyz(value, convention=src_euler_convention, xp=xp)
+        if dst_rep == "quat_xyzw":
+            return conversions.from_euler_to_quat_xyzw(value, convention=src_euler_convention, xp=xp)
+        if dst_rep == "sixd":
+            return conversions.from_euler_to_sixd(value, convention=src_euler_convention, xp=xp)
 
-    if src == "matrix":
-        if dst == "axis_angle":
+    if src_rep == "matrix":
+        if dst_rep == "axis_angle":
             return conversions.from_matrix_to_axis_angle(value, xp=xp)
-        if dst == "euler":
-            return conversions.from_matrix_to_euler(value, convention=dst_convention, xp=xp)
-        if dst == "quat_wxyz":
+        if dst_rep == "euler":
+            return conversions.from_matrix_to_euler(value, convention=dst_euler_convention, xp=xp)
+        if dst_rep == "quat_wxyz":
             return conversions.from_matrix_to_quat_wxyz(value, xp=xp)
-        if dst == "quat_xyzw":
+        if dst_rep == "quat_xyzw":
             return conversions.from_matrix_to_quat_xyzw(value, xp=xp)
-        if dst == "sixd":
+        if dst_rep == "sixd":
             return conversions.from_matrix_to_sixd(value, xp=xp)
 
-    if src == "quat_wxyz":
-        if dst == "axis_angle":
+    if src_rep == "quat_wxyz":
+        if dst_rep == "axis_angle":
             return conversions.from_quat_wxyz_to_axis_angle(value, xp=xp)
-        if dst == "euler":
-            return conversions.from_quat_wxyz_to_euler(value, convention=dst_convention, xp=xp)
-        if dst == "matrix":
+        if dst_rep == "euler":
+            return conversions.from_quat_wxyz_to_euler(value, convention=dst_euler_convention, xp=xp)
+        if dst_rep == "matrix":
             return conversions.from_quat_wxyz_to_matrix(value, xp=xp)
-        if dst == "quat_xyzw":
+        if dst_rep == "quat_xyzw":
             return conversions.from_quat_wxyz_to_quat_xyzw(value, xp=xp)
-        if dst == "sixd":
+        if dst_rep == "sixd":
             return conversions.from_quat_wxyz_to_sixd(value, xp=xp)
 
-    if src == "quat_xyzw":
-        if dst == "axis_angle":
+    if src_rep == "quat_xyzw":
+        if dst_rep == "axis_angle":
             return conversions.from_quat_xyzw_to_axis_angle(value, xp=xp)
-        if dst == "euler":
-            return conversions.from_quat_xyzw_to_euler(value, convention=dst_convention, xp=xp)
-        if dst == "matrix":
+        if dst_rep == "euler":
+            return conversions.from_quat_xyzw_to_euler(value, convention=dst_euler_convention, xp=xp)
+        if dst_rep == "matrix":
             return conversions.from_quat_xyzw_to_matrix(value, xp=xp)
-        if dst == "quat_wxyz":
+        if dst_rep == "quat_wxyz":
             return conversions.from_quat_xyzw_to_quat_wxyz(value, xp=xp)
-        if dst == "sixd":
+        if dst_rep == "sixd":
             return conversions.from_quat_xyzw_to_sixd(value, xp=xp)
 
-    if src == "sixd":
-        if dst == "axis_angle":
+    if src_rep == "sixd":
+        if dst_rep == "axis_angle":
             return conversions.from_sixd_to_axis_angle(value, xp=xp)
-        if dst == "euler":
-            return conversions.from_sixd_to_euler(value, convention=dst_convention, xp=xp)
-        if dst == "matrix":
+        if dst_rep == "euler":
+            return conversions.from_sixd_to_euler(value, convention=dst_euler_convention, xp=xp)
+        if dst_rep == "matrix":
             return conversions.from_sixd_to_matrix(value, xp=xp)
-        if dst == "quat_wxyz":
+        if dst_rep == "quat_wxyz":
             return conversions.from_sixd_to_quat_wxyz(value, xp=xp)
-        if dst == "quat_xyzw":
+        if dst_rep == "quat_xyzw":
             return conversions.from_sixd_to_quat_xyzw(value, xp=xp)
 
-    raise ValueError(f"Unsupported conversion from '{src}' to '{dst}'.")
+    raise ValueError(f"Unsupported conversion from '{src_rep}' to '{dst_rep}'.")
 
 
-__all__ = ["RotationRep", "convert"]
+__all__ = ["DispatchRotationRep", "RotationRep", "convert"]

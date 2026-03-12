@@ -8,7 +8,6 @@ from jaxtyping import Float
 from . import conversions
 
 RotationRep = Literal["axis_angle", "euler", "matrix", "quat", "sixd"]
-DispatchRotationRep = Literal["axis_angle", "euler", "matrix", "quat_wxyz", "quat_xyzw", "sixd"]
 
 _REPRESENTATIONS = ("axis_angle", "euler", "matrix", "quat", "sixd")
 
@@ -33,7 +32,7 @@ def convert(
     src_euler_convention = "ZYX" if src_convention is None else src_convention
     dst_euler_convention = "ZYX" if dst_convention is None else dst_convention
 
-    src_rep: DispatchRotationRep
+    src_rep: str = src
     if src == "quat":
         if src_convention is None or src_convention == "wxyz":
             src_rep = "quat_wxyz"
@@ -41,10 +40,7 @@ def convert(
             src_rep = "quat_xyzw"
         else:
             raise ValueError(f"Unsupported quaternion convention '{src_convention}'.")
-    else:
-        src_rep = src
-
-    dst_rep: DispatchRotationRep
+    dst_rep: str = dst
     if dst == "quat":
         if dst_convention is None or dst_convention == "wxyz":
             dst_rep = "quat_wxyz"
@@ -52,9 +48,6 @@ def convert(
             dst_rep = "quat_xyzw"
         else:
             raise ValueError(f"Unsupported quaternion convention '{dst_convention}'.")
-    else:
-        dst_rep = dst
-
     if src_rep == dst_rep:
         if src_rep == "euler" and src_euler_convention != dst_euler_convention:
             return conversions.from_euler_to_euler(
@@ -140,4 +133,4 @@ def convert(
     raise ValueError(f"Unsupported conversion from '{src_rep}' to '{dst_rep}'.")
 
 
-__all__ = ["DispatchRotationRep", "RotationRep", "convert"]
+__all__ = ["RotationRep", "convert"]

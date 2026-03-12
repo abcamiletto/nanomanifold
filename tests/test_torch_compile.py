@@ -264,6 +264,7 @@ def test_compile_zeros_as():
     compiled = torch.compile(f, fullgraph=True)
     compiled(_random_quat())
 
+
 def test_compile_identity_as():
     def f(q):
         return SO3.identity_as(q, batch_dims=q.shape[:-1], rotation_type="matrix", xp=torch)

@@ -23,12 +23,12 @@ def test_inverse_identity(backend, batch_dims, precision, pass_xp):
 
     # Test that q * q_inv = identity quaternion [1, 0, 0, 0]
     # For quaternions, multiplication is not commutative, but for rotations q * q^-1 = identity
-    # We can verify by converting to matrices and checking R * R_inv = I
-    R_orig = SO3.to_matrix(quat, **xp_kwargs)
-    R_inv = SO3.to_matrix(quat_inv, **xp_kwargs)
+    # We can verify by converting to rotation matrices and checking R * R_inv = I
+    rotmat_orig = SO3.to_rotmat(quat, **xp_kwargs)
+    rotmat_inv = SO3.to_rotmat(quat_inv, **xp_kwargs)
 
     # Compute product R * R_inv (should be identity)
-    identity = np.matmul(np.array(R_orig), np.array(R_inv))
+    identity = np.matmul(np.array(rotmat_orig), np.array(rotmat_inv))
 
     # Check if result is identity matrix
     expected_identity = np.eye(3)

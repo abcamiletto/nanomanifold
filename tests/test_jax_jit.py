@@ -28,7 +28,9 @@ def _conv_input(rep: str, quat_convention: str = "wxyz"):
     if rep == "euler":
         return SO3.to_euler(q, "ZYX", xp=jnp)
     if rep == "matrix":
-        return SO3.to_matrix(q, xp=jnp)
+        return SO3.to_rotmat(q, xp=jnp) @ jnp.diag(jnp.array([1.05, 0.97, 1.02]))
+    if rep == "rotmat":
+        return SO3.to_rotmat(q, xp=jnp)
     if rep == "quat":
         return SO3.to_quat_xyzw(q, xp=jnp) if quat_convention == "xyzw" else q
     if rep == "sixd":
@@ -36,13 +38,15 @@ def _conv_input(rep: str, quat_convention: str = "wxyz"):
     raise ValueError(rep)
 
 
-_CONV_REPS = ["axis_angle", "euler", "matrix", "quat", "sixd"]
-_PAIRWISE_REPS = ["axis_angle", "euler", "matrix", "quat_wxyz", "quat_xyzw", "sixd"]
-_CONV_PAIRS = [(s, t) for s in _PAIRWISE_REPS for t in _PAIRWISE_REPS if s != t]
+_CONV_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
+_PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
+_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
+_CONV_PAIRS = [(s, t) for s in _PAIRWISE_SOURCE_REPS for t in _PAIRWISE_TARGET_REPS if s != t]
 _DYNAMIC_CONV_CASES = [
-    ("axis_angle", "matrix"),
+    ("axis_angle", "rotmat"),
+    ("matrix", "rotmat"),
     ("euler", "quat"),
-    ("matrix", "euler"),
+    ("rotmat", "euler"),
     ("quat", "sixd"),
     ("quat", "quat"),
     ("sixd", "axis_angle"),
@@ -57,7 +61,9 @@ def _pairwise_input(rep: str):
     if rep == "euler":
         return SO3.to_euler(q, "ZYX", xp=jnp)
     if rep == "matrix":
-        return SO3.to_matrix(q, xp=jnp)
+        return SO3.to_rotmat(q, xp=jnp) @ jnp.diag(jnp.array([1.05, 0.97, 1.02]))
+    if rep == "rotmat":
+        return SO3.to_rotmat(q, xp=jnp)
     if rep == "quat_wxyz":
         return q
     if rep == "quat_xyzw":
@@ -80,13 +86,23 @@ def test_jit_to_axis_angle():
     compiled(_random_quat())
 
 
-def test_jit_from_matrix():
+def test_jit_from_rotmat():
+    compiled = jax.jit(lambda R: SO3.from_rotmat(R, xp=jnp))
+    compiled(jnp.broadcast_to(jnp.eye(3), (2, 3, 3)))
+
+
+def test_jit_from_matrix_normalize():
     compiled = jax.jit(lambda R: SO3.from_matrix(R, xp=jnp))
     compiled(jnp.broadcast_to(jnp.eye(3), (2, 3, 3)))
 
 
-def test_jit_to_matrix():
-    compiled = jax.jit(lambda q: SO3.to_matrix(q, xp=jnp))
+def test_jit_from_matrix_normalize_davenport():
+    compiled = jax.jit(lambda R: SO3.from_matrix(R, mode="davenport", xp=jnp))
+    compiled(jnp.broadcast_to(jnp.eye(3), (2, 3, 3)))
+
+
+def test_jit_to_rotmat():
+    compiled = jax.jit(lambda q: SO3.to_rotmat(q, xp=jnp))
     compiled(_random_quat())
 
 
@@ -198,7 +214,7 @@ def test_jit_zeros_as():
 
 
 def test_jit_identity_as():
-    compiled = jax.jit(lambda q: SO3.identity_as(q, batch_dims=q.shape[:-1], rotation_type="matrix", xp=jnp))
+    compiled = jax.jit(lambda q: SO3.identity_as(q, batch_dims=q.shape[:-1], rotation_type="rotmat", xp=jnp))
     compiled(_random_quat())
 
 
@@ -206,7 +222,7 @@ def test_jit_identity_as():
 
 
 def test_jit_axis_angle_roundtrip():
-    compiled = jax.jit(lambda x: SO3.to_matrix(SO3.from_axis_angle(x, xp=jnp), xp=jnp))
+    compiled = jax.jit(lambda x: SO3.to_rotmat(SO3.from_axis_angle(x, xp=jnp), xp=jnp))
     compiled(jax.random.normal(jax.random.PRNGKey(0), (2, 3)))
 
 

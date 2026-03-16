@@ -11,8 +11,8 @@ from .primitives.quaternion import canonicalize, from_quat_xyzw, to_quat_xyzw
 def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], xyzw: bool = False, *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
     """Multiply two quaternions representing SO(3) rotations.
 
-    The multiplication order matches rotation matrix multiplication:
-    multiply(q1, q2) represents the same composition as to_matrix(q1) @ to_matrix(q2)
+    The multiplication order matches rotation-matrix multiplication:
+    multiply(q1, q2) represents the same composition as to_rotmat(q1) @ to_rotmat(q2)
 
     This means q2 is applied first, then q1.
 

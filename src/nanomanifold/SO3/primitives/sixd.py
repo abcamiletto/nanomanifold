@@ -1,4 +1,4 @@
-"""sixd rotation representation conversions for SO(3)."""
+"""6D rotation representation conversions for SO(3)."""
 
 from types import ModuleType
 from typing import Any
@@ -8,7 +8,7 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .matrix import from_matrix, to_matrix
+from .rotmat import from_rotmat, to_rotmat
 
 
 def _normalize(vec: Float[Any, "... 3"], xp) -> Float[Any, "... 3"]:
@@ -24,7 +24,7 @@ def _cross(a: Float[Any, "... 3"], b: Float[Any, "... 3"], xp) -> Float[Any, "..
     return xp.stack([ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx], axis=-1)
 
 
-def _from_sixd_to_matrix(sixd: Float[Any, "... 6"], xp) -> Float[Any, "... 3 3"]:
+def _from_sixd_to_rotmat(sixd: Float[Any, "... 6"], xp) -> Float[Any, "... 3 3"]:
     a1 = sixd[..., 0:3]
     a2 = sixd[..., 3:6]
 
@@ -37,23 +37,23 @@ def _from_sixd_to_matrix(sixd: Float[Any, "... 6"], xp) -> Float[Any, "... 3 3"]
 
 
 def to_sixd(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 6"]:
-    """Convert quaternion rotation to sixd representation.
+    """Convert a quaternion rotation to the 6D representation.
 
-    The sixd representation is formed by concatenating the first two columns of
+    The 6D representation is formed by concatenating the first two columns of
     the rotation matrix.
     """
     if xp is None:
         xp = get_namespace(q)
-    R = to_matrix(q, xp=xp)
-    return xp.concatenate([R[..., :, 0], R[..., :, 1]], axis=-1)
+    rotmat = to_rotmat(q, xp=xp)
+    return xp.concatenate([rotmat[..., :, 0], rotmat[..., :, 1]], axis=-1)
 
 
 def from_sixd(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
-    """Convert sixd rotation representation to a quaternion.
+    """Convert the 6D rotation representation to a quaternion.
 
     Applies Gram-Schmidt orthonormalization to ensure a valid rotation matrix.
     """
     if xp is None:
         xp = get_namespace(sixd)
-    R = _from_sixd_to_matrix(sixd, xp)
-    return from_matrix(R, xp=xp)
+    rotmat = _from_sixd_to_rotmat(sixd, xp)
+    return from_rotmat(rotmat, xp=xp)

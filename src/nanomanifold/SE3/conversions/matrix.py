@@ -29,10 +29,10 @@ def to_matrix(se3: Float[Any, "... 7"], xyzw: bool = False, *, xp: ModuleType | 
     quat = se3[..., :4]
     translation = se3[..., 4:7]
 
-    R = SO3.to_matrix(quat, xyzw=xyzw, xp=xp)
+    rotmat = SO3.to_rotmat(quat, xyzw=xyzw, xp=xp)
 
     translation_column = translation[..., None]
-    top_block = xp.concatenate([R, translation_column], axis=-1)
+    top_block = xp.concatenate([rotmat, translation_column], axis=-1)
 
     zeros = xp.zeros_like(top_block[..., :1, :3])
     ones = xp.ones_like(top_block[..., :1, :1])
@@ -41,11 +41,15 @@ def to_matrix(se3: Float[Any, "... 7"], xyzw: bool = False, *, xp: ModuleType | 
     return xp.concatenate([top_block, bottom_row], axis=-2)
 
 
-def from_matrix(matrix: Float[Any, "... 4 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 7"]:
+def from_matrix(
+    matrix: Float[Any, "... 4 4"], *, normalize: bool = False, mode: str = "svd", xp: ModuleType | None = None
+) -> Float[Any, "... 7"]:
     """Convert 4x4 transformation matrix to SE(3) representation.
 
     Args:
         matrix: 4x4 transformation matrix (..., 4, 4)
+        normalize: Whether to project the rotation block to SO(3) before converting.
+        mode: Projection mode used when ``normalize=True``.
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
@@ -54,9 +58,12 @@ def from_matrix(matrix: Float[Any, "... 4 4"], *, xp: ModuleType | None = None) 
     if xp is None:
         xp = get_namespace(matrix)
 
-    R = matrix[..., :3, :3]
+    rotmat = matrix[..., :3, :3]
 
-    quat = SO3.from_matrix(R, xp=xp)
+    if normalize:
+        quat = SO3.from_matrix(rotmat, mode=mode, xp=xp)
+    else:
+        quat = SO3.from_rotmat(rotmat, xp=xp)
 
     translation = matrix[..., :3, 3]
 

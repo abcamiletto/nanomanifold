@@ -33,11 +33,11 @@ def test_identity_as_vector_representations(rotation_type, expected_tail, expect
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 @pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_identity_as_matrix(backend, batch_dims, precision, pass_xp):
+def test_identity_as_rotmat(backend, batch_dims, precision, pass_xp):
     ref = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
-    identity = SO3.identity_as(ref, batch_dims=batch_dims, rotation_type="matrix", **xp_kwargs)
+    identity = SO3.identity_as(ref, batch_dims=batch_dims, rotation_type="rotmat", **xp_kwargs)
 
     assert identity.dtype == ref.dtype
     assert identity.shape == batch_dims + (3, 3)
@@ -50,7 +50,7 @@ def test_identity_as_matrix(backend, batch_dims, precision, pass_xp):
 @pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 def test_identity_as_uses_explicit_batch_dims(backend, batch_dims, precision, pass_xp):
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    ref = SO3.to_matrix(quat, **get_xp_kwargs(backend, pass_xp))
+    ref = SO3.to_rotmat(quat, **get_xp_kwargs(backend, pass_xp))
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     identity = SO3.identity_as(ref, batch_dims=batch_dims, **xp_kwargs)

@@ -93,13 +93,13 @@ def test_multiply_matrix_equivalence(backend, batch_dims, precision, pass_xp):
     # Multiply quaternions
     q_result = SO3.multiply(q1, q2, **xp_kwargs)
 
-    # Convert to matrices and multiply
-    R1 = SO3.to_matrix(q1, **xp_kwargs)
-    R2 = SO3.to_matrix(q2, **xp_kwargs)
-    R_result = np.matmul(np.array(R1), np.array(R2))
+    # Convert to rotation matrices and multiply
+    rotmat1 = SO3.to_rotmat(q1, **xp_kwargs)
+    rotmat2 = SO3.to_rotmat(q2, **xp_kwargs)
+    rotmat_result = np.matmul(np.array(rotmat1), np.array(rotmat2))
 
     # Convert result matrix back to quaternion
-    q_from_matrix = SO3.from_matrix(R_result)
+    q_from_matrix = SO3.from_rotmat(rotmat_result)
 
     assert q_result.dtype == q1.dtype
     assert q_result.shape == q1.shape

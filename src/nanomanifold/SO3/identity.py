@@ -20,7 +20,7 @@ def identity_as(
     if xp is None:
         xp = get_namespace(ref)
 
-    if rotation_type == "matrix":
+    if rotation_type == "rotmat" or rotation_type == "matrix":
         if "torch" in xp.__name__:
             eye = xp.eye(3, dtype=ref.dtype, device=ref.device)
         else:

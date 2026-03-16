@@ -50,7 +50,7 @@ def log(se3: Float[Any, "... 7"], *, xp: ModuleType | None = None) -> Float[Any,
     omega_cross = hat(omega, xp=xp)
     omega_cross_sq = xp.matmul(omega_cross, omega_cross)
 
-    identity = identity_as(omega, batch_dims=omega.shape[:-1], rotation_type="matrix", xp=xp)
+    identity = identity_as(omega, batch_dims=omega.shape[:-1], rotation_type="rotmat", xp=xp)
 
     V_inv_small = identity - 0.5 * omega_cross + (1.0 / 12.0) * omega_cross_sq
 

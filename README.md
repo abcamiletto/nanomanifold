@@ -37,7 +37,7 @@ from nanomanifold import SO3
 # Create rotations
 q1 = SO3.from_axis_angle([1, 0, 0], np.pi/2)    # 90° around X
 q2 = SO3.from_euler([0, 0, np.pi/4])            # 45° around Z
-q3 = SO3.from_matrix(rotation_matrix)
+q3 = SO3.from_rotmat(rotation_matrix)
 
 # Compose and interpolate
 q_combined = SO3.multiply(q1, q2)
@@ -73,6 +73,18 @@ Array API convention and accept arbitrarily batched inputs.
 
 ### SO3 (3D Rotations)
 
+Supported SO3 parametrizations:
+
+| Name | Shape | Notes |
+| ---- | ----- | ----- |
+| `quat` | `(...,4)` | Canonical unit quaternion in repo order `[w, x, y, z]` |
+| `quat_xyzw` | `(...,4)` | Alternate quaternion ordering `[x, y, z, w]` for explicit conversion helpers |
+| `axis_angle` | `(...,3)` | Rotation vector / axis-angle parametrization |
+| `euler` | `(...,3)` | Euler angles with an explicit convention such as `"ZYX"` |
+| `rotmat` | `(...,3,3)` | Normalized rotation matrix in SO(3) |
+| `matrix` | `(...,3,3)` | Generic 9D matrix, not assumed to be normalized |
+| `sixd` | `(...,6)` | 6D continuous representation built from the first two rotation-matrix columns |
+
 | Function                              | Signature                                 |
 | ------------------------------------- | ----------------------------------------- |
 | `canonicalize(q)`                     | `(...,4) -> (...,4)`                      |
@@ -82,8 +94,9 @@ Array API convention and accept arbitrarily batched inputs.
 | `from_euler(euler, convention="ZYX")` | `(...,3) -> (...,4)`                      |
 | `convert(x, src=..., dst=...)`        | dynamic                                   |
 | `identity_as(ref, batch_dims=..., rotation_type=...)` | dynamic                       |
-| `to_matrix(q)`                        | `(...,4) -> (...,3,3)`                    |
-| `from_matrix(R)`                      | `(...,3,3) -> (...,4)`                    |
+| `to_rotmat(q)`                        | `(...,4) -> (...,3,3)`                    |
+| `from_rotmat(R)`                      | `(...,3,3) -> (...,4)`                    |
+| `from_matrix(R, mode="svd")`            | `(...,3,3) -> (...,4)`                    |
 | `from_quat_xyzw(quat)`                | `(...,4) -> (...,4)`                      |
 | `to_quat_xyzw(quat)`                  | `(...,4) -> (...,4)`                      |
 | `to_sixd(q)`                          | `(...,4) -> (...,6)`                      |
@@ -108,7 +121,7 @@ Array API convention and accept arbitrarily batched inputs.
 | `canonicalize(se3)`                   | `(...,7) -> (...,7)`                      |
 | `from_rt(quat, translation)`          | `(...,4), (...,3) -> (...,7)`             |
 | `to_rt(se3)`                          | `(...,7) -> (quat, translation)`          |
-| `from_matrix(T)`                      | `(...,4,4) -> (...,7)`                    |
+| `from_matrix(T, normalize=False, mode="svd")` | `(...,4,4) -> (...,7)`             |
 | `to_matrix(se3)`                      | `(...,7) -> (...,4,4)`                    |
 | `multiply(se3_1, se3_2)`              | `(...,7), (...,7) -> (...,7)`             |
 | `inverse(se3)`                        | `(...,7) -> (...,7)`                      |
@@ -128,50 +141,59 @@ Convert directly between any two rotation representations without going through
 quaternions manually. All 30 pairwise functions follow the naming pattern
 `from_{source}_to_{target}`.
 
-Representations: `axis_angle`, `euler`, `matrix`, `quat_wxyz`, `quat_xyzw`, `sixd`.
+Representations: `axis_angle`, `euler`, `matrix`, `rotmat`, `quat_wxyz`, `quat_xyzw`, `sixd`.
 
 | Function                                                        | Signature                   |
 | --------------------------------------------------------------- | --------------------------- |
-| `SO3.conversions.from_axis_angle_to_matrix(aa)`                 | `(...,3) -> (...,3,3)`      |
+| `SO3.conversions.from_axis_angle_to_rotmat(aa)`                | `(...,3) -> (...,3,3)`      |
 | `SO3.conversions.from_axis_angle_to_euler(aa, convention)`      | `(...,3) -> (...,3)`        |
 | `SO3.conversions.from_axis_angle_to_quat_wxyz(aa)`              | `(...,3) -> (...,4)`        |
 | `SO3.conversions.from_axis_angle_to_quat_xyzw(aa)`              | `(...,3) -> (...,4)`        |
 | `SO3.conversions.from_axis_angle_to_sixd(aa)`                   | `(...,3) -> (...,6)`        |
 | `SO3.conversions.from_euler_to_axis_angle(e, convention)`       | `(...,3) -> (...,3)`        |
-| `SO3.conversions.from_euler_to_matrix(e, convention)`           | `(...,3) -> (...,3,3)`      |
+| `SO3.conversions.from_euler_to_rotmat(e, convention)`          | `(...,3) -> (...,3,3)`      |
 | `SO3.conversions.from_euler_to_quat_wxyz(e, convention)`        | `(...,3) -> (...,4)`        |
 | `SO3.conversions.from_euler_to_quat_xyzw(e, convention)`        | `(...,3) -> (...,4)`        |
 | `SO3.conversions.from_euler_to_sixd(e, convention)`             | `(...,3) -> (...,6)`        |
-| `SO3.conversions.from_matrix_to_axis_angle(R)`                  | `(...,3,3) -> (...,3)`      |
-| `SO3.conversions.from_matrix_to_euler(R, convention)`           | `(...,3,3) -> (...,3)`      |
-| `SO3.conversions.from_matrix_to_quat_wxyz(R)`                   | `(...,3,3) -> (...,4)`      |
-| `SO3.conversions.from_matrix_to_quat_xyzw(R)`                   | `(...,3,3) -> (...,4)`      |
-| `SO3.conversions.from_matrix_to_sixd(R)`                        | `(...,3,3) -> (...,6)`      |
+| `SO3.conversions.from_rotmat_to_axis_angle(R)`                 | `(...,3,3) -> (...,3)`      |
+| `SO3.conversions.from_rotmat_to_euler(R, convention)`          | `(...,3,3) -> (...,3)`      |
+| `SO3.conversions.from_rotmat_to_quat_wxyz(R)`                 | `(...,3,3) -> (...,4)`      |
+| `SO3.conversions.from_rotmat_to_quat_xyzw(R)`                 | `(...,3,3) -> (...,4)`      |
+| `SO3.conversions.from_rotmat_to_sixd(R)`                      | `(...,3,3) -> (...,6)`      |
+| `SO3.conversions.from_matrix_to_rotmat(M, mode="svd")`       | `(...,3,3) -> (...,3,3)`    |
+| `SO3.conversions.from_matrix_to_axis_angle(M, mode="svd")` | `(...,3,3) -> (...,3)` |
+| `SO3.conversions.from_matrix_to_euler(R, convention, mode="svd")` | `(...,3,3) -> (...,3)` |
+| `SO3.conversions.from_matrix_to_quat_wxyz(R, mode="svd")`  | `(...,3,3) -> (...,4)` |
+| `SO3.conversions.from_matrix_to_quat_xyzw(R, mode="svd")`  | `(...,3,3) -> (...,4)` |
+| `SO3.conversions.from_matrix_to_sixd(R, mode="svd")`       | `(...,3,3) -> (...,6)` |
 | `SO3.conversions.from_quat_wxyz_to_axis_angle(q)`               | `(...,4) -> (...,3)`        |
 | `SO3.conversions.from_quat_wxyz_to_euler(q, convention)`        | `(...,4) -> (...,3)`        |
-| `SO3.conversions.from_quat_wxyz_to_matrix(q)`                   | `(...,4) -> (...,3,3)`      |
+| `SO3.conversions.from_quat_wxyz_to_rotmat(q)`                  | `(...,4) -> (...,3,3)`      |
 | `SO3.conversions.from_quat_wxyz_to_quat_xyzw(q)`               | `(...,4) -> (...,4)`        |
 | `SO3.conversions.from_quat_wxyz_to_sixd(q)`                     | `(...,4) -> (...,6)`        |
 | `SO3.conversions.from_quat_xyzw_to_axis_angle(q)`               | `(...,4) -> (...,3)`        |
 | `SO3.conversions.from_quat_xyzw_to_euler(q, convention)`        | `(...,4) -> (...,3)`        |
-| `SO3.conversions.from_quat_xyzw_to_matrix(q)`                   | `(...,4) -> (...,3,3)`      |
+| `SO3.conversions.from_quat_xyzw_to_rotmat(q)`                  | `(...,4) -> (...,3,3)`      |
 | `SO3.conversions.from_quat_xyzw_to_quat_wxyz(q)`               | `(...,4) -> (...,4)`        |
 | `SO3.conversions.from_quat_xyzw_to_sixd(q)`                     | `(...,4) -> (...,6)`        |
 | `SO3.conversions.from_sixd_to_axis_angle(sixd)`                 | `(...,6) -> (...,3)`        |
 | `SO3.conversions.from_sixd_to_euler(sixd, convention)`          | `(...,6) -> (...,3)`        |
-| `SO3.conversions.from_sixd_to_matrix(sixd)`                     | `(...,6) -> (...,3,3)`      |
+| `SO3.conversions.from_sixd_to_rotmat(sixd)`                    | `(...,6) -> (...,3,3)`      |
 | `SO3.conversions.from_sixd_to_quat_wxyz(sixd)`                  | `(...,6) -> (...,4)`        |
 | `SO3.conversions.from_sixd_to_quat_xyzw(sixd)`                  | `(...,6) -> (...,4)`        |
 
-For runtime-selected conversions, use `SO3.convert`. Euler uses the usual
-axis-order convention strings, while quaternion order is controlled via
-`"wxyz"` or `"xyzw"` and defaults to the repo convention `"wxyz"`:
+For runtime-selected conversions, use `SO3.convert`. `src="matrix"` treats the
+input as a generic `3x3` matrix and projects it to `rotmat` before converting.
+Euler uses the usual axis-order convention strings, while quaternion order is
+controlled via `"wxyz"` or `"xyzw"` and defaults to the repo convention
+`"wxyz"`:
 
 ```python
 matrix = SO3.convert(axis_angle, src="axis_angle", dst="matrix")
+rotmat = SO3.convert(matrix, src="matrix", dst="rotmat")
 quat_xyzw = SO3.convert(euler, src="euler", dst="quat", src_convention="XYZ", dst_convention="xyzw")
 quat_wxyz = SO3.convert(quat_xyzw, src="quat", dst="quat", src_convention="xyzw")
-euler = SO3.convert(matrix, src="matrix", dst="euler", dst_convention="ZYX")
+euler = SO3.convert(rotmat, src="rotmat", dst="euler", dst_convention="ZYX")
 ```
 
 ## Backend-Explicit Mode

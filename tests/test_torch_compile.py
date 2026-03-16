@@ -26,7 +26,9 @@ def _conv_input(rep: str, quat_convention: str = "wxyz"):
     if rep == "euler":
         return SO3.to_euler(q, "ZYX", xp=torch)
     if rep == "matrix":
-        return SO3.to_matrix(q, xp=torch)
+        return SO3.to_rotmat(q, xp=torch) @ torch.diag(torch.tensor([1.05, 0.97, 1.02]))
+    if rep == "rotmat":
+        return SO3.to_rotmat(q, xp=torch)
     if rep == "quat":
         return SO3.to_quat_xyzw(q, xp=torch) if quat_convention == "xyzw" else q
     if rep == "sixd":
@@ -34,13 +36,15 @@ def _conv_input(rep: str, quat_convention: str = "wxyz"):
     raise ValueError(rep)
 
 
-_CONV_REPS = ["axis_angle", "euler", "matrix", "quat", "sixd"]
-_PAIRWISE_REPS = ["axis_angle", "euler", "matrix", "quat_wxyz", "quat_xyzw", "sixd"]
-_CONV_PAIRS = [(s, t) for s in _PAIRWISE_REPS for t in _PAIRWISE_REPS if s != t]
+_CONV_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
+_PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
+_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
+_CONV_PAIRS = [(s, t) for s in _PAIRWISE_SOURCE_REPS for t in _PAIRWISE_TARGET_REPS if s != t]
 _DYNAMIC_CONV_CASES = [
-    ("axis_angle", "matrix"),
+    ("axis_angle", "rotmat"),
+    ("matrix", "rotmat"),
     ("euler", "quat"),
-    ("matrix", "euler"),
+    ("rotmat", "euler"),
     ("quat", "sixd"),
     ("quat", "quat"),
     ("sixd", "axis_angle"),
@@ -55,7 +59,9 @@ def _pairwise_input(rep: str):
     if rep == "euler":
         return SO3.to_euler(q, "ZYX", xp=torch)
     if rep == "matrix":
-        return SO3.to_matrix(q, xp=torch)
+        return SO3.to_rotmat(q, xp=torch) @ torch.diag(torch.tensor([1.05, 0.97, 1.02]))
+    if rep == "rotmat":
+        return SO3.to_rotmat(q, xp=torch)
     if rep == "quat_wxyz":
         return q
     if rep == "quat_xyzw":
@@ -84,7 +90,15 @@ def test_compile_to_axis_angle():
     compiled(_random_quat())
 
 
-def test_compile_from_matrix():
+def test_compile_from_rotmat():
+    def f(R):
+        return SO3.from_rotmat(R, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(torch.eye(3).unsqueeze(0).expand(2, -1, -1))
+
+
+def test_compile_from_matrix_normalize():
     def f(R):
         return SO3.from_matrix(R, xp=torch)
 
@@ -92,9 +106,17 @@ def test_compile_from_matrix():
     compiled(torch.eye(3).unsqueeze(0).expand(2, -1, -1))
 
 
-def test_compile_to_matrix():
+def test_compile_from_matrix_normalize_davenport():
+    def f(R):
+        return SO3.from_matrix(R, mode="davenport", xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(torch.eye(3).unsqueeze(0).expand(2, -1, -1))
+
+
+def test_compile_to_rotmat():
     def f(q):
-        return SO3.to_matrix(q, xp=torch)
+        return SO3.to_rotmat(q, xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(_random_quat())
@@ -267,7 +289,7 @@ def test_compile_zeros_as():
 
 def test_compile_identity_as():
     def f(q):
-        return SO3.identity_as(q, batch_dims=q.shape[:-1], rotation_type="matrix", xp=torch)
+        return SO3.identity_as(q, batch_dims=q.shape[:-1], rotation_type="rotmat", xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(_random_quat())
@@ -278,7 +300,7 @@ def test_compile_identity_as():
 
 def test_compile_axis_angle_roundtrip():
     def f(x):
-        return SO3.to_matrix(SO3.from_axis_angle(x, xp=torch), xp=torch)
+        return SO3.to_rotmat(SO3.from_axis_angle(x, xp=torch), xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(torch.randn(2, 3))

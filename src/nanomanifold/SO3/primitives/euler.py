@@ -8,7 +8,7 @@ from nanomanifold.common import get_namespace
 
 from ..identity import identity_as
 from ..multiply import multiply
-from . import matrix
+from . import rotmat
 from .quaternion import canonicalize
 
 
@@ -16,8 +16,8 @@ def to_euler(q: Float[Any, "... 4"], convention: str = "ZYX", *, xp: ModuleType 
     if xp is None:
         xp = get_namespace(q)
     q = canonicalize(q, xp=xp)
-    R = matrix.to_matrix(q, xp=xp)
-    return _matrix_to_euler(R, convention, xp=xp)
+    rot = rotmat.to_rotmat(q, xp=xp)
+    return _rotmat_to_euler(rot, convention, xp=xp)
 
 
 def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX", *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
@@ -52,12 +52,12 @@ def _axis_quaternion(cos_half: Float[Any, "..."], sin_half: Float[Any, "..."], a
     raise ValueError(f"Invalid axis: {axis}")
 
 
-def _euler_to_matrix(euler: Float[Any, "... 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
-    """Convert Euler angles to rotation matrix."""
+def _euler_to_rotmat(euler: Float[Any, "... 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
+    """Convert Euler angles to a rotation matrix."""
     if xp is None:
         xp = get_namespace(euler)
 
-    R = identity_as(euler, batch_dims=euler.shape[:-1], rotation_type="matrix", xp=xp)
+    rot = identity_as(euler, batch_dims=euler.shape[:-1], rotation_type="rotmat", xp=xp)
 
     is_extrinsic = convention.islower()
     conv = convention.lower()
@@ -67,11 +67,11 @@ def _euler_to_matrix(euler: Float[Any, "... 3"], convention: str, *, xp: ModuleT
         R_axis = _rotation_matrix(angle, axis, xp=xp)
 
         if is_extrinsic:
-            R = xp.matmul(R_axis, R)
+            rot = xp.matmul(R_axis, rot)
         else:
-            R = xp.matmul(R, R_axis)
+            rot = xp.matmul(rot, R_axis)
 
-    return R
+    return rot
 
 
 def _rotation_matrix(angle: Float[Any, "..."], axis: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
@@ -105,10 +105,10 @@ def _rotation_matrix(angle: Float[Any, "..."], axis: str, *, xp: ModuleType | No
     return mat
 
 
-def _matrix_to_euler(matrix: Float[Any, "... 3 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
-    """Convert rotation matrix to Euler angles."""
+def _rotmat_to_euler(rotmat: Float[Any, "... 3 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
+    """Convert a rotation matrix to Euler angles."""
     if xp is None:
-        xp = get_namespace(matrix)
+        xp = get_namespace(rotmat)
 
     is_extrinsic = convention.islower()
 
@@ -116,7 +116,7 @@ def _matrix_to_euler(matrix: Float[Any, "... 3 3"], convention: str, *, xp: Modu
         convention = convention.upper()
         convention = convention[::-1]
 
-    eulers = _matrix_to_euler_angles(matrix, convention, xp=xp)
+    eulers = _rotmat_to_euler_angles(rotmat, convention, xp=xp)
 
     if is_extrinsic:
         return xp.stack([eulers[..., 2], eulers[..., 1], eulers[..., 0]], axis=-1)
@@ -124,10 +124,10 @@ def _matrix_to_euler(matrix: Float[Any, "... 3 3"], convention: str, *, xp: Modu
     return eulers
 
 
-def _matrix_to_euler_angles(matrix: Float[Any, "... 3 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
-    """Extract Euler angles from rotation matrix using systematic approach."""
+def _rotmat_to_euler_angles(rotmat: Float[Any, "... 3 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
+    """Extract Euler angles from a rotation matrix using systematic approach."""
     if xp is None:
-        xp = get_namespace(matrix)
+        xp = get_namespace(rotmat)
 
     if len(convention) != 3:
         raise ValueError("Convention must have 3 letters.")
@@ -143,19 +143,18 @@ def _matrix_to_euler_angles(matrix: Float[Any, "... 3 3"], convention: str, *, x
 
     if tait_bryan:
         sign = -1.0 if i0 - i2 in [-1, 2] else 1.0
-        x = matrix[..., i0, i2] * sign
+        x = rotmat[..., i0, i2] * sign
 
         one = xp.ones_like(x)
         eps = common.safe_eps(x.dtype, xp, scale=1.0)
         central_angle = xp.arcsin(xp.clip(x, -one + eps, one - eps))
     else:
-        central_angle = xp.arccos(xp.clip(matrix[..., i0, i0], -1, 1))
+        central_angle = xp.arccos(xp.clip(rotmat[..., i0, i0], -1, 1))
 
-    first_angle = _angle_from_tan(convention[0], convention[1], matrix[..., i2], False, tait_bryan, xp)
-    third_angle = _angle_from_tan(convention[2], convention[1], matrix[..., i0, :], True, tait_bryan, xp)
+    first_angle = _angle_from_tan(convention[0], convention[1], rotmat[..., i2], False, tait_bryan, xp)
+    third_angle = _angle_from_tan(convention[2], convention[1], rotmat[..., i0, :], True, tait_bryan, xp)
 
     return xp.stack([first_angle, central_angle, third_angle], axis=-1)
-
 
 def _angle_from_tan(
     axis: str, other_axis: str, data: Float[Any, "... 3"], horizontal: bool, tait_bryan: bool, xp: ModuleType

@@ -156,6 +156,7 @@ def _rotmat_to_euler_angles(rotmat: Float[Any, "... 3 3"], convention: str, *, x
 
     return xp.stack([first_angle, central_angle, third_angle], axis=-1)
 
+
 def _angle_from_tan(
     axis: str, other_axis: str, data: Float[Any, "... 3"], horizontal: bool, tait_bryan: bool, xp: ModuleType
 ) -> Float[Any, "..."]:

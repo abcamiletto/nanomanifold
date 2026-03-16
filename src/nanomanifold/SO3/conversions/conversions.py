@@ -125,17 +125,13 @@ def from_rotmat_to_sixd(rotmat: Float[Any, "... 3 3"], *, xp: ModuleType | None 
     return xp.concatenate([rotmat[..., :, 0], rotmat[..., :, 1]], axis=-1)
 
 
-def from_matrix_to_rotmat(
-    matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None
-) -> Float[Any, "... 3 3"]:
+def from_matrix_to_rotmat(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     if xp is None:
         xp = get_namespace(matrix)
     return _project_matrix_to_rotmat(matrix, xp, mode=mode)
 
 
-def from_matrix_to_axis_angle(
-    matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None
-) -> Float[Any, "... 3"]:
+def from_matrix_to_axis_angle(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None) -> Float[Any, "... 3"]:
     rotmat = from_matrix_to_rotmat(matrix, mode=mode, xp=xp)
     if xp is None:
         xp = get_namespace(rotmat)
@@ -155,27 +151,21 @@ def from_matrix_to_euler(
     return from_rotmat_to_euler(rotmat, convention=convention, xp=xp)
 
 
-def from_matrix_to_quat_wxyz(
-    matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None
-) -> Float[Any, "... 4"]:
+def from_matrix_to_quat_wxyz(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None) -> Float[Any, "... 4"]:
     rotmat = from_matrix_to_rotmat(matrix, mode=mode, xp=xp)
     if xp is None:
         xp = get_namespace(rotmat)
     return from_rotmat_to_quat_wxyz(rotmat, xp=xp)
 
 
-def from_matrix_to_quat_xyzw(
-    matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None
-) -> Float[Any, "... 4"]:
+def from_matrix_to_quat_xyzw(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None) -> Float[Any, "... 4"]:
     rotmat = from_matrix_to_rotmat(matrix, mode=mode, xp=xp)
     if xp is None:
         xp = get_namespace(rotmat)
     return from_rotmat_to_quat_xyzw(rotmat, xp=xp)
 
 
-def from_matrix_to_sixd(
-    matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None
-) -> Float[Any, "... 6"]:
+def from_matrix_to_sixd(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None) -> Float[Any, "... 6"]:
     rotmat = from_matrix_to_rotmat(matrix, mode=mode, xp=xp)
     if xp is None:
         xp = get_namespace(rotmat)
@@ -246,6 +236,7 @@ def from_sixd_to_quat_wxyz(sixd: Float[Any, "... 6"], *, xp: ModuleType | None =
 
 def from_sixd_to_quat_xyzw(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
     return _to_quat_xyzw(_from_sixd(sixd, xp=xp), xp=xp)
+
 
 __all__ = [
     "from_axis_angle_to_euler",

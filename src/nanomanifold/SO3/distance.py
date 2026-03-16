@@ -6,17 +6,28 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
+from .convert import RotationRep, convert
 
-def distance(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "..."]:
-    """Compute the angular distance between two quaternions representing SO(3) rotations.
+
+def distance(
+    q1: Float[Any, "..."],
+    q2: Float[Any, "..."],
+    *,
+    rotation_type: RotationRep = "quat_wxyz",
+    convention: str = "ZYX",
+    xp: ModuleType | None = None,
+) -> Float[Any, "..."]:
+    """Compute the angular distance between two SO(3) rotations.
 
     The angular distance is the smallest angle needed to rotate from one orientation
     to another, measured in radians. This is equivalent to the geodesic distance
     on the SO(3) manifold.
 
     Args:
-        q1: First quaternion in [w, x, y, z] format
-        q2: Second quaternion in [w, x, y, z] format
+        q1: First rotation
+        q2: Second rotation
+        rotation_type: Representation shared by q1 and q2
+        convention: Euler convention used when rotation_type="euler"
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
@@ -24,6 +35,8 @@ def distance(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], *, xp: ModuleType
     """
     if xp is None:
         xp = get_namespace(q1)
+    q1 = convert(q1, src=rotation_type, dst="quat_wxyz", src_convention=convention, xp=xp)
+    q2 = convert(q2, src=rotation_type, dst="quat_wxyz", src_convention=convention, xp=xp)
 
     eps = common.safe_eps(q1.dtype, xp)
     eps_arr = xp.asarray(eps, dtype=q1.dtype)

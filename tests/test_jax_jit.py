@@ -21,7 +21,7 @@ def _random_quat(batch_size=2):
     return q
 
 
-def _conv_input(rep: str, quat_convention: str = "wxyz"):
+def _conv_input(rep: str):
     q = _random_quat()
     if rep == "axis_angle":
         return SO3.to_axis_angle(q, xp=jnp)
@@ -31,24 +31,26 @@ def _conv_input(rep: str, quat_convention: str = "wxyz"):
         return SO3.to_rotmat(q, xp=jnp) @ jnp.diag(jnp.array([1.05, 0.97, 1.02]))
     if rep == "rotmat":
         return SO3.to_rotmat(q, xp=jnp)
-    if rep == "quat":
-        return SO3.to_quat_xyzw(q, xp=jnp) if quat_convention == "xyzw" else q
+    if rep == "quat_wxyz":
+        return q
+    if rep == "quat_xyzw":
+        return SO3.to_quat_xyzw(q, xp=jnp)
     if rep == "sixd":
         return SO3.to_sixd(q, xp=jnp)
     raise ValueError(rep)
 
 
-_CONV_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
+_CONV_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
 _PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
 _PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
 _CONV_PAIRS = [(s, t) for s in _PAIRWISE_SOURCE_REPS for t in _PAIRWISE_TARGET_REPS if s != t]
 _DYNAMIC_CONV_CASES = [
     ("axis_angle", "rotmat"),
     ("matrix", "rotmat"),
-    ("euler", "quat"),
+    ("euler", "quat_xyzw"),
     ("rotmat", "euler"),
-    ("quat", "sixd"),
-    ("quat", "quat"),
+    ("quat_wxyz", "sixd"),
+    ("quat_xyzw", "quat_wxyz"),
     ("sixd", "axis_angle"),
     ("euler", "euler"),
 ]
@@ -140,14 +142,14 @@ def test_jit_so3_pairwise_conversions(source, target):
 
 @pytest.mark.parametrize("source,target", _DYNAMIC_CONV_CASES, ids=[f"{s}->{t}" for s, t in _DYNAMIC_CONV_CASES])
 def test_jit_so3_convert(source, target):
-    source_input = _conv_input(source, quat_convention="xyzw" if source == "quat" else "wxyz")
+    source_input = _conv_input(source)
     compiled = jax.jit(
         lambda x: SO3.convert(
             x,
             src=source,
             dst=target,
-            src_convention="xyzw" if source == "quat" else "ZYX",
-            dst_convention="xyzw" if target == "quat" else "XYZ",
+            src_convention="ZYX",
+            dst_convention="XYZ",
             xp=jnp,
         )
     )
@@ -175,6 +177,18 @@ def test_jit_rotate_points():
 def test_jit_distance():
     compiled = jax.jit(lambda q1, q2: SO3.distance(q1, q2, xp=jnp))
     compiled(_random_quat(), _random_quat())
+
+
+def test_jit_distance_rotmat():
+    compiled = jax.jit(lambda r1, r2: SO3.distance(r1, r2, rotation_type="rotmat", xp=jnp))
+    rotmat = jnp.broadcast_to(jnp.eye(3), (2, 3, 3))
+    compiled(rotmat, rotmat)
+
+
+def test_jit_distance_euler_convention():
+    compiled = jax.jit(lambda e1, e2: SO3.distance(e1, e2, rotation_type="euler", convention="XYZ", xp=jnp))
+    euler = jnp.zeros((2, 3))
+    compiled(euler, euler)
 
 
 def test_jit_exp():

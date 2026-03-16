@@ -13,7 +13,7 @@ def identity_as(
     ref: Float[Any, "..."],
     *,
     batch_dims: tuple[int, ...],
-    rotation_type: RotationRep = "quat",
+    rotation_type: RotationRep = "quat_wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "..."]:
     """Return an identity rotation matching ref backend and dtype."""
@@ -30,10 +30,15 @@ def identity_as(
     if rotation_type == "axis_angle" or rotation_type == "euler":
         return common.zeros_as(ref, shape=batch_dims + (3,), xp=xp)
 
-    if rotation_type == "quat":
+    if rotation_type == "quat_wxyz":
         zeros = common.zeros_as(ref, shape=batch_dims + (4,), xp=xp)
         one = zeros[..., :1] + 1
         return xp.concatenate([one, zeros[..., 1:]], axis=-1)
+
+    if rotation_type == "quat_xyzw":
+        zeros = common.zeros_as(ref, shape=batch_dims + (4,), xp=xp)
+        one = zeros[..., :1] + 1
+        return xp.concatenate([zeros[..., :3], one], axis=-1)
 
     if rotation_type == "sixd":
         zeros = common.zeros_as(ref, shape=batch_dims + (6,), xp=xp)

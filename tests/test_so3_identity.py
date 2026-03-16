@@ -8,7 +8,8 @@ from nanomanifold import SO3
 @pytest.mark.parametrize(
     "rotation_type,expected_tail,expected",
     [
-        ("quat", (4,), [1.0, 0.0, 0.0, 0.0]),
+        ("quat_wxyz", (4,), [1.0, 0.0, 0.0, 0.0]),
+        ("quat_xyzw", (4,), [0.0, 0.0, 0.0, 1.0]),
         ("axis_angle", (3,), [0.0, 0.0, 0.0]),
         ("euler", (3,), [0.0, 0.0, 0.0]),
         ("sixd", (6,), [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),

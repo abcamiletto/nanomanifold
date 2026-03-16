@@ -4,8 +4,8 @@ Fast, batched and differentiable SO(3)/SE(3) transforms for any backend (NumPy, 
 
 Works directly on arrays, defined as:
 
-- **SO(3)**: unit quaternions `[w, x, y, z]` for 3D rotations, shape `(..., 4)`
-- **SE(3)**: concatenated `[quat, translation]`, shape `(..., 7)`
+- **SO(3)**: unit `quat_wxyz` quaternions `[w, x, y, z]` for 3D rotations, shape `(..., 4)`
+- **SE(3)**: concatenated `[quat_wxyz, translation]`, shape `(..., 7)`
 
 ```python
 import numpy as np
@@ -16,7 +16,7 @@ q = SO3.from_axis_angle(np.array([0, 0, 1]), np.pi/4)  # 45° around Z
 points = np.array([[1, 0, 0], [0, 1, 0]])
 rotated = SO3.rotate_points(q, points)
 
-# Rigid transforms stored as 7D arrays [quat, translation]
+# Rigid transforms stored as 7D arrays [quat_wxyz, translation]
 T = SE3.from_rt(q, np.array([1, 0, 0]))  # rotation + translation
 transformed = SE3.transform_points(T, points)
 ```
@@ -77,7 +77,7 @@ Supported SO3 parametrizations:
 
 | Name | Shape | Notes |
 | ---- | ----- | ----- |
-| `quat` | `(...,4)` | Canonical unit quaternion in repo order `[w, x, y, z]` |
+| `quat_wxyz` | `(...,4)` | Canonical unit quaternion in repo order `[w, x, y, z]` |
 | `quat_xyzw` | `(...,4)` | Alternate quaternion ordering `[x, y, z, w]` for explicit conversion helpers |
 | `axis_angle` | `(...,3)` | Rotation vector / axis-angle parametrization |
 | `euler` | `(...,3)` | Euler angles with an explicit convention such as `"ZYX"` |
@@ -97,15 +97,15 @@ Supported SO3 parametrizations:
 | `to_rotmat(q)`                        | `(...,4) -> (...,3,3)`                    |
 | `from_rotmat(R)`                      | `(...,3,3) -> (...,4)`                    |
 | `from_matrix(R, mode="svd")`            | `(...,3,3) -> (...,4)`                    |
-| `from_quat_xyzw(quat)`                | `(...,4) -> (...,4)`                      |
-| `to_quat_xyzw(quat)`                  | `(...,4) -> (...,4)`                      |
+| `from_quat_xyzw(quat_xyzw)`           | `(...,4) -> (...,4)`                      |
+| `to_quat_xyzw(quat_wxyz)`             | `(...,4) -> (...,4)`                      |
 | `to_sixd(q)`                          | `(...,4) -> (...,6)`                      |
 | `from_sixd(sixd)`                     | `(...,6) -> (...,4)`                      |
 | `multiply(q1, q2)`                    | `(...,4), (...,4) -> (...,4)`             |
 | `inverse(q)`                          | `(...,4) -> (...,4)`                      |
 | `rotate_points(q, points)`            | `(...,4), (...,N,3) -> (...,N,3)`         |
 | `slerp(q1, q2, t)`                    | `(...,4), (...,4), (...,N) -> (...,N,4)`  |
-| `distance(q1, q2)`                    | `(...,4), (...,4) -> (...)`               |
+| `distance(q1, q2, rotation_type="quat_wxyz", convention="ZYX")` | dynamic             |
 | `log(q)`                              | `(...,4) -> (...,3)`                      |
 | `exp(tangent)`                        | `(...,3) -> (...,4)`                      |
 | `hat(w)`                              | `(...,3) -> (...,3,3)`                    |
@@ -119,8 +119,8 @@ Supported SO3 parametrizations:
 | Function                              | Signature                                 |
 | ------------------------------------- | ----------------------------------------- |
 | `canonicalize(se3)`                   | `(...,7) -> (...,7)`                      |
-| `from_rt(quat, translation)`          | `(...,4), (...,3) -> (...,7)`             |
-| `to_rt(se3)`                          | `(...,7) -> (quat, translation)`          |
+| `from_rt(quat_wxyz, translation)`     | `(...,4), (...,3) -> (...,7)`             |
+| `to_rt(se3)`                          | `(...,7) -> (quat_wxyz, translation)`     |
 | `from_matrix(T, normalize=False, mode="svd")` | `(...,4,4) -> (...,7)`             |
 | `to_matrix(se3)`                      | `(...,7) -> (...,4,4)`                    |
 | `multiply(se3_1, se3_2)`              | `(...,7), (...,7) -> (...,7)`             |
@@ -184,15 +184,13 @@ Representations: `axis_angle`, `euler`, `matrix`, `rotmat`, `quat_wxyz`, `quat_x
 
 For runtime-selected conversions, use `SO3.convert`. `src="matrix"` treats the
 input as a generic `3x3` matrix and projects it to `rotmat` before converting.
-Euler uses the usual axis-order convention strings, while quaternion order is
-controlled via `"wxyz"` or `"xyzw"` and defaults to the repo convention
-`"wxyz"`:
+Euler uses the usual axis-order convention strings:
 
 ```python
 matrix = SO3.convert(axis_angle, src="axis_angle", dst="matrix")
 rotmat = SO3.convert(matrix, src="matrix", dst="rotmat")
-quat_xyzw = SO3.convert(euler, src="euler", dst="quat", src_convention="XYZ", dst_convention="xyzw")
-quat_wxyz = SO3.convert(quat_xyzw, src="quat", dst="quat", src_convention="xyzw")
+quat_xyzw = SO3.convert(euler, src="euler", dst="quat_xyzw", src_convention="XYZ")
+quat_wxyz = SO3.convert(quat_xyzw, src="quat_xyzw", dst="quat_wxyz")
 euler = SO3.convert(rotmat, src="rotmat", dst="euler", dst_convention="ZYX")
 ```
 

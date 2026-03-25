@@ -9,18 +9,30 @@ from nanomanifold.common import get_namespace
 from ..identity import identity_as
 from ..multiply import multiply
 from . import rotmat
-from .quaternion import canonicalize
+from .quaternion import QuaternionConvention, canonicalize, from_quat, to_quat
 
 
-def to_euler(q: Float[Any, "... 4"], convention: str = "ZYX", *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
+def to_euler(
+    q: Float[Any, "... 4"],
+    convention: str = "ZYX",
+    *,
+    quat_convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 3"]:
     if xp is None:
         xp = get_namespace(q)
-    q = canonicalize(q, xp=xp)
+    q = canonicalize(from_quat(q, convention=quat_convention, xp=xp), xp=xp)
     rot = rotmat.to_rotmat(q, xp=xp)
     return _rotmat_to_euler(rot, convention, xp=xp)
 
 
-def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX", *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+def from_euler(
+    euler: Float[Any, "... 3"],
+    convention: str = "ZYX",
+    *,
+    quat_convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 4"]:
     if xp is None:
         xp = get_namespace(euler)
     half_angles = euler * 0.5
@@ -38,7 +50,7 @@ def from_euler(euler: Float[Any, "... 3"], convention: str = "ZYX", *, xp: Modul
         q_axis = _axis_quaternion(cos_half[..., i], sin_half[..., i], axis, xp)
         q = multiply(q_axis, q, xp=xp) if is_extrinsic else multiply(q, q_axis, xp=xp)
 
-    return canonicalize(q, xp=xp)
+    return to_quat(canonicalize(q, xp=xp), convention=quat_convention, xp=xp)
 
 
 def _axis_quaternion(cos_half: Float[Any, "..."], sin_half: Float[Any, "..."], axis: str, xp: ModuleType) -> Float[Any, "... 4"]:

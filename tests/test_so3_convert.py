@@ -4,11 +4,11 @@ from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PR
 
 from nanomanifold import SO3
 
-_REPRESENTATIONS = ["axis_angle", "euler", "matrix", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
+_REPRESENTATIONS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
 _PAIRS = [(src, dst) for src in _REPRESENTATIONS for dst in _REPRESENTATIONS]
 
 
-def _make_input(rep: str, batch_dims, backend, precision=32, convention="ZYX"):
+def _make_input(rep: str, batch_dims, backend, precision=32, convention="ZYX", quat_convention="wxyz"):
     q = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     if rep == "axis_angle":
         return SO3.to_axis_angle(q)
@@ -18,10 +18,8 @@ def _make_input(rep: str, batch_dims, backend, precision=32, convention="ZYX"):
         return SO3.to_rotmat(q)
     if rep == "rotmat":
         return SO3.to_rotmat(q)
-    if rep == "quat_wxyz":
-        return q
-    if rep == "quat_xyzw":
-        return SO3.to_quat_xyzw(q)
+    if rep == "quat":
+        return SO3.to_quat(q, convention=quat_convention)
     if rep == "sixd":
         return SO3.to_sixd(q)
     raise ValueError(rep)
@@ -32,8 +30,8 @@ def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX
         if source == "euler" and src_convention != dst_convention:
             return SO3.conversions.from_euler_to_euler(
                 x,
-                source_convention=src_convention,
-                target_convention=dst_convention,
+                src_convention=src_convention,
+                dst_convention=dst_convention,
             )
         return x
 
@@ -45,10 +43,8 @@ def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX
         q = SO3.from_matrix(x)
     elif source == "rotmat":
         q = SO3.from_rotmat(x)
-    elif source == "quat_wxyz":
-        q = SO3.canonicalize(x)
-    elif source == "quat_xyzw":
-        q = SO3.from_quat_xyzw(x)
+    elif source == "quat":
+        q = SO3.from_quat(x, convention=src_convention)
     else:
         q = SO3.from_sixd(x)
 
@@ -60,10 +56,8 @@ def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX
         return SO3.to_rotmat(q)
     if target == "rotmat":
         return SO3.to_rotmat(q)
-    if target == "quat_wxyz":
-        return SO3.canonicalize(q)
-    if target == "quat_xyzw":
-        return SO3.to_quat_xyzw(q)
+    if target == "quat":
+        return SO3.to_quat(q, convention=dst_convention)
     return SO3.to_sixd(q)
 
 
@@ -73,9 +67,16 @@ def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 @pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
 def test_convert_matches_manual_two_stage_dispatch(source, target, backend, batch_dims, precision, pass_xp):
-    src_convention = "XYZ"
-    dst_convention = "ZYX"
-    x = _make_input(source, batch_dims, backend, precision=precision, convention="XYZ")
+    src_convention = "xyzw" if source == "quat" else "XYZ"
+    dst_convention = "xyzw" if target == "quat" else "ZYX"
+    x = _make_input(
+        source,
+        batch_dims,
+        backend,
+        precision=precision,
+        convention="XYZ",
+        quat_convention=src_convention,
+    )
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     if precision == 16 and source == "matrix" and target != "matrix":
@@ -113,7 +114,7 @@ def test_convert_matches_manual_two_stage_dispatch(source, target, backend, batc
     expected_np = np.array(expected)
 
     atol = ATOL[precision]
-    if target == "quat_wxyz" or target == "quat_xyzw":
+    if target == "quat":
         dots = np.sum(result_np * expected_np, axis=-1)
         assert np.allclose(np.abs(dots), 1.0, atol=atol)
     elif target == "euler":
@@ -141,19 +142,14 @@ def test_convert_supports_euler_to_euler_convention_changes(precision):
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 def test_convert_supports_explicit_quaternion_order_changes(precision):
     q = random_quaternion(batch_dims=(8,), backend="numpy", precision=precision)
-    quat_xyzw = SO3.to_quat_xyzw(q)
+    quat_xyzw = SO3.to_quat(q, convention="xyzw")
 
-    converted = SO3.convert(quat_xyzw, src="quat_xyzw", dst="quat_wxyz")
+    converted = SO3.convert(quat_xyzw, src="quat", dst="quat", src_convention="xyzw", dst_convention="wxyz")
     expected = SO3.canonicalize(q)
 
     assert converted.dtype == expected.dtype
     assert converted.shape == expected.shape
     assert np.allclose(np.array(converted), np.array(expected), atol=ATOL[precision])
-
-
-def test_convert_rejects_legacy_quat_representation_string():
-    with pytest.raises(ValueError, match="Unsupported rotation representation"):
-        SO3.convert(np.zeros((4,)), src="quat", dst="rotmat")
 
 
 def test_convert_distinguishes_matrix_from_rotmat():
@@ -174,8 +170,8 @@ def test_convert_projects_matrix_before_quaternion_conversion():
     stretch = np.diag(np.array([1.05, 0.97, 1.02], dtype=np.float32))
     matrix = np.matmul(np.array(rotmat), stretch)
 
-    converted = SO3.convert(matrix, src="matrix", dst="quat_wxyz")
-    expected = SO3.conversions.from_rotmat_to_quat_wxyz(SO3.conversions.from_matrix_to_rotmat(matrix))
+    converted = SO3.convert(matrix, src="matrix", dst="quat")
+    expected = SO3.conversions.from_rotmat_to_quat(SO3.conversions.from_matrix_to_rotmat(matrix))
 
     dots = np.sum(np.array(converted) * np.array(expected), axis=-1)
     assert np.allclose(np.abs(dots), 1.0, atol=ATOL[32])

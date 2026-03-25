@@ -13,11 +13,11 @@ def test_quaternion_xyzw_roundtrip(backend, batch_dims, precision, pass_xp):
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
 
-    quat_xyzw = SO3.to_quat_xyzw(quat, **xp_kwargs)
+    quat_xyzw = SO3.to_quat(quat, convention="xyzw", **xp_kwargs)
     assert quat_xyzw.dtype == quat.dtype
     assert quat_xyzw.shape == quat.shape
 
-    quat_converted = SO3.from_quat_xyzw(quat_xyzw, **xp_kwargs)
+    quat_converted = SO3.from_quat(quat_xyzw, convention="xyzw", **xp_kwargs)
     assert quat_converted.dtype == quat.dtype
     assert quat_converted.shape == quat.shape
 
@@ -35,6 +35,6 @@ def test_quaternion_xyzw_canonicalizes(backend, batch_dims, precision, pass_xp):
     quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     quat_neg = -quat
 
-    quat_xyzw = SO3.to_quat_xyzw(quat_neg, **xp_kwargs)
+    quat_xyzw = SO3.to_quat(quat_neg, convention="xyzw", **xp_kwargs)
     quat_xyzw_np = np.array(quat_xyzw)
     assert np.all(quat_xyzw_np[..., 3] >= -ATOL[precision])

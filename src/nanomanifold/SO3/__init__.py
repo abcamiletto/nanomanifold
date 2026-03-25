@@ -9,7 +9,7 @@ from .log import log
 from .multiply import multiply
 from .primitives.axis_angle import from_axis_angle, to_axis_angle
 from .primitives.euler import from_euler, to_euler
-from .primitives.quaternion import canonicalize, from_quat_xyzw, to_quat_xyzw
+from .primitives.quaternion import canonicalize, from_quat, to_quat
 from .primitives.rotmat import from_matrix, from_rotmat, to_rotmat
 from .primitives.sixd import from_sixd, to_sixd
 from .random import random
@@ -30,8 +30,8 @@ __all__ = [
     "to_rotmat",
     "from_rotmat",
     "from_matrix",
-    "from_quat_xyzw",
-    "to_quat_xyzw",
+    "from_quat",
+    "to_quat",
     "to_sixd",
     "from_sixd",
     "canonicalize",

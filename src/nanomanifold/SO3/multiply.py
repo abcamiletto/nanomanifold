@@ -5,10 +5,16 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
-from .primitives.quaternion import canonicalize, from_quat_xyzw, to_quat_xyzw
+from .primitives.quaternion import QuaternionConvention, canonicalize, from_quat, to_quat
 
 
-def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], xyzw: bool = False, *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+def multiply(
+    q1: Float[Any, "... 4"],
+    q2: Float[Any, "... 4"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 4"]:
     """Multiply two quaternions representing SO(3) rotations.
 
     The multiplication order matches rotation-matrix multiplication:
@@ -17,9 +23,9 @@ def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], xyzw: bool = Fals
     This means q2 is applied first, then q1.
 
     Args:
-        q1: First quaternion in [w, x, y, z] format (or [x, y, z, w] if xyzw=True)
-        q2: Second quaternion in [w, x, y, z] format (or [x, y, z, w] if xyzw=True)
-        xyzw: Whether to interpret inputs (and return output) as [x, y, z, w]
+        q1: First quaternion in the given convention
+        q2: Second quaternion in the given convention
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
@@ -28,10 +34,8 @@ def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], xyzw: bool = Fals
     if xp is None:
         xp = get_namespace(q1)
 
-    if xyzw:
-        q1 = from_quat_xyzw(q1, xp=xp)
-        q2 = from_quat_xyzw(q2, xp=xp)
-
+    q1 = from_quat(q1, convention=convention, xp=xp)
+    q2 = from_quat(q2, convention=convention, xp=xp)
     q1 = canonicalize(q1, xp=xp)
     q2 = canonicalize(q2, xp=xp)
 
@@ -46,6 +50,4 @@ def multiply(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], xyzw: bool = Fals
     result = xp.stack([w, x, y, z], axis=-1)
     result = canonicalize(result, xp=xp)
 
-    if xyzw:
-        return to_quat_xyzw(result, xp=xp)
-    return result
+    return to_quat(result, convention=convention, xp=xp)

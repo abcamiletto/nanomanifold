@@ -2,7 +2,7 @@
 
 from .axis_angle import from_axis_angle, to_axis_angle
 from .euler import from_euler, to_euler
-from .quaternion import from_quat_xyzw, to_quat_xyzw
+from .quaternion import from_quat, to_quat
 from .rotmat import from_matrix, from_rotmat, to_rotmat
 from .sixd import from_sixd, to_sixd
 
@@ -14,8 +14,8 @@ __all__ = [
     "to_rotmat",
     "from_rotmat",
     "from_matrix",
-    "from_quat_xyzw",
-    "to_quat_xyzw",
+    "from_quat",
+    "to_quat",
     "to_sixd",
     "from_sixd",
 ]

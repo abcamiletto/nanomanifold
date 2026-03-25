@@ -1,34 +1,33 @@
 from types import ModuleType
 from typing import Any
 
-import array_api_compat
-
-
 def get_namespace(array: Any) -> ModuleType:
-    return array_api_compat.get_namespace(array)
+    namespace = getattr(array, "__array_namespace__", None)
+    if namespace is not None:
+        return namespace()
+
+    if type(array).__module__.startswith("torch"):
+        import torch
+
+        return torch
+
+    raise TypeError(f"Unsupported array type '{type(array).__name__}'.")
 
 
 def get_namespace_by_name(name: str) -> ModuleType:
     if name == "numpy":
         import numpy as np
 
-        ones = np.ones(1)
-        return get_namespace(ones)
-
-    elif name == "torch":
+        return np
+    if name == "torch":
         import torch
 
-        ones = torch.ones(1)
-        return get_namespace(ones)
-
-    elif name == "jax":
+        return torch
+    if name == "jax":
         import jax.numpy as jnp
 
-        ones = jnp.ones(1)
-        return get_namespace(ones)
-
-    else:
-        raise ValueError(f"Unknown array namespace '{name}'. Supported: 'numpy', 'torch', 'jax'.")
+        return jnp
+    raise ValueError(f"Unknown array namespace '{name}'. Supported: 'numpy', 'torch', 'jax'.")
 
 
 def safe_eps(dtype: Any, xp: ModuleType, scale: float = 10.0) -> float:

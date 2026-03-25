@@ -16,26 +16,35 @@ from scipy.spatial.transform import Rotation as R
 from nanomanifold import SO3
 
 
-@pytest.mark.parametrize("rotation_type", ["quat_wxyz", "quat_xyzw", "axis_angle", "euler", "rotmat", "matrix", "sixd"])
+@pytest.mark.parametrize(
+    "rotation_type,convention",
+    [
+        ("quat", "wxyz"),
+        ("quat", "xyzw"),
+        ("axis_angle", "wxyz"),
+        ("euler", "ZYX"),
+        ("rotmat", "wxyz"),
+        ("matrix", "wxyz"),
+        ("sixd", "wxyz"),
+    ],
+)
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_distance_rotation_type_matches_quaternion_reference(rotation_type, backend, batch_dims, pass_xp):
+def test_distance_rotation_type_matches_quaternion_reference(rotation_type, convention, backend, batch_dims, pass_xp):
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
-    if rotation_type == "quat_wxyz":
-        x1, x2 = q1, q2
-    elif rotation_type == "quat_xyzw":
-        x1 = SO3.to_quat_xyzw(q1, **xp_kwargs)
-        x2 = SO3.to_quat_xyzw(q2, **xp_kwargs)
+    if rotation_type == "quat":
+        x1 = SO3.to_quat(q1, convention=convention, **xp_kwargs)
+        x2 = SO3.to_quat(q2, convention=convention, **xp_kwargs)
     elif rotation_type == "axis_angle":
         x1 = SO3.to_axis_angle(q1, **xp_kwargs)
         x2 = SO3.to_axis_angle(q2, **xp_kwargs)
     elif rotation_type == "euler":
-        x1 = SO3.to_euler(q1, convention="ZYX", **xp_kwargs)
-        x2 = SO3.to_euler(q2, convention="ZYX", **xp_kwargs)
+        x1 = SO3.to_euler(q1, convention=convention, **xp_kwargs)
+        x2 = SO3.to_euler(q2, convention=convention, **xp_kwargs)
     elif rotation_type == "rotmat":
         x1 = SO3.to_rotmat(q1, **xp_kwargs)
         x2 = SO3.to_rotmat(q2, **xp_kwargs)
@@ -48,7 +57,7 @@ def test_distance_rotation_type_matches_quaternion_reference(rotation_type, back
         x1 = SO3.to_sixd(q1, **xp_kwargs)
         x2 = SO3.to_sixd(q2, **xp_kwargs)
 
-    distance = SO3.distance(x1, x2, rotation_type=rotation_type, **xp_kwargs)
+    distance = SO3.distance(x1, x2, rotation_type=rotation_type, convention=convention, **xp_kwargs)
     expected = SO3.distance(q1, q2, **xp_kwargs)
 
     assert distance.shape == expected.shape

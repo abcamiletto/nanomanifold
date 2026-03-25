@@ -7,11 +7,16 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .primitives.quaternion import canonicalize
+from .primitives.quaternion import QuaternionConvention, canonicalize, from_quat, to_quat
 
 
 def slerp(
-    q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], t: Float[Any, "... N"], *, xp: ModuleType | None = None
+    q1: Float[Any, "... 4"],
+    q2: Float[Any, "... 4"],
+    t: Float[Any, "... N"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
 ) -> Float[Any, "... N 4"]:
     """Spherical linear interpolation between two quaternions representing SO(3).
 
@@ -23,11 +28,12 @@ def slerp(
     the arc connecting the endpoints.
 
     Args:
-        q1: Start quaternion in ``[w, x, y, z]`` format.
-        q2: End quaternion in ``[w, x, y, z]`` format.
+        q1: Start quaternion in the given convention.
+        q2: End quaternion in the given convention.
         t: Array of interpolation parameters whose last dimension ``N`` represents
             the number of interpolation points. For a single point use shape
             ``[..., 1]``.
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
@@ -37,8 +43,8 @@ def slerp(
     if xp is None:
         xp = get_namespace(q1)
 
-    q1 = canonicalize(q1, xp=xp)
-    q2 = canonicalize(q2, xp=xp)
+    q1 = canonicalize(from_quat(q1, convention=convention, xp=xp), xp=xp)
+    q2 = canonicalize(from_quat(q2, convention=convention, xp=xp), xp=xp)
 
     q1_expanded = q1[..., None, :]
     q2_expanded = q2[..., None, :]
@@ -77,4 +83,4 @@ def slerp(
 
     result = xp.where(use_linear, linear_result, spherical_result)
 
-    return canonicalize(result, xp=xp)
+    return to_quat(canonicalize(result, xp=xp), convention=convention, xp=xp)

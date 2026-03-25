@@ -6,12 +6,17 @@ from jaxtyping import Float
 from nanomanifold.common import get_namespace
 from nanomanifold.SO3 import multiply as so3_multiply
 from nanomanifold.SO3 import rotate_points
+from nanomanifold.SO3.primitives.quaternion import QuaternionConvention
 
 from .canonicalize import canonicalize
 
 
 def multiply(
-    se3_1: Float[Any, "... 7"], se3_2: Float[Any, "... 7"], xyzw: bool = False, *, xp: ModuleType | None = None
+    se3_1: Float[Any, "... 7"],
+    se3_2: Float[Any, "... 7"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
 ) -> Float[Any, "... 7"]:
     """Multiply two SE(3) transformations.
 
@@ -25,11 +30,9 @@ def multiply(
     - Translation: R1 * t2 + t1 (where R1 rotates by q1)
 
     Args:
-        se3_1: First SE(3) transformation in [w, x, y, z, tx, ty, tz] format
-            (or [x, y, z, w, tx, ty, tz] if xyzw=True)
-        se3_2: Second SE(3) transformation in [w, x, y, z, tx, ty, tz] format
-            (or [x, y, z, w, tx, ty, tz] if xyzw=True)
-        xyzw: Whether to interpret inputs (and return output) as [x, y, z, w, tx, ty, tz]
+        se3_1: First SE(3) transformation with quaternion components in the given convention
+        se3_2: Second SE(3) transformation with quaternion components in the given convention
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
@@ -38,19 +41,19 @@ def multiply(
     if xp is None:
         xp = get_namespace(se3_1)
 
-    se3_1 = canonicalize(se3_1, xyzw=xyzw, xp=xp)
-    se3_2 = canonicalize(se3_2, xyzw=xyzw, xp=xp)
+    se3_1 = canonicalize(se3_1, convention=convention, xp=xp)
+    se3_2 = canonicalize(se3_2, convention=convention, xp=xp)
 
     q1 = se3_1[..., :4]
     t1 = se3_1[..., 4:7]
     q2 = se3_2[..., :4]
     t2 = se3_2[..., 4:7]
 
-    q_result = so3_multiply(q1, q2, xyzw=xyzw, xp=xp)
+    q_result = so3_multiply(q1, q2, convention=convention, xp=xp)
 
-    t2_rotated = rotate_points(q1, t2[..., None, :], xp=xp).squeeze(-2)
+    t2_rotated = rotate_points(q1, t2[..., None, :], convention=convention, xp=xp).squeeze(-2)
     t_result = t2_rotated + t1
 
     result = xp.concatenate([q_result, t_result], axis=-1)
 
-    return canonicalize(result, xyzw=xyzw, xp=xp)
+    return canonicalize(result, convention=convention, xp=xp)

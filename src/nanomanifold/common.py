@@ -1,6 +1,7 @@
 from types import ModuleType
 from typing import Any
 
+
 def get_namespace(array: Any) -> ModuleType:
     namespace = getattr(array, "__array_namespace__", None)
     if namespace is not None:

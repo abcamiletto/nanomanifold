@@ -32,8 +32,7 @@ def to_axis_angle(
     axis_angle_small = 2.0 * xyz
 
     w_clipped = xp.clip(w, 0.0, 1.0)
-    atan2 = xp.atan2 if hasattr(xp, "atan2") else xp.arctan2
-    angle = 2 * atan2(norm_xyz, w_clipped)
+    angle = 2 * xp.arctan2(norm_xyz, w_clipped)
 
     safe_norm = xp.where(norm_xyz < thresh, xp.ones_like(norm_xyz), norm_xyz)
     axis = xyz / safe_norm

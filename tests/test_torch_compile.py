@@ -166,27 +166,35 @@ def test_compile_so3_pairwise_conversions(source, target):
     fn = getattr(SO3.conversions, f"from_{source}_to_{target}")
 
     if source == "euler" and target == "quat":
+
         def f(x):
             return fn(x, src_convention="XYZ", dst_convention="xyzw", xp=torch)
     elif source == "quat" and target == "euler":
+
         def f(x):
             return fn(x, src_convention="xyzw", dst_convention="XYZ", xp=torch)
     elif source == "quat" and target == "quat":
+
         def f(x):
             return fn(x, src_convention="xyzw", dst_convention="wxyz", xp=torch)
     elif source == "euler":
+
         def f(x):
             return fn(x, convention="XYZ", xp=torch)
     elif target == "euler":
+
         def f(x):
             return fn(x, convention="XYZ", xp=torch)
     elif source == "quat":
+
         def f(x):
             return fn(x, convention="xyzw", xp=torch)
     elif target == "quat":
+
         def f(x):
             return fn(x, convention="xyzw", xp=torch)
     else:
+
         def f(x):
             return fn(x, xp=torch)
 

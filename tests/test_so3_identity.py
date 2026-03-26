@@ -59,4 +59,3 @@ def test_identity_as_uses_explicit_batch_dims(backend, batch_dims, precision, pa
     assert identity.dtype == ref.dtype
     assert identity.shape == batch_dims + (4,)
     assert np.allclose(np.array(identity), np.array([1.0, 0.0, 0.0, 0.0], dtype=np.array(identity).dtype))
-

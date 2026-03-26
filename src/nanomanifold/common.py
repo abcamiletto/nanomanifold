@@ -66,7 +66,7 @@ def random_uniform(shape: tuple[int, ...], *, dtype=None, key=None, xp: ModuleTy
 
     name = xp.__name__
     if "jax" in name:
-        import jax.random
+        import jax
 
         if key is None:
             raise ValueError("A PRNG key is required for JAX: pass key=jax.random.PRNGKey(...)")

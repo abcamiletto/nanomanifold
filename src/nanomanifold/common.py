@@ -1,19 +1,16 @@
 from types import ModuleType
 from typing import Any
 
+import numpy as np
+
 
 def get_namespace(array: Any) -> ModuleType:
     namespace = getattr(array, "__array_namespace__", None)
     if namespace is not None:
         return namespace()
 
-    try:
-        import numpy as np
-    except ImportError:
-        pass
-    else:
-        if isinstance(array, np.ndarray):
-            return np
+    if isinstance(array, np.ndarray):
+        return np
 
     if type(array).__module__.startswith("torch"):
         import torch
@@ -25,8 +22,6 @@ def get_namespace(array: Any) -> ModuleType:
 
 def get_namespace_by_name(name: str) -> ModuleType:
     if name == "numpy":
-        import numpy as np
-
         return np
     if name == "torch":
         import torch

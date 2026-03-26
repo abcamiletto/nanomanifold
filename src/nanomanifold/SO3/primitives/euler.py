@@ -228,12 +228,11 @@ def _angle_from_tan(
     if horizontal:
         i2, i1 = i1, i2
     even = (axis + other_axis) in ["XY", "YZ", "ZX"]
-    atan2 = xp.atan2 if hasattr(xp, "atan2") else xp.arctan2
     if horizontal == even:
-        return atan2(data[..., i1], data[..., i2])
+        return xp.arctan2(data[..., i1], data[..., i2])
     if tait_bryan:
-        return atan2(-data[..., i2], data[..., i1])
-    return atan2(data[..., i2], -data[..., i1])
+        return xp.arctan2(-data[..., i2], data[..., i1])
+    return xp.arctan2(data[..., i2], -data[..., i1])
 
 
 def _index_from_letter(letter: str) -> int:

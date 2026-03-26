@@ -72,8 +72,7 @@ def slerp(
     one = xp.ones_like(dot_product)
     eps = xp.asarray(common.safe_eps(dot_product.dtype, xp, scale=1.0), dtype=dot_product.dtype)
     dot_for_trig = xp.minimum(dot_product, one - eps)
-    acos = xp.acos if hasattr(xp, "acos") else xp.arccos
-    omega = acos(dot_for_trig)
+    omega = xp.arccos(dot_for_trig)
     sin_omega = xp.sin(omega)
 
     sin_omega_safe = xp.where(xp.abs(sin_omega) < eps, eps, sin_omega)

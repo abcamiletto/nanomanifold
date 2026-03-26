@@ -64,4 +64,4 @@ jobs:
       run: uv sync --group dev --group test --resolution highest --upgrade
 
     - name: Run tests
-      run: uv run pytest .
+      run: uv run --no-sync pytest .

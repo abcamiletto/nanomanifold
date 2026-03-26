@@ -38,3 +38,10 @@ def test_quaternion_xyzw_canonicalizes(backend, batch_dims, precision, pass_xp):
     quat_xyzw = SO3.to_quat(quat_neg, convention="xyzw", **xp_kwargs)
     quat_xyzw_np = np.array(quat_xyzw)
     assert np.all(quat_xyzw_np[..., 3] >= -ATOL[precision])
+
+
+def test_quaternion_rejects_invalid_convention():
+    quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+
+    with pytest.raises(AssertionError, match="Quaternion convention must be 'wxyz' or 'xyzw'"):
+        SO3.to_quat(quat, convention="bad")

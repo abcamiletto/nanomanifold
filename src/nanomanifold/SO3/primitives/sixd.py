@@ -48,6 +48,7 @@ def to_sixd(
     The 6D representation is formed by concatenating the first two columns of
     the rotation matrix.
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(q)
     rotmat = to_rotmat(q, convention=convention, xp=xp)
@@ -64,6 +65,7 @@ def from_sixd(
 
     Applies Gram-Schmidt orthonormalization to ensure a valid rotation matrix.
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(sixd)
     rotmat = _from_sixd_to_rotmat(sixd, xp)

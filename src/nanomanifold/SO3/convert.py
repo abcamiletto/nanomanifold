@@ -1,7 +1,7 @@
 """Convenience dispatcher for SO(3) representation conversions."""
 
 from types import ModuleType
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from jaxtyping import Float
 
@@ -31,6 +31,13 @@ def convert(
 
     src_convention = "wxyz" if src == "quat" and src_convention is None else "ZYX" if src_convention is None else src_convention
     dst_convention = "wxyz" if dst == "quat" and dst_convention is None else "ZYX" if dst_convention is None else dst_convention
+    if src == "quat":
+        assert src_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+    if dst == "quat":
+        assert dst_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+
+    quat_src_convention = cast(Literal["wxyz", "xyzw"], src_convention)
+    quat_dst_convention = cast(Literal["wxyz", "xyzw"], dst_convention)
 
     if src == dst:
         if src == "euler" and src_convention != dst_convention:
@@ -43,8 +50,8 @@ def convert(
         if src == "quat" and src_convention != dst_convention:
             return conversions.from_quat_to_quat(
                 value,
-                src_convention=src_convention,
-                dst_convention=dst_convention,
+                src_convention=quat_src_convention,
+                dst_convention=quat_dst_convention,
                 xp=xp,
             )
         return value
@@ -55,7 +62,7 @@ def convert(
         if dst == "rotmat" or dst == "matrix":
             return conversions.from_axis_angle_to_rotmat(value, xp=xp)
         if dst == "quat":
-            return conversions.from_axis_angle_to_quat(value, convention=dst_convention, xp=xp)
+            return conversions.from_axis_angle_to_quat(value, convention=quat_dst_convention, xp=xp)
         if dst == "sixd":
             return conversions.from_axis_angle_to_sixd(value, xp=xp)
 
@@ -68,7 +75,7 @@ def convert(
             return conversions.from_euler_to_quat(
                 value,
                 src_convention=src_convention,
-                dst_convention=dst_convention,
+                dst_convention=quat_dst_convention,
                 xp=xp,
             )
         if dst == "sixd":
@@ -82,7 +89,7 @@ def convert(
         if dst == "rotmat":
             return conversions.from_matrix_to_rotmat(value, xp=xp)
         if dst == "quat":
-            return conversions.from_matrix_to_quat(value, convention=dst_convention, xp=xp)
+            return conversions.from_matrix_to_quat(value, convention=quat_dst_convention, xp=xp)
         if dst == "sixd":
             return conversions.from_matrix_to_sixd(value, xp=xp)
 
@@ -94,24 +101,24 @@ def convert(
         if dst == "matrix":
             return value
         if dst == "quat":
-            return conversions.from_rotmat_to_quat(value, convention=dst_convention, xp=xp)
+            return conversions.from_rotmat_to_quat(value, convention=quat_dst_convention, xp=xp)
         if dst == "sixd":
             return conversions.from_rotmat_to_sixd(value, xp=xp)
 
     if src == "quat":
         if dst == "axis_angle":
-            return conversions.from_quat_to_axis_angle(value, convention=src_convention, xp=xp)
+            return conversions.from_quat_to_axis_angle(value, convention=quat_src_convention, xp=xp)
         if dst == "euler":
             return conversions.from_quat_to_euler(
                 value,
-                src_convention=src_convention,
+                src_convention=quat_src_convention,
                 dst_convention=dst_convention,
                 xp=xp,
             )
         if dst == "rotmat" or dst == "matrix":
-            return conversions.from_quat_to_rotmat(value, convention=src_convention, xp=xp)
+            return conversions.from_quat_to_rotmat(value, convention=quat_src_convention, xp=xp)
         if dst == "sixd":
-            return conversions.from_quat_to_sixd(value, convention=src_convention, xp=xp)
+            return conversions.from_quat_to_sixd(value, convention=quat_src_convention, xp=xp)
 
     if src == "sixd":
         if dst == "axis_angle":
@@ -121,7 +128,7 @@ def convert(
         if dst == "rotmat" or dst == "matrix":
             return conversions.from_sixd_to_rotmat(value, xp=xp)
         if dst == "quat":
-            return conversions.from_sixd_to_quat(value, convention=dst_convention, xp=xp)
+            return conversions.from_sixd_to_quat(value, convention=quat_dst_convention, xp=xp)
 
     raise ValueError(f"Unsupported conversion from '{src}' to '{dst}'.")
 

@@ -31,4 +31,5 @@ def exp(
     Returns:
         Quaternion in the requested convention representing the rotation
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     return to_quat(from_axis_angle(tangent_vector, xp=xp), convention=convention, xp=xp)

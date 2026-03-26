@@ -27,6 +27,7 @@ def from_rt(
         SE(3) representation (..., 7) as [w, x, y, z, tx, ty, tz] with the
         quaternion canonicalized to have a non-negative scalar component.
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(quat)
     se3 = xp.concatenate([quat, translation], axis=-1)
@@ -48,6 +49,7 @@ def to_rt(
         quat: Rotation quaternion (..., 4) in the requested convention
         translation: Translation vector (..., 3)
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(se3)
     quat = se3[..., :4]

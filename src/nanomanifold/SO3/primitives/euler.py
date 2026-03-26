@@ -19,6 +19,7 @@ def to_euler(
     quat_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 3"]:
+    assert quat_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(q)
     q = canonicalize(from_quat(q, convention=quat_convention, xp=xp), xp=xp)
@@ -33,6 +34,7 @@ def from_euler(
     quat_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
+    assert quat_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(euler)
     half_angles = euler * 0.5

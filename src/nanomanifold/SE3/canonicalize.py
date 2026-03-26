@@ -22,6 +22,7 @@ def canonicalize(
     Returns:
         Canonicalized SE(3) representation with quaternion w >= 0
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(se3)
 

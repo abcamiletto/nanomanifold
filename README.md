@@ -186,7 +186,7 @@ euler = SO3.convert(rotmat, src="rotmat", dst="euler", dst_convention="ZYX")
 
 ## Backend-Explicit Mode
 
-By default, nanomanifold auto-detects the array backend via `array_api_compat`. Every function also
+By default, nanomanifold auto-detects the array backend from the input array type. Every function also
 accepts an optional `xp` keyword argument to specify the backend explicitly. This is required for
 `torch.compile(fullgraph=True)`, since Dynamo cannot trace the dynamic dispatch:
 

@@ -144,3 +144,8 @@ def test_from_euler_zero_gradient_torch():
     quat = SO3.from_euler(euler, convention="xyz")
     quat.sum().backward()
     assert torch.isfinite(euler.grad).all()
+
+
+def test_euler_rejects_invalid_convention():
+    with pytest.raises(AssertionError, match="Invalid Euler convention"):
+        SO3.to_euler(np.array([[1.0, 0.0, 0.0, 0.0]]), convention="bad")

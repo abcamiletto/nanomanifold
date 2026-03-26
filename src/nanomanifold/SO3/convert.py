@@ -10,6 +10,32 @@ from . import conversions
 RotationRep = Literal["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
 
 _REPRESENTATIONS = ("axis_angle", "euler", "matrix", "rotmat", "quat", "sixd")
+_EULER_CONVENTIONS = (
+    "xyz",
+    "xzy",
+    "yxz",
+    "yzx",
+    "zxy",
+    "zyx",
+    "XYZ",
+    "XZY",
+    "YXZ",
+    "YZX",
+    "ZXY",
+    "ZYX",
+    "xyx",
+    "xzx",
+    "yxy",
+    "yzy",
+    "zxz",
+    "zyz",
+    "XYX",
+    "XZX",
+    "YXY",
+    "YZY",
+    "ZXZ",
+    "ZYZ",
+)
 
 
 def convert(
@@ -35,16 +61,22 @@ def convert(
         assert src_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if dst == "quat":
         assert dst_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+    if src == "euler":
+        assert src_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
+    if dst == "euler":
+        assert dst_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
 
     quat_src_convention = cast(Literal["wxyz", "xyzw"], src_convention)
     quat_dst_convention = cast(Literal["wxyz", "xyzw"], dst_convention)
+    euler_src_convention = cast(Any, src_convention)
+    euler_dst_convention = cast(Any, dst_convention)
 
     if src == dst:
         if src == "euler" and src_convention != dst_convention:
             return conversions.from_euler_to_euler(
                 value,
-                src_convention=src_convention,
-                dst_convention=dst_convention,
+                src_convention=euler_src_convention,
+                dst_convention=euler_dst_convention,
                 xp=xp,
             )
         if src == "quat" and src_convention != dst_convention:
@@ -58,7 +90,7 @@ def convert(
 
     if src == "axis_angle":
         if dst == "euler":
-            return conversions.from_axis_angle_to_euler(value, convention=dst_convention, xp=xp)
+            return conversions.from_axis_angle_to_euler(value, convention=euler_dst_convention, xp=xp)
         if dst == "rotmat" or dst == "matrix":
             return conversions.from_axis_angle_to_rotmat(value, xp=xp)
         if dst == "quat":
@@ -68,24 +100,24 @@ def convert(
 
     if src == "euler":
         if dst == "axis_angle":
-            return conversions.from_euler_to_axis_angle(value, convention=src_convention, xp=xp)
+            return conversions.from_euler_to_axis_angle(value, convention=euler_src_convention, xp=xp)
         if dst == "rotmat" or dst == "matrix":
-            return conversions.from_euler_to_rotmat(value, convention=src_convention, xp=xp)
+            return conversions.from_euler_to_rotmat(value, convention=euler_src_convention, xp=xp)
         if dst == "quat":
             return conversions.from_euler_to_quat(
                 value,
-                src_convention=src_convention,
+                src_convention=euler_src_convention,
                 dst_convention=quat_dst_convention,
                 xp=xp,
             )
         if dst == "sixd":
-            return conversions.from_euler_to_sixd(value, convention=src_convention, xp=xp)
+            return conversions.from_euler_to_sixd(value, convention=euler_src_convention, xp=xp)
 
     if src == "matrix":
         if dst == "axis_angle":
             return conversions.from_matrix_to_axis_angle(value, xp=xp)
         if dst == "euler":
-            return conversions.from_matrix_to_euler(value, convention=dst_convention, xp=xp)
+            return conversions.from_matrix_to_euler(value, convention=euler_dst_convention, xp=xp)
         if dst == "rotmat":
             return conversions.from_matrix_to_rotmat(value, xp=xp)
         if dst == "quat":
@@ -97,7 +129,7 @@ def convert(
         if dst == "axis_angle":
             return conversions.from_rotmat_to_axis_angle(value, xp=xp)
         if dst == "euler":
-            return conversions.from_rotmat_to_euler(value, convention=dst_convention, xp=xp)
+            return conversions.from_rotmat_to_euler(value, convention=euler_dst_convention, xp=xp)
         if dst == "matrix":
             return value
         if dst == "quat":
@@ -112,7 +144,7 @@ def convert(
             return conversions.from_quat_to_euler(
                 value,
                 src_convention=quat_src_convention,
-                dst_convention=dst_convention,
+                dst_convention=euler_dst_convention,
                 xp=xp,
             )
         if dst == "rotmat" or dst == "matrix":
@@ -124,7 +156,7 @@ def convert(
         if dst == "axis_angle":
             return conversions.from_sixd_to_axis_angle(value, xp=xp)
         if dst == "euler":
-            return conversions.from_sixd_to_euler(value, convention=dst_convention, xp=xp)
+            return conversions.from_sixd_to_euler(value, convention=euler_dst_convention, xp=xp)
         if dst == "rotmat" or dst == "matrix":
             return conversions.from_sixd_to_rotmat(value, xp=xp)
         if dst == "quat":

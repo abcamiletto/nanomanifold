@@ -1,5 +1,5 @@
 from types import ModuleType
-from typing import Any
+from typing import Any, Literal
 
 from jaxtyping import Float
 
@@ -11,14 +11,69 @@ from ..multiply import multiply
 from . import rotmat
 from .quaternion import QuaternionConvention, canonicalize, from_quat, to_quat
 
+EulerConvention = Literal[
+    "xyz",
+    "xzy",
+    "yxz",
+    "yzx",
+    "zxy",
+    "zyx",
+    "XYZ",
+    "XZY",
+    "YXZ",
+    "YZX",
+    "ZXY",
+    "ZYX",
+    "xyx",
+    "xzx",
+    "yxy",
+    "yzy",
+    "zxz",
+    "zyz",
+    "XYX",
+    "XZX",
+    "YXY",
+    "YZY",
+    "ZXZ",
+    "ZYZ",
+]
+
+_EULER_CONVENTIONS = (
+    "xyz",
+    "xzy",
+    "yxz",
+    "yzx",
+    "zxy",
+    "zyx",
+    "XYZ",
+    "XZY",
+    "YXZ",
+    "YZX",
+    "ZXY",
+    "ZYX",
+    "xyx",
+    "xzx",
+    "yxy",
+    "yzy",
+    "zxz",
+    "zyz",
+    "XYX",
+    "XZX",
+    "YXY",
+    "YZY",
+    "ZXZ",
+    "ZYZ",
+)
+
 
 def to_euler(
     q: Float[Any, "... 4"],
-    convention: str = "ZYX",
+    convention: EulerConvention = "ZYX",
     *,
     quat_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 3"]:
+    assert convention in _EULER_CONVENTIONS, "Invalid Euler convention."
     assert quat_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(q)
@@ -29,11 +84,12 @@ def to_euler(
 
 def from_euler(
     euler: Float[Any, "... 3"],
-    convention: str = "ZYX",
+    convention: EulerConvention = "ZYX",
     *,
     quat_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
+    assert convention in _EULER_CONVENTIONS, "Invalid Euler convention."
     assert quat_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(euler)
@@ -66,8 +122,9 @@ def _axis_quaternion(cos_half: Float[Any, "..."], sin_half: Float[Any, "..."], a
     raise ValueError(f"Invalid axis: {axis}")
 
 
-def _euler_to_rotmat(euler: Float[Any, "... 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
+def _euler_to_rotmat(euler: Float[Any, "... 3"], convention: EulerConvention, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     """Convert Euler angles to a rotation matrix."""
+    assert convention in _EULER_CONVENTIONS, "Invalid Euler convention."
     if xp is None:
         xp = get_namespace(euler)
 
@@ -119,18 +176,15 @@ def _rotation_matrix(angle: Float[Any, "..."], axis: str, *, xp: ModuleType | No
     return mat
 
 
-def _rotmat_to_euler(rotmat: Float[Any, "... 3 3"], convention: str, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
+def _rotmat_to_euler(rotmat: Float[Any, "... 3 3"], convention: EulerConvention, *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
     """Convert a rotation matrix to Euler angles."""
+    assert convention in _EULER_CONVENTIONS, "Invalid Euler convention."
     if xp is None:
         xp = get_namespace(rotmat)
 
     is_extrinsic = convention.islower()
-
-    if is_extrinsic:
-        convention = convention.upper()
-        convention = convention[::-1]
-
-    eulers = _rotmat_to_euler_angles(rotmat, convention, xp=xp)
+    angle_convention = convention.upper()[::-1] if is_extrinsic else convention
+    eulers = _rotmat_to_euler_angles(rotmat, angle_convention, xp=xp)
 
     if is_extrinsic:
         return xp.stack([eulers[..., 2], eulers[..., 1], eulers[..., 0]], axis=-1)
@@ -142,14 +196,6 @@ def _rotmat_to_euler_angles(rotmat: Float[Any, "... 3 3"], convention: str, *, x
     """Extract Euler angles from a rotation matrix using systematic approach."""
     if xp is None:
         xp = get_namespace(rotmat)
-
-    if len(convention) != 3:
-        raise ValueError("Convention must have 3 letters.")
-    if convention[1] in (convention[0], convention[2]):
-        raise ValueError(f"Invalid convention {convention}.")
-    for letter in convention:
-        if letter not in ("X", "Y", "Z"):
-            raise ValueError(f"Invalid letter {letter} in convention string.")
 
     i0 = _index_from_letter(convention[0])
     i2 = _index_from_letter(convention[2])

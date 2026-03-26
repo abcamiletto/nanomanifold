@@ -8,15 +8,6 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "array-api-compat"
-version = "1.12.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8d/bd/9fa5c7c5621698d5632cc852a79fbbdc28024462c9396698e5fdcb395f37/array_api_compat-1.12.0.tar.gz", hash = "sha256:585bc615f650de53ac24b7c012baecfcdd810f50df3573be47e6dd9fa20df974", size = 99883, upload-time = "2025-05-16T08:49:59.897Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/b1/0542e0cab6f49f151a2d7a42400f84f706fc0b64e85dc1f56708b2e9fd37/array_api_compat-1.12.0-py3-none-any.whl", hash = "sha256:a0b4795b6944a9507fde54679f9350e2ad2b1e2acf4a2408a098cdc27f890a8b", size = 58156, upload-time = "2025-05-16T08:49:58.129Z" },
-]
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -225,7 +216,6 @@ name = "nanomanifold"
 version = "0.5.0"
 source = { editable = "." }
 dependencies = [
-    { name = "array-api-compat" },
     { name = "jaxtyping" },
     { name = "numpy" },
 ]
@@ -242,7 +232,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "array-api-compat", specifier = ">=1.12.0,<2" },
     { name = "jaxtyping", specifier = ">=0.3.2,<1" },
     { name = "numpy", specifier = ">=2.2.0,<3" },
 ]

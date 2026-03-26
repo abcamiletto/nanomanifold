@@ -6,7 +6,7 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .primitives.quaternion import canonicalize
+from .primitives.quaternion import QuaternionConvention, canonicalize, from_quat, to_quat
 
 
 def _as_dtype_preserve_grad(x, dtype, xp):
@@ -17,7 +17,11 @@ def _as_dtype_preserve_grad(x, dtype, xp):
 
 
 def weighted_mean(
-    quaternions: Sequence[Float[Any, "... 4"]], weights: Float[Any, "... N"], *, xp: ModuleType | None = None
+    quaternions: Sequence[Float[Any, "... 4"]],
+    weights: Float[Any, "... N"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
     """Compute the weighted mean of SO(3) rotations represented as quaternions.
 
@@ -26,15 +30,16 @@ def weighted_mean(
     eigenvector corresponding to the largest eigenvalue of the weighted covariance matrix.
 
     Args:
-        quaternions: Sequence of quaternions in [w, x, y, z] format. Each quaternion
-                    should have shape [..., 4] where the last dimension contains the
-                    quaternion components.
+        quaternions: Sequence of quaternions in the given convention. Each quaternion
+            should have shape [..., 4] where the last dimension contains the
+            quaternion components.
         weights: Array of weights with shape [..., N] where N is the number of quaternions.
-                The weights are normalized internally.
+            The weights are normalized internally.
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
-        Weighted mean quaternion with shape [..., 4] in [w, x, y, z] format.
+        Weighted mean quaternion with shape [..., 4] in the requested convention.
         The result is canonicalized to ensure w >= 0.
 
     Note:
@@ -45,7 +50,10 @@ def weighted_mean(
         xp = get_namespace(quaternions[0])
     original_dtype = quaternions[0].dtype
 
-    quats = xp.stack([_as_dtype_preserve_grad(q, original_dtype, xp) for q in quaternions], axis=-2)
+    quats = xp.stack(
+        [from_quat(_as_dtype_preserve_grad(q, original_dtype, xp), convention=convention, xp=xp) for q in quaternions],
+        axis=-2,
+    )
     weights_array = _as_dtype_preserve_grad(weights, original_dtype, xp)
 
     norms = xp.linalg.norm(quats, axis=-1, keepdims=True)
@@ -73,22 +81,28 @@ def weighted_mean(
 
     avg_quat = avg_quat / xp.linalg.norm(avg_quat, axis=-1, keepdims=True)
 
-    return canonicalize(avg_quat, xp=xp)
+    return to_quat(canonicalize(avg_quat, xp=xp), convention=convention, xp=xp)
 
 
-def mean(quaternions: Sequence[Float[Any, "... 4"]], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+def mean(
+    quaternions: Sequence[Float[Any, "... 4"]],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 4"]:
     """Compute the mean of SO(3) rotations represented as quaternions.
 
     This is equivalent to weighted_mean with uniform weights.
 
     Args:
-        quaternions: Sequence of quaternions in [w, x, y, z] format. Each quaternion
-                    should have shape [..., 4] where the last dimension contains the
-                    quaternion components.
+        quaternions: Sequence of quaternions in the given convention. Each quaternion
+            should have shape [..., 4] where the last dimension contains the
+            quaternion components.
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
-        Mean quaternion with shape [..., 4] in [w, x, y, z] format.
+        Mean quaternion with shape [..., 4] in the requested convention.
         The result is canonicalized to ensure w >= 0.
     """
     if len(quaternions) == 0:
@@ -101,4 +115,4 @@ def mean(quaternions: Sequence[Float[Any, "... 4"]], *, xp: ModuleType | None = 
     num_quats = len(quaternions)
     weights = xp.broadcast_to(xp.ones_like(quaternions[0][..., :1]), batch_shape + (num_quats,))
 
-    return weighted_mean(quaternions, weights, xp=xp)
+    return weighted_mean(quaternions, weights, convention=convention, xp=xp)

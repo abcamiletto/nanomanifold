@@ -3,24 +3,47 @@ import pytest
 from nanomanifold import SE3, SO3
 
 
-def test_so3_from_matrix_gradient_finite_torch_at_identity():
+def test_so3_from_rotmat_gradient_finite_torch_at_identity():
+    torch = pytest.importorskip("torch")
+    rotmat = torch.eye(3, dtype=torch.float64, requires_grad=True)
+
+    quat = SO3.from_rotmat(rotmat)
+    quat.sum().backward()
+
+    assert torch.isfinite(rotmat.grad).all()
+
+
+def test_so3_from_rotmat_gradient_finite_torch_near_identity():
+    torch = pytest.importorskip("torch")
+    rotmat = torch.eye(3, dtype=torch.float64)
+    rotmat[0, 1] = 1e-12
+    rotmat[1, 0] = -1e-12
+    rotmat.requires_grad_(True)
+
+    quat = SO3.from_rotmat(rotmat)
+    quat.sum().backward()
+
+    assert torch.isfinite(rotmat.grad).all()
+
+
+def test_so3_from_matrix_davenport_gradient_finite_torch_at_identity():
     torch = pytest.importorskip("torch")
     matrix = torch.eye(3, dtype=torch.float64, requires_grad=True)
 
-    quat = SO3.from_matrix(matrix)
+    quat = SO3.from_matrix(matrix, mode="davenport")
     quat.sum().backward()
 
     assert torch.isfinite(matrix.grad).all()
 
 
-def test_so3_from_matrix_gradient_finite_torch_near_identity():
+def test_so3_from_matrix_davenport_gradient_finite_torch_near_identity():
     torch = pytest.importorskip("torch")
     matrix = torch.eye(3, dtype=torch.float64)
     matrix[0, 1] = 1e-12
     matrix[1, 0] = -1e-12
     matrix.requires_grad_(True)
 
-    quat = SO3.from_matrix(matrix)
+    quat = SO3.from_matrix(matrix, mode="davenport")
     quat.sum().backward()
 
     assert torch.isfinite(matrix.grad).all()

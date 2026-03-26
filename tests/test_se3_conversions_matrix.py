@@ -3,7 +3,6 @@ import pytest
 from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_se3
 
 from nanomanifold import SE3
-from nanomanifold.common import get_namespace_by_name
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
@@ -81,26 +80,3 @@ def test_matrix_differentiality_torch(batch_dims):
         return SE3.from_matrix(m)
 
     assert torch.autograd.gradcheck(g, (matrix,), eps=1e-6, atol=1e-5)
-
-
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-@pytest.mark.parametrize("mode", ["svd", "davenport"])
-def test_from_matrix_normalize_projects_rotation_block(backend, pass_xp, mode):
-    xp = get_namespace_by_name(backend)
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    se3 = random_se3(batch_dims=(2,), backend=backend, precision=32)
-    matrix = SE3.to_matrix(se3, **xp_kwargs)
-
-    matrix_np = np.array(matrix)
-    stretch = np.diag(np.array([1.05, 0.97, 1.02], dtype=matrix_np.dtype))
-    matrix_np[..., :3, :3] = np.matmul(matrix_np[..., :3, :3], stretch)
-    noisy_matrix = xp.asarray(matrix_np)
-
-    se3_converted = SE3.from_matrix(noisy_matrix, normalize=True, mode=mode, **xp_kwargs)
-
-    se3_np = np.array(se3)
-    se3_converted_np = np.array(se3_converted)
-    dots = np.sum(se3_np[..., :4] * se3_converted_np[..., :4], axis=-1)
-    assert np.allclose(np.abs(dots), 1.0, atol=ATOL[32])
-    assert np.allclose(se3_np[..., 4:7], se3_converted_np[..., 4:7], atol=ATOL[32])

@@ -8,6 +8,7 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
+from .quaternion import QuaternionConvention
 from .rotmat import from_rotmat, to_rotmat
 
 
@@ -36,7 +37,12 @@ def _from_sixd_to_rotmat(sixd: Float[Any, "... 6"], xp) -> Float[Any, "... 3 3"]
     return xp.stack([b1, b2, b3], axis=-1)
 
 
-def to_sixd(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 6"]:
+def to_sixd(
+    q: Float[Any, "... 4"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 6"]:
     """Convert a quaternion rotation to the 6D representation.
 
     The 6D representation is formed by concatenating the first two columns of
@@ -44,11 +50,16 @@ def to_sixd(q: Float[Any, "... 4"], *, xp: ModuleType | None = None) -> Float[An
     """
     if xp is None:
         xp = get_namespace(q)
-    rotmat = to_rotmat(q, xp=xp)
+    rotmat = to_rotmat(q, convention=convention, xp=xp)
     return xp.concatenate([rotmat[..., :, 0], rotmat[..., :, 1]], axis=-1)
 
 
-def from_sixd(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+def from_sixd(
+    sixd: Float[Any, "... 6"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 4"]:
     """Convert the 6D rotation representation to a quaternion.
 
     Applies Gram-Schmidt orthonormalization to ensure a valid rotation matrix.
@@ -56,4 +67,4 @@ def from_sixd(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Flo
     if xp is None:
         xp = get_namespace(sixd)
     rotmat = _from_sixd_to_rotmat(sixd, xp)
-    return from_rotmat(rotmat, xp=xp)
+    return from_rotmat(rotmat, convention=convention, xp=xp)

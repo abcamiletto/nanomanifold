@@ -5,15 +5,22 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 
-from .primitives.quaternion import canonicalize
+from .primitives.quaternion import QuaternionConvention, canonicalize, from_quat
 
 
-def rotate_points(q: Float[Any, "... 4"], points: Float[Any, "... N 3"], *, xp: ModuleType | None = None) -> Float[Any, "... N 3"]:
+def rotate_points(
+    q: Float[Any, "... 4"],
+    points: Float[Any, "... N 3"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... N 3"]:
     """Rotate points using quaternion rotation.
 
     Args:
-        q: Quaternion in [w, x, y, z] format of shape (..., 4)
+        q: Quaternion in the given convention of shape (..., 4)
         points: Points to rotate of shape (..., N, 3)
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
@@ -21,6 +28,7 @@ def rotate_points(q: Float[Any, "... 4"], points: Float[Any, "... N 3"], *, xp: 
     """
     if xp is None:
         xp = get_namespace(q)
+    q = from_quat(q, convention=convention, xp=xp)
     q = canonicalize(q, xp=xp)
 
     w, x, y, z = q[..., 0], q[..., 1], q[..., 2], q[..., 3]

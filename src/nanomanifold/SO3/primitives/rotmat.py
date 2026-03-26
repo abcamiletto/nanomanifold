@@ -8,15 +8,19 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .quaternion import canonicalize, from_quat_xyzw
+from .quaternion import QuaternionConvention, canonicalize, from_quat, to_quat
 
 
-def to_rotmat(q: Float[Any, "... 4"], xyzw: bool = False, *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
+def to_rotmat(
+    q: Float[Any, "... 4"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 3 3"]:
     """Convert quaternion to a normalized 3x3 rotation matrix."""
     if xp is None:
         xp = get_namespace(q)
-    if xyzw:
-        q = from_quat_xyzw(q, xp=xp)
+    q = from_quat(q, convention=convention, xp=xp)
     q = canonicalize(q, xp=xp)
     w, x, y, z = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
 
@@ -88,7 +92,12 @@ def _project_matrix_to_rotmat(matrix: Float[Any, "... 3 3"], xp, *, mode: str = 
     raise ValueError(f"Unsupported projection mode '{mode}'. Supported values: svd, davenport.")
 
 
-def from_rotmat(rotmat: Float[Any, "... 3 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+def from_rotmat(
+    rotmat: Float[Any, "... 3 3"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 4"]:
     """Convert a normalized 3x3 rotation matrix to a quaternion."""
     if xp is None:
         xp = get_namespace(rotmat)
@@ -138,12 +147,14 @@ def from_rotmat(rotmat: Float[Any, "... 3 3"], *, xp: ModuleType | None = None) 
     y = xp.where(cond1, y1, xp.where(cond2, y2, xp.where(cond3, y3, y4)))
     z = xp.where(cond1, z1, xp.where(cond2, z2, xp.where(cond3, z3, z4)))
 
-    return canonicalize(xp.stack([w, x, y, z], axis=-1), xp=xp)
+    quat = canonicalize(xp.stack([w, x, y, z], axis=-1), xp=xp)
+    return to_quat(quat, convention=convention, xp=xp)
 
 
 def from_matrix(
     matrix: Float[Any, "... 3 3"],
     *,
+    convention: QuaternionConvention = "wxyz",
     mode: str = "svd",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
@@ -151,4 +162,4 @@ def from_matrix(
     if xp is None:
         xp = get_namespace(matrix)
     matrix = _project_matrix_to_rotmat(matrix, xp, mode=mode)
-    return from_rotmat(matrix, xp=xp)
+    return from_rotmat(matrix, convention=convention, xp=xp)

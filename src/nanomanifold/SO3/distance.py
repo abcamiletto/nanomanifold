@@ -13,8 +13,8 @@ def distance(
     q1: Float[Any, "..."],
     q2: Float[Any, "..."],
     *,
-    rotation_type: RotationRep = "quat_wxyz",
-    convention: str = "ZYX",
+    rotation_type: RotationRep = "quat",
+    convention: str = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "..."]:
     """Compute the angular distance between two SO(3) rotations.
@@ -27,7 +27,7 @@ def distance(
         q1: First rotation
         q2: Second rotation
         rotation_type: Representation shared by q1 and q2
-        convention: Euler convention used when rotation_type="euler"
+        convention: Convention used when ``rotation_type`` is ``"euler"`` or ``"quat"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
@@ -35,8 +35,8 @@ def distance(
     """
     if xp is None:
         xp = get_namespace(q1)
-    q1 = convert(q1, src=rotation_type, dst="quat_wxyz", src_convention=convention, xp=xp)
-    q2 = convert(q2, src=rotation_type, dst="quat_wxyz", src_convention=convention, xp=xp)
+    q1 = convert(q1, src=rotation_type, dst="quat", src_convention=convention, dst_convention="wxyz", xp=xp)
+    q2 = convert(q2, src=rotation_type, dst="quat", src_convention=convention, dst_convention="wxyz", xp=xp)
 
     eps = common.safe_eps(q1.dtype, xp)
     eps_arr = xp.asarray(eps, dtype=q1.dtype)

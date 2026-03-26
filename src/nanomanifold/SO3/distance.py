@@ -66,6 +66,8 @@ def distance(
     vec_norm = xp.sqrt(xp.maximum(vec_sq, eps_sq))
     w = w1 * w2 + xp.sum(v1 * v2, axis=-1, keepdims=True)
     w_abs = xp.abs(w[..., 0])
-    angle = 2.0 * xp.atan2(vec_norm, w_abs)
+    atan2 = xp.atan2 if hasattr(xp, "atan2") else xp.arctan2
+    two = xp.ones_like(vec_norm) + xp.ones_like(vec_norm)
+    angle = two * atan2(vec_norm, w_abs)
 
     return xp.where(vec_sq <= eps_sq, xp.zeros_like(angle), angle)

@@ -24,12 +24,14 @@ def to_rotmat(
     q = from_quat(q, convention=convention, xp=xp)
     q = canonicalize(q, xp=xp)
     w, x, y, z = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
+    one = xp.ones_like(w)
+    two = one + one
 
     return xp.stack(
         [
-            xp.stack([1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)], axis=-1),
-            xp.stack([2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)], axis=-1),
-            xp.stack([2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)], axis=-1),
+            xp.stack([one - two * (y * y + z * z), two * (x * y - w * z), two * (x * z + w * y)], axis=-1),
+            xp.stack([two * (x * y + w * z), one - two * (x * x + z * z), two * (y * z - w * x)], axis=-1),
+            xp.stack([two * (x * z - w * y), two * (y * z + w * x), one - two * (x * x + y * y)], axis=-1),
         ],
         axis=-2,
     )
@@ -42,8 +44,8 @@ def _project_matrix_to_rotmat_svd(matrix: Float[Any, "... 3 3"], xp) -> Float[An
     u, _, vh = xp.linalg.svd(matrix)
     det = xp.linalg.det(xp.matmul(u, vh))
 
-    zero = det * 0
-    one = zero + 1
+    zero = xp.zeros_like(det)
+    one = xp.ones_like(det)
     sign = xp.where(det < 0, -one, one)
     correction = xp.stack(
         [
@@ -73,8 +75,8 @@ def _project_matrix_to_rotmat_davenport(matrix: Float[Any, "... 3 3"], xp, *, st
         axis=-2,
     )
 
-    one = trace * 0 + 1
-    zero = trace * 0
+    one = xp.ones_like(trace)
+    zero = xp.zeros_like(trace)
     quat = xp.stack([one, zero, zero, zero], axis=-1)
 
     for _ in range(steps):
@@ -106,11 +108,11 @@ def from_rotmat(
 
     trace = rotmat[..., 0, 0] + rotmat[..., 1, 1] + rotmat[..., 2, 2]
 
-    zero = trace * 0
-    one = zero + 1
-    eps = common.safe_eps(rotmat.dtype, xp)
-    quarter = one * 0.25
-    two = one * 2
+    zero = xp.zeros_like(trace)
+    one = xp.ones_like(trace)
+    eps = xp.asarray(common.safe_eps(rotmat.dtype, xp), dtype=rotmat.dtype)
+    two = one + one
+    quarter = one / (two + two)
 
     s1 = xp.sqrt(xp.maximum(zero + eps, trace + one)) * two
     s1_safe = xp.where(s1 < eps, eps, s1)

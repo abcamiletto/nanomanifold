@@ -6,24 +6,24 @@ from nanomanifold import SO3
 
 
 @pytest.mark.parametrize(
-    "rotation_type,expected_tail,expected",
+    "rotation_type,convention,expected_tail,expected",
     [
-        ("quat_wxyz", (4,), [1.0, 0.0, 0.0, 0.0]),
-        ("quat_xyzw", (4,), [0.0, 0.0, 0.0, 1.0]),
-        ("axis_angle", (3,), [0.0, 0.0, 0.0]),
-        ("euler", (3,), [0.0, 0.0, 0.0]),
-        ("sixd", (6,), [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+        ("quat", "wxyz", (4,), [1.0, 0.0, 0.0, 0.0]),
+        ("quat", "xyzw", (4,), [0.0, 0.0, 0.0, 1.0]),
+        ("axis_angle", "wxyz", (3,), [0.0, 0.0, 0.0]),
+        ("euler", "ZYX", (3,), [0.0, 0.0, 0.0]),
+        ("sixd", "wxyz", (6,), [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
     ],
 )
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 @pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_identity_as_vector_representations(rotation_type, expected_tail, expected, backend, batch_dims, precision, pass_xp):
+def test_identity_as_vector_representations(rotation_type, convention, expected_tail, expected, backend, batch_dims, precision, pass_xp):
     ref = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
-    identity = SO3.identity_as(ref, batch_dims=batch_dims, rotation_type=rotation_type, **xp_kwargs)
+    identity = SO3.identity_as(ref, batch_dims=batch_dims, rotation_type=rotation_type, convention=convention, **xp_kwargs)
 
     assert identity.dtype == ref.dtype
     assert identity.shape == batch_dims + expected_tail

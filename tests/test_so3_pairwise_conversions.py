@@ -12,9 +12,10 @@ from nanomanifold.common import get_namespace_by_name
 # ---------------------------------------------------------------------------
 
 _EULER_CONVENTIONS = ["ZYX", "XYZ", "ZXZ"]
+_QUAT_CONVENTION = "xyzw"
 
 
-def _make_input(source: str, batch_dims, backend, precision=32, convention="ZYX"):
+def _make_input(source: str, batch_dims, backend, precision=32, convention="ZYX", quat_convention="wxyz"):
     """Return a sample array in the given representation."""
     q = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     if source == "axis_angle":
@@ -28,46 +29,38 @@ def _make_input(source: str, batch_dims, backend, precision=32, convention="ZYX"
         return xp.asarray(np.matmul(np.array(rotmat), stretch))
     if source == "rotmat":
         return SO3.to_rotmat(q)
-    if source == "quat_wxyz":
-        return q
-    if source == "quat_xyzw":
-        return SO3.to_quat_xyzw(q)
+    if source == "quat":
+        return SO3.to_quat(q, convention=quat_convention)
     if source == "sixd":
         return SO3.to_sixd(q)
     raise ValueError(source)
 
 
-def _manual_convert(x, source, target, convention="ZYX"):
+def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX"):
     """Convert via the two-step from/to primitive path (the reference)."""
-    # source -> quat_wxyz
     if source == "axis_angle":
         q = SO3.from_axis_angle(x)
     elif source == "euler":
-        q = SO3.from_euler(x, convention=convention)
+        q = SO3.from_euler(x, convention=src_convention)
     elif source == "matrix":
         q = SO3.from_matrix(x)
     elif source == "rotmat":
         q = SO3.from_rotmat(x)
-    elif source == "quat_wxyz":
-        q = SO3.canonicalize(x)
-    elif source == "quat_xyzw":
-        q = SO3.from_quat_xyzw(x)
+    elif source == "quat":
+        q = SO3.from_quat(x, convention=src_convention)
     elif source == "sixd":
         q = SO3.from_sixd(x)
     else:
         raise ValueError(source)
 
-    # quat_wxyz -> target
     if target == "axis_angle":
         return SO3.to_axis_angle(q)
     if target == "euler":
-        return SO3.to_euler(q, convention=convention)
+        return SO3.to_euler(q, convention=dst_convention)
     if target == "rotmat":
         return SO3.to_rotmat(q)
-    if target == "quat_wxyz":
-        return SO3.canonicalize(q)
-    if target == "quat_xyzw":
-        return SO3.to_quat_xyzw(q)
+    if target == "quat":
+        return SO3.to_quat(q, convention=dst_convention)
     if target == "sixd":
         return SO3.to_sixd(q)
     raise ValueError(target)
@@ -77,8 +70,8 @@ def _manual_convert(x, source, target, convention="ZYX"):
 # All supported source-target pairs
 # ---------------------------------------------------------------------------
 
-_SOURCE_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
-_TARGET_REPS = ["axis_angle", "euler", "rotmat", "quat_wxyz", "quat_xyzw", "sixd"]
+_SOURCE_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
+_TARGET_REPS = ["axis_angle", "euler", "rotmat", "quat", "sixd"]
 _PAIRS = [(s, t) for s in _SOURCE_REPS for t in _TARGET_REPS if s != t]
 
 
@@ -99,17 +92,36 @@ def _get_conv_fn(source, target):
 def test_equivalence(pair, backend, batch_dims, pass_xp):
     source, target = pair
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    x = _make_input(source, batch_dims, backend)
+    src_convention = _QUAT_CONVENTION if source == "quat" else "XYZ"
+    dst_convention = _QUAT_CONVENTION if target == "quat" else "XYZ"
+    x = _make_input(source, batch_dims, backend, convention="XYZ", quat_convention=src_convention)
 
     fn = _get_conv_fn(source, target)
-    result = fn(x, **xp_kwargs)
-    expected = _manual_convert(x, source, target)
+    if source == "euler" and target == "euler":
+        result = fn(x, src_convention=src_convention, dst_convention=dst_convention, **xp_kwargs)
+    elif source == "euler" and target == "quat":
+        result = fn(x, src_convention=src_convention, dst_convention=dst_convention, **xp_kwargs)
+    elif source == "quat" and target == "euler":
+        result = fn(x, src_convention=src_convention, dst_convention=dst_convention, **xp_kwargs)
+    elif source == "quat" and target == "quat":
+        result = fn(x, src_convention=src_convention, dst_convention=dst_convention, **xp_kwargs)
+    elif source == "euler":
+        result = fn(x, convention=src_convention, **xp_kwargs)
+    elif target == "euler":
+        result = fn(x, convention=dst_convention, **xp_kwargs)
+    elif target == "quat":
+        result = fn(x, convention=dst_convention, **xp_kwargs)
+    elif source == "quat":
+        result = fn(x, convention=src_convention, **xp_kwargs)
+    else:
+        result = fn(x, **xp_kwargs)
+    expected = _manual_convert(x, source, target, src_convention=src_convention, dst_convention=dst_convention)
 
     result_np = np.array(result)
     expected_np = np.array(expected)
 
     atol = ATOL[32]
-    if target in ("quat_wxyz", "quat_xyzw"):
+    if target == "quat":
         # quaternion sign ambiguity
         dots = np.sum(result_np * expected_np, axis=-1)
         assert np.allclose(np.abs(dots), 1.0, atol=atol), f"{source}->{target} quat mismatch"
@@ -123,12 +135,11 @@ def test_equivalence(pair, backend, batch_dims, pass_xp):
 
 _ROUND_TRIP_PAIRS = [
     ("axis_angle", "rotmat"),
-    ("axis_angle", "quat_wxyz"),
+    ("axis_angle", "quat"),
     ("axis_angle", "sixd"),
-    ("rotmat", "quat_wxyz"),
+    ("rotmat", "quat"),
     ("rotmat", "sixd"),
-    ("quat_wxyz", "quat_xyzw"),
-    ("quat_wxyz", "sixd"),
+    ("quat", "sixd"),
 ]
 
 
@@ -137,18 +148,38 @@ _ROUND_TRIP_PAIRS = [
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 def test_round_trip(pair, backend, batch_dims):
     a, b = pair
-    x = _make_input(a, batch_dims, backend)
+    src_convention = _QUAT_CONVENTION if a == "quat" else "XYZ"
+    dst_convention = _QUAT_CONVENTION if b == "quat" else "XYZ"
+    x = _make_input(a, batch_dims, backend, convention="XYZ", quat_convention=src_convention)
 
     a_to_b = _get_conv_fn(a, b)
     b_to_a = _get_conv_fn(b, a)
-
-    recovered = b_to_a(a_to_b(x))
+    if a == "euler" and b == "quat":
+        converted = a_to_b(x, src_convention=src_convention, dst_convention=dst_convention)
+        recovered = b_to_a(converted, src_convention=dst_convention, dst_convention=src_convention)
+    elif a == "quat" and b == "euler":
+        converted = a_to_b(x, src_convention=src_convention, dst_convention=dst_convention)
+        recovered = b_to_a(converted, src_convention=dst_convention, dst_convention=src_convention)
+    elif a == "euler":
+        converted = a_to_b(x, convention=src_convention)
+        recovered = b_to_a(converted, convention=src_convention)
+    elif b == "euler":
+        converted = a_to_b(x, convention=dst_convention)
+        recovered = b_to_a(converted, convention=dst_convention)
+    elif a == "quat":
+        converted = a_to_b(x, convention=src_convention)
+        recovered = b_to_a(converted, convention=src_convention)
+    elif b == "quat":
+        converted = a_to_b(x, convention=dst_convention)
+        recovered = b_to_a(converted, convention=dst_convention)
+    else:
+        recovered = b_to_a(a_to_b(x))
 
     x_np = np.array(x)
     rec_np = np.array(recovered)
 
     atol = ATOL[32]
-    if a in ("quat_wxyz", "quat_xyzw"):
+    if a == "quat":
         dots = np.sum(x_np * rec_np, axis=-1)
         assert np.allclose(np.abs(dots), 1.0, atol=atol), f"round-trip {a}<->{b} failed"
     else:
@@ -168,13 +199,13 @@ def test_euler_convention_threading(convention, backend):
     # euler as source
     euler = SO3.to_euler(q, convention=convention)
     result = SO3.conversions.from_euler_to_rotmat(euler, convention=convention)
-    expected = _manual_convert(euler, "euler", "rotmat", convention=convention)
+    expected = _manual_convert(euler, "euler", "rotmat", src_convention=convention, dst_convention=convention)
     assert np.allclose(np.array(result), np.array(expected), atol=ATOL[32])
 
     # euler as target
     aa = SO3.to_axis_angle(q)
     result2 = SO3.conversions.from_axis_angle_to_euler(aa, convention=convention)
-    expected2 = _manual_convert(aa, "axis_angle", "euler", convention=convention)
+    expected2 = _manual_convert(aa, "axis_angle", "euler", src_convention=convention, dst_convention=convention)
     assert np.allclose(np.array(result2), np.array(expected2), atol=ATOL[32])
 
 
@@ -187,11 +218,31 @@ def test_from_euler_to_euler_rethreads_convention(backend, pass_xp):
 
     result = SO3.conversions.from_euler_to_euler(
         euler_xyz,
-        source_convention="XYZ",
-        target_convention="ZYX",
+        src_convention="XYZ",
+        dst_convention="ZYX",
         **xp_kwargs,
     )
     expected = SO3.to_euler(SO3.from_euler(euler_xyz, convention="XYZ"), convention="ZYX")
+
+    assert result.dtype == expected.dtype
+    assert result.shape == expected.shape
+    assert np.allclose(np.array(result), np.array(expected), atol=ATOL[32])
+
+
+@pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_from_quat_to_quat_rethreads_convention(backend, pass_xp):
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+    q = random_quaternion(batch_dims=(5,), backend=backend)
+    quat_xyzw = SO3.to_quat(q, convention="xyzw")
+
+    result = SO3.conversions.from_quat_to_quat(
+        quat_xyzw,
+        src_convention="xyzw",
+        dst_convention="wxyz",
+        **xp_kwargs,
+    )
+    expected = SO3.canonicalize(q)
 
     assert result.dtype == expected.dtype
     assert result.shape == expected.shape

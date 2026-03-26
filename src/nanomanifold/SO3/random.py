@@ -8,10 +8,16 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace_by_name, random_uniform
 
-from .primitives.quaternion import canonicalize
+from .primitives.quaternion import QuaternionConvention, canonicalize, to_quat
 
 
-def random(*shape: int, dtype=None, key=None, xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+def random(
+    *shape: int,
+    dtype=None,
+    key=None,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 4"]:
     """Sample uniformly distributed random rotations on SO(3).
 
     Uses Shoemake's method to generate uniform unit quaternions.
@@ -20,10 +26,11 @@ def random(*shape: int, dtype=None, key=None, xp: ModuleType | None = None) -> F
         *shape: Batch dimensions (e.g. ``random(10)`` gives 10 rotations).
         dtype: Output dtype. If None, uses backend default.
         key: JAX PRNG key (required when xp is JAX).
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace. If None, uses numpy.
 
     Returns:
-        Quaternions in [w, x, y, z] format, shape ``(*shape, 4)``.
+        Quaternions in the requested convention, shape ``(*shape, 4)``.
     """
     if xp is None:
         xp = get_namespace_by_name("numpy")
@@ -44,4 +51,4 @@ def random(*shape: int, dtype=None, key=None, xp: ModuleType | None = None) -> F
     z = r2 * xp.sin(theta2)
 
     q = xp.stack([w, x, y, z], axis=-1)
-    return canonicalize(q, xp=xp)
+    return to_quat(canonicalize(q, xp=xp), convention=convention, xp=xp)

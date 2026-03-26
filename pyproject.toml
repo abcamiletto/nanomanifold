@@ -19,6 +19,7 @@ dev = [
     "pytest>=8.4.1",
     "ruff>=0.9.0",
     "scipy>=1.15,<1.16",
+    "setuptools>=80.9.0",
     "torch>=2.8.0",
 ]
 

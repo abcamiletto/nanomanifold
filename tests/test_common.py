@@ -8,6 +8,18 @@ def test_get_namespace_numpy():
     assert common.get_namespace(np.ones(1)) is np
 
 
+def test_get_namespace_numpy_without_array_namespace():
+    class Numpy1Array(np.ndarray):
+        def __getattribute__(self, name):
+            if name == "__array_namespace__":
+                raise AttributeError
+            return super().__getattribute__(name)
+
+    arr = np.ones(1).view(Numpy1Array)
+
+    assert common.get_namespace(arr) is np
+
+
 def test_get_namespace_torch():
     torch = pytest.importorskip("torch")
 

@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from nanomanifold.common import get_namespace_by_name
 
@@ -28,6 +29,19 @@ def get_xp_kwargs(backend, pass_xp):
 
 
 np.random.seed(0)
+
+
+@pytest.fixture(autouse=True)
+def skip_torch_1_cpu_float16(request):
+    callspec = getattr(request.node, "callspec", None)
+    if callspec is None:
+        return
+    if callspec.params.get("backend") != "torch" or callspec.params.get("precision") != 16:
+        return
+
+    torch = pytest.importorskip("torch")
+    if int(torch.__version__.split(".", 1)[0]) < 2:
+        pytest.skip("Torch 1.x does not support these CPU float16 tests.")
 
 
 def random_quaternion(batch_dims=(), backend="numpy", precision=32):

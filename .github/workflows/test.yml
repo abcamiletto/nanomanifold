@@ -53,15 +53,15 @@ jobs:
 
     - name: Install minimum direct dependencies
       if: matrix.dep-range == 'min'
-      run: uv sync --group dev --resolution lowest-direct
+      run: uv sync --group dev --group test --resolution lowest-direct
 
     - name: Install locked dependencies
       if: matrix.dep-range == 'frozen'
-      run: uv sync --frozen --group dev
+      run: uv sync --frozen --group dev --group test
 
     - name: Install maximum dependencies
       if: matrix.dep-range == 'max'
-      run: uv sync --group dev --resolution highest --upgrade
+      run: uv sync --group dev --group test --resolution highest --upgrade
 
     - name: Run tests
       run: uv run pytest .

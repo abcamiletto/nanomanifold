@@ -7,6 +7,14 @@ def get_namespace(array: Any) -> ModuleType:
     if namespace is not None:
         return namespace()
 
+    try:
+        import numpy as np
+    except ImportError:
+        pass
+    else:
+        if isinstance(array, np.ndarray):
+            return np
+
     if type(array).__module__.startswith("torch"):
         import torch
 

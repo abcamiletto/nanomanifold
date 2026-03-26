@@ -167,7 +167,7 @@ def test_hat_vee_numerical_precision(backend, batch_dims, precision, pass_xp):
     # Test with mathematically meaningful values
     pi = xp.asarray(np.pi, dtype=dtype)
     e = xp.asarray(np.e, dtype=dtype)
-    sqrt2 = xp.asarray(np.sqrt(2), dtype=dtype)
+    sqrt2 = xp.asarray(float(np.sqrt(2)), dtype=dtype)
 
     if len(batch_dims) == 0:
         w = xp.stack([pi, e, sqrt2])

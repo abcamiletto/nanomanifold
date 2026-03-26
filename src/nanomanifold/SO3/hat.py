@@ -22,7 +22,7 @@ def hat(w: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "
     w2 = w[..., 1]
     w3 = w[..., 2]
 
-    zero = w1 * 0
+    zero = xp.zeros_like(w1)
 
     # Build skew-symmetric matrix:
     # [[ 0, -w3,  w2],

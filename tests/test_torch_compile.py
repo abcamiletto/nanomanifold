@@ -8,6 +8,9 @@ call that Dynamo cannot trace through.
 import pytest
 
 torch = pytest.importorskip("torch")
+if int(torch.__version__.split(".", 1)[0]) < 2 or not hasattr(torch, "compile"):
+    pytest.skip("torch.compile tests require torch 2.x.", allow_module_level=True)
+
 import nanomanifold.common as common  # noqa: E402
 from nanomanifold import SE3, SO3  # noqa: E402
 

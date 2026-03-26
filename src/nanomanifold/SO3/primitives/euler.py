@@ -202,14 +202,17 @@ def _rotmat_to_euler_angles(rotmat: Float[Any, "... 3 3"], convention: str, *, x
     tait_bryan = i0 != i2
 
     if tait_bryan:
-        sign = -1.0 if i0 - i2 in [-1, 2] else 1.0
+        sign = xp.ones_like(rotmat[..., i0, i2])
+        if i0 - i2 in [-1, 2]:
+            sign = -sign
         x = rotmat[..., i0, i2] * sign
 
         one = xp.ones_like(x)
-        eps = common.safe_eps(x.dtype, xp, scale=1.0)
+        eps = xp.asarray(common.safe_eps(x.dtype, xp, scale=1.0), dtype=x.dtype)
         central_angle = xp.arcsin(xp.clip(x, -one + eps, one - eps))
     else:
-        central_angle = xp.arccos(xp.clip(rotmat[..., i0, i0], -1, 1))
+        one = xp.ones_like(rotmat[..., i0, i0])
+        central_angle = xp.arccos(xp.clip(rotmat[..., i0, i0], -one, one))
 
     first_angle = _angle_from_tan(convention[0], convention[1], rotmat[..., i2], False, tait_bryan, xp)
     third_angle = _angle_from_tan(convention[2], convention[1], rotmat[..., i0, :], True, tait_bryan, xp)
@@ -225,11 +228,12 @@ def _angle_from_tan(
     if horizontal:
         i2, i1 = i1, i2
     even = (axis + other_axis) in ["XY", "YZ", "ZX"]
+    atan2 = xp.atan2 if hasattr(xp, "atan2") else xp.arctan2
     if horizontal == even:
-        return xp.atan2(data[..., i1], data[..., i2])
+        return atan2(data[..., i1], data[..., i2])
     if tait_bryan:
-        return xp.atan2(-data[..., i2], data[..., i1])
-    return xp.atan2(data[..., i2], -data[..., i1])
+        return atan2(-data[..., i2], data[..., i1])
+    return atan2(data[..., i2], -data[..., i1])
 
 
 def _index_from_letter(letter: str) -> int:

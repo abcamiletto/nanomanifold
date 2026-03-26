@@ -5,21 +5,22 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  quality:
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Install uv
-      uses: astral-sh/setup-uv@v3
-    
-    - name: Set up Python
-      run: uv python install
-    
+      uses: astral-sh/setup-uv@v4
+      with:
+        python-version: "3.11"
+
     - name: Install dependencies
-      run: uv sync --group dev
-    
+      run: uv sync --frozen --group dev
+
+    - name: Check lockfile
+      run: uv lock --check
+
     - name: Lint
       run: uv run ruff check .
 
@@ -28,6 +29,39 @@ jobs:
 
     - name: Type check
       run: uvx ty check
+
+  test-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: "3.10"
+            dep-range: min
+          - python-version: "3.11"
+            dep-range: frozen
+          - python-version: "3.13"
+            dep-range: max
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install minimum direct dependencies
+      if: matrix.dep-range == 'min'
+      run: uv sync --group dev --resolution lowest-direct
+
+    - name: Install locked dependencies
+      if: matrix.dep-range == 'frozen'
+      run: uv sync --frozen --group dev
+
+    - name: Install maximum dependencies
+      if: matrix.dep-range == 'max'
+      run: uv sync --group dev --resolution highest --upgrade
 
     - name: Run tests
       run: uv run pytest .

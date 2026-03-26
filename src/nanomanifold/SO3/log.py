@@ -31,4 +31,5 @@ def log(
         Tangent vector in so(3) (axis-angle representation)
         The magnitude is the rotation angle, direction is the rotation axis
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     return to_axis_angle(from_quat(q, convention=convention, xp=xp), xp=xp)

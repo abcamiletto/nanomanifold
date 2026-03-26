@@ -26,6 +26,7 @@ def rotate_points(
     Returns:
         Rotated points of shape (..., N, 3)
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(q)
     q = from_quat(q, convention=convention, xp=xp)

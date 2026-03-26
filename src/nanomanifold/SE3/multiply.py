@@ -38,6 +38,7 @@ def multiply(
     Returns:
         Product SE(3) transformation representing the composed transformation
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(se3_1)
 

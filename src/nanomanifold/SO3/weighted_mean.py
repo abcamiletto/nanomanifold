@@ -46,6 +46,7 @@ def weighted_mean(
         This implementation follows the algorithm from:
         "Averaging Quaternions" by F. Landis Markley et al.
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(quaternions[0])
     original_dtype = quaternions[0].dtype
@@ -105,6 +106,7 @@ def mean(
         Mean quaternion with shape [..., 4] in the requested convention.
         The result is canonicalized to ensure w >= 0.
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if len(quaternions) == 0:
         raise ValueError("Cannot compute mean of empty quaternion sequence")
 

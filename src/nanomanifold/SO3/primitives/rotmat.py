@@ -18,6 +18,7 @@ def to_rotmat(
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 3 3"]:
     """Convert quaternion to a normalized 3x3 rotation matrix."""
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(q)
     q = from_quat(q, convention=convention, xp=xp)
@@ -99,6 +100,7 @@ def from_rotmat(
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
     """Convert a normalized 3x3 rotation matrix to a quaternion."""
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(rotmat)
 
@@ -159,6 +161,7 @@ def from_matrix(
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
     """Convert a generic 3x3 matrix to a quaternion by projecting to SO(3)."""
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(matrix)
     matrix = _project_matrix_to_rotmat(matrix, xp, mode=mode)

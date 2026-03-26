@@ -16,6 +16,7 @@ def to_axis_angle(
     convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 3"]:
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(q)
     q_canonical = canonicalize(from_quat(q, convention=convention, xp=xp), xp=xp)
@@ -49,6 +50,7 @@ def from_axis_angle(
     convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(axis_angle)
 

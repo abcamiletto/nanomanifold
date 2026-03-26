@@ -1,27 +1,18 @@
 """Quaternion convention helpers for SO(3)."""
 
 from types import ModuleType
-from typing import Any
+from typing import Any, Literal
 
 from jaxtyping import Float
 
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-QuaternionConvention = str
-
-_QUATERNION_CONVENTIONS = ("wxyz", "xyzw")
+QuaternionConvention = Literal["wxyz", "xyzw"]
 
 
-def _normalize_convention(convention: str) -> QuaternionConvention:
-    convention = convention.lower()
-    if convention not in _QUATERNION_CONVENTIONS:
-        supported = ", ".join(_QUATERNION_CONVENTIONS)
-        raise ValueError(f"Unsupported quaternion convention '{convention}'. Supported values: {supported}.")
-    return convention
-
-
-def _to_wxyz(quat: Float[Any, "... 4"], *, convention: str, xp) -> Float[Any, "... 4"]:
+def _to_wxyz(quat: Float[Any, "... 4"], *, convention: QuaternionConvention, xp) -> Float[Any, "... 4"]:
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if convention == "wxyz":
         return quat
     w = quat[..., 3:4]
@@ -29,7 +20,8 @@ def _to_wxyz(quat: Float[Any, "... 4"], *, convention: str, xp) -> Float[Any, ".
     return xp.concatenate([w, xyz], axis=-1)
 
 
-def _from_wxyz(quat: Float[Any, "... 4"], *, convention: str, xp) -> Float[Any, "... 4"]:
+def _from_wxyz(quat: Float[Any, "... 4"], *, convention: QuaternionConvention, xp) -> Float[Any, "... 4"]:
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if convention == "wxyz":
         return quat
     w = quat[..., 0:1]
@@ -43,10 +35,9 @@ def canonicalize(
     convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(quat)
-
-    convention = _normalize_convention(convention)
     quat_wxyz = _to_wxyz(quat, convention=convention, xp=xp)
 
     norm = xp.sqrt(xp.sum(quat_wxyz**2, axis=-1, keepdims=True))
@@ -67,9 +58,9 @@ def from_quat(
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
     """Convert a quaternion from the given convention to canonical ``wxyz`` order."""
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(quat)
-    convention = _normalize_convention(convention)
     quat_wxyz = _to_wxyz(quat, convention=convention, xp=xp)
     return canonicalize(quat_wxyz, xp=xp)
 
@@ -81,9 +72,9 @@ def to_quat(
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
     """Convert a canonical ``wxyz`` quaternion to the requested convention."""
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(quat)
-    convention = _normalize_convention(convention)
     quat_wxyz = canonicalize(quat, xp=xp)
     return _from_wxyz(quat_wxyz, convention=convention, xp=xp)
 

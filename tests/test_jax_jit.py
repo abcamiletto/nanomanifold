@@ -32,13 +32,15 @@ def _conv_input(rep: str):
     if rep == "rotmat":
         return SO3.to_rotmat(q, xp=jnp)
     if rep == "quat":
-        return SO3.to_quat(q, convention="xyzw", xp=jnp)
+        return SO3.to_quat(q, xp=jnp)
     if rep == "sixd":
         return SO3.to_sixd(q, xp=jnp)
+    if rep == "hinge":
+        return jnp.array([[0.1], [-0.2]])
     raise ValueError(rep)
 
 
-_CONV_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
+_CONV_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
 _PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
 _PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "hinge", "rotmat", "quat", "sixd"]
 _CONV_PAIRS = [(s, t) for s in _PAIRWISE_SOURCE_REPS for t in _PAIRWISE_TARGET_REPS if s != t]
@@ -51,6 +53,8 @@ _DYNAMIC_CONV_CASES = [
     ("quat", "quat"),
     ("sixd", "axis_angle"),
     ("euler", "euler"),
+    ("hinge", "axis_angle"),
+    ("rotmat", "hinge"),
 ]
 
 
@@ -180,13 +184,18 @@ def test_jit_so3_pairwise_conversions(source, target):
 @pytest.mark.parametrize("source,target", _DYNAMIC_CONV_CASES, ids=[f"{s}->{t}" for s, t in _DYNAMIC_CONV_CASES])
 def test_jit_so3_convert(source, target):
     source_input = _conv_input(source)
+    axes = jnp.array([0.0, 0.0, 1.0])
+    kwargs = {}
+    if source == "hinge" and target != "hinge":
+        kwargs["src_kwargs"] = {"axes": axes}
+    if target == "hinge" and source != "hinge":
+        kwargs["dst_kwargs"] = {"axes": axes}
     compiled = jax.jit(
         lambda x: SO3.convert(
             x,
             src=source,
             dst=target,
-            src_convention="xyzw" if source == "quat" else "ZYX",
-            dst_convention="xyzw" if target == "quat" else "XYZ",
+            **kwargs,
             xp=jnp,
         )
     )

@@ -35,8 +35,9 @@ def distance(
     """
     if xp is None:
         xp = get_namespace(q1)
-    q1 = convert(q1, src=rotation_type, dst="quat", src_convention=convention, dst_convention="wxyz", xp=xp)
-    q2 = convert(q2, src=rotation_type, dst="quat", src_convention=convention, dst_convention="wxyz", xp=xp)
+    src_kwargs = {"convention": convention}
+    q1 = convert(q1, src=rotation_type, dst="quat", src_kwargs=src_kwargs, xp=xp)
+    q2 = convert(q2, src=rotation_type, dst="quat", src_kwargs=src_kwargs, xp=xp)
 
     eps = common.safe_eps(q1.dtype, xp)
     eps_arr = xp.asarray(eps, dtype=q1.dtype)

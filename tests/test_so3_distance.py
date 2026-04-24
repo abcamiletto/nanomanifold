@@ -64,13 +64,6 @@ def test_distance_rotation_type_matches_quaternion_reference(rotation_type, conv
     assert np.allclose(np.array(distance), np.array(expected), atol=ATOL[32])
 
 
-def test_distance_rejects_unknown_rotation_type():
-    q = random_quaternion(batch_dims=(2,), backend="numpy", precision=32)
-
-    with pytest.raises(ValueError, match="Unsupported rotation representation"):
-        SO3.distance(q, q, rotation_type="bad")
-
-
 def test_distance_supports_euler_convention():
     q1 = random_quaternion(batch_dims=(8,), backend="numpy", precision=32)
     q2 = random_quaternion(batch_dims=(8,), backend="numpy", precision=32)

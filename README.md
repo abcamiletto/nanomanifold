@@ -188,14 +188,27 @@ Hinge conversions take `axes` as a required second argument.
 
 For runtime-selected conversions, use `SO3.convert`. `src="matrix"` treats the
 input as a generic `3x3` matrix and projects it to `rotmat` before converting.
-Euler uses the usual axis-order convention strings:
+Use `src_kwargs` and `dst_kwargs` for representation-specific options:
 
 ```python
 matrix = SO3.convert(axis_angle, src="axis_angle", dst="matrix")
 rotmat = SO3.convert(matrix, src="matrix", dst="rotmat")
-quat_alt = SO3.convert(euler, src="euler", dst="quat", src_convention="XYZ", dst_convention="xyzw")
-quat = SO3.convert(quat_alt, src="quat", dst="quat", src_convention="xyzw", dst_convention="wxyz")
-euler = SO3.convert(rotmat, src="rotmat", dst="euler", dst_convention="ZYX")
+quat_alt = SO3.convert(
+    euler,
+    src="euler",
+    dst="quat",
+    src_kwargs={"convention": "XYZ"},
+    dst_kwargs={"convention": "xyzw"},
+)
+quat = SO3.convert(
+    quat_alt,
+    src="quat",
+    dst="quat",
+    src_kwargs={"convention": "xyzw"},
+    dst_kwargs={"convention": "wxyz"},
+)
+euler = SO3.convert(rotmat, src="rotmat", dst="euler", dst_kwargs={"convention": "ZYX"})
+angles = SO3.convert(rotmat, src="rotmat", dst="hinge", dst_kwargs={"axes": axes})
 ```
 
 For constrained one-axis rotations, use `SO3.from_hinge` and `SO3.to_hinge`.

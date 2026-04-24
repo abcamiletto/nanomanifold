@@ -9,12 +9,13 @@ from . import conversions, hinge
 from .primitives import axis_angle, euler, quaternion, rotmat, sixd
 
 RotationRep = Literal["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
+RotationSourceRep = Literal["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
 
 
 def convert(
     value: Float[Any, "..."],
     *,
-    src: RotationRep,
+    src: RotationSourceRep,
     dst: RotationRep,
     src_kwargs: dict[str, Any] = {},
     dst_kwargs: dict[str, Any] = {},
@@ -38,7 +39,7 @@ def convert(
 
 def _to_canonical_quat(
     value: Float[Any, "..."],
-    src: RotationRep,
+    src: RotationSourceRep,
     kwargs: dict[str, Any],
     *,
     xp: ModuleType | None,
@@ -55,7 +56,9 @@ def _to_canonical_quat(
         return rotmat.from_rotmat(value, **kwargs, xp=xp)
     if src == "quat":
         return quaternion.from_quat(value, **kwargs, xp=xp)
-    return sixd.from_sixd(value, **kwargs, xp=xp)
+    if src == "sixd":
+        return sixd.from_sixd(value, **kwargs, xp=xp)
+    raise ValueError(f"Unsupported source representation '{src}'.")
 
 
 def _from_canonical_quat(
@@ -75,7 +78,9 @@ def _from_canonical_quat(
         return rotmat.to_rotmat(quat, **kwargs, xp=xp)
     if dst == "quat":
         return quaternion.to_quat(quat, **kwargs, xp=xp)
-    return sixd.to_sixd(quat, **kwargs, xp=xp)
+    if dst == "sixd":
+        return sixd.to_sixd(quat, **kwargs, xp=xp)
+    raise ValueError(f"Unsupported target representation '{dst}'.")
 
 
-__all__ = ["RotationRep", "convert"]
+__all__ = ["RotationRep", "RotationSourceRep", "convert"]

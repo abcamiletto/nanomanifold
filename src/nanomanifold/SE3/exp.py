@@ -9,9 +9,15 @@ from nanomanifold.common import get_namespace
 from nanomanifold.SO3 import exp as so3_exp
 from nanomanifold.SO3 import hat
 from nanomanifold.SO3.identity import identity_as
+from nanomanifold.SO3.primitives.quaternion import QuaternionConvention
 
 
-def exp(tangent_vector: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 7"]:
+def exp(
+    tangent_vector: Float[Any, "... 6"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 7"]:
     """Compute the exponential map from se(3) tangent space to SE(3) manifold.
 
     The exponential map takes a tangent vector in the Lie algebra se(3)
@@ -28,18 +34,20 @@ def exp(tangent_vector: Float[Any, "... 6"], *, xp: ModuleType | None = None) ->
 
     Args:
         tangent_vector: Tangent vector in se(3) as [ω, ρ] of shape (..., 6)
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
-        SE(3) transformation in [w, x, y, z, tx, ty, tz] format of shape (..., 7)
+        SE(3) transformation with quaternion components in the requested convention
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(tangent_vector)
 
     omega = tangent_vector[..., :3]
     rho = tangent_vector[..., 3:6]
 
-    q = so3_exp(omega, xp=xp)
+    q = so3_exp(omega, convention=convention, xp=xp)
     omega_norm = xp.linalg.norm(omega, axis=-1, keepdims=True)
 
     thresh = xp.asarray(math.sqrt(common.safe_eps(omega.dtype, xp, scale=1.0)), dtype=omega.dtype)

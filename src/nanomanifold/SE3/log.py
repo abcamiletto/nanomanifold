@@ -9,11 +9,17 @@ from nanomanifold.common import get_namespace
 from nanomanifold.SO3 import hat
 from nanomanifold.SO3 import log as so3_log
 from nanomanifold.SO3.identity import identity_as
+from nanomanifold.SO3.primitives.quaternion import QuaternionConvention
 
 from .canonicalize import canonicalize
 
 
-def log(se3: Float[Any, "... 7"], *, xp: ModuleType | None = None) -> Float[Any, "... 6"]:
+def log(
+    se3: Float[Any, "... 7"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 6"]:
     """Compute the logarithmic map of SE(3) to its Lie algebra se(3).
 
     The logarithmic map takes an SE(3) transformation and returns the corresponding
@@ -28,20 +34,22 @@ def log(se3: Float[Any, "... 7"], *, xp: ModuleType | None = None) -> Float[Any,
     - ρ = V^(-1) * t where V is the left Jacobian inverse and t is the translation
 
     Args:
-        se3: SE(3) transformation in [w, x, y, z, tx, ty, tz] format of shape (..., 7)
+        se3: SE(3) transformation with quaternion components in the given convention
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
         Tangent vector in se(3) as [ω, ρ] of shape (..., 6)
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(se3)
-    se3 = canonicalize(se3, xp=xp)
+    se3 = canonicalize(se3, convention=convention, xp=xp)
 
     q = se3[..., :4]
     t = se3[..., 4:7]
 
-    omega = so3_log(q, xp=xp)
+    omega = so3_log(q, convention=convention, xp=xp)
     omega_norm = xp.linalg.norm(omega, axis=-1, keepdims=True)
 
     thresh = xp.asarray(math.sqrt(common.safe_eps(omega.dtype, xp, scale=1.0)), dtype=omega.dtype)

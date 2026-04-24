@@ -5,8 +5,9 @@ from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PR
 from nanomanifold import SO3
 from nanomanifold.common import get_namespace_by_name
 
-_REPRESENTATIONS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
-_PAIRS = [(src, dst) for src in _REPRESENTATIONS for dst in _REPRESENTATIONS]
+_SOURCE_REPRESENTATIONS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
+_TARGET_REPRESENTATIONS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
+_PAIRS = [(src, dst) for src in _SOURCE_REPRESENTATIONS for dst in _TARGET_REPRESENTATIONS]
 
 
 def _make_axes(backend, precision):
@@ -192,6 +193,15 @@ def test_convert_projects_matrix_before_quaternion_conversion():
 
     dots = np.sum(np.array(converted) * np.array(expected), axis=-1)
     assert np.allclose(np.abs(dots), 1.0, atol=ATOL[32])
+
+
+def test_convert_matrix_output_matches_rotmat():
+    quat = random_quaternion(batch_dims=(4,), backend="numpy", precision=32)
+
+    matrix = SO3.convert(quat, src="quat", dst="matrix")
+    rotmat = SO3.convert(quat, src="quat", dst="rotmat")
+
+    assert np.allclose(np.array(matrix), np.array(rotmat), atol=ATOL[32])
 
 
 def test_convert_rejects_float16_matrix_projection():

@@ -68,8 +68,8 @@ _EULER_CONVENTIONS = (
 
 def to_euler(
     q: Float[Any, "... 4"],
-    convention: EulerConvention = "ZYX",
     *,
+    convention: EulerConvention = "ZYX",
     quat_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 3"]:
@@ -84,8 +84,8 @@ def to_euler(
 
 def from_euler(
     euler: Float[Any, "... 3"],
-    convention: EulerConvention = "ZYX",
     *,
+    convention: EulerConvention = "ZYX",
     quat_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:

@@ -23,6 +23,7 @@ from nanomanifold import SO3
         ("quat", "xyzw"),
         ("axis_angle", "wxyz"),
         ("euler", "ZYX"),
+        ("hinge", "wxyz"),
         ("rotmat", "wxyz"),
         ("matrix", "wxyz"),
         ("sixd", "wxyz"),
@@ -36,6 +37,7 @@ def test_distance_rotation_type_matches_quaternion_reference(rotation_type, conv
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
+    rot_kwargs = {}
     if rotation_type == "quat":
         x1 = SO3.to_quat(q1, convention=convention, **xp_kwargs)
         x2 = SO3.to_quat(q2, convention=convention, **xp_kwargs)
@@ -45,6 +47,12 @@ def test_distance_rotation_type_matches_quaternion_reference(rotation_type, conv
     elif rotation_type == "euler":
         x1 = SO3.to_euler(q1, convention=convention, **xp_kwargs)
         x2 = SO3.to_euler(q2, convention=convention, **xp_kwargs)
+    elif rotation_type == "hinge":
+        xp = get_namespace_by_name(backend)
+        axes = xp.asarray(np.array([0.0, 0.0, 2.0], dtype=np.float32))
+        x1 = SO3.to_hinge(q1, axes, **xp_kwargs)
+        x2 = SO3.to_hinge(q2, axes, **xp_kwargs)
+        rot_kwargs = {"axes": axes}
     elif rotation_type == "rotmat":
         x1 = SO3.to_rotmat(q1, **xp_kwargs)
         x2 = SO3.to_rotmat(q2, **xp_kwargs)
@@ -57,8 +65,11 @@ def test_distance_rotation_type_matches_quaternion_reference(rotation_type, conv
         x1 = SO3.to_sixd(q1, **xp_kwargs)
         x2 = SO3.to_sixd(q2, **xp_kwargs)
 
-    distance = SO3.distance(x1, x2, rotation_type=rotation_type, convention=convention, **xp_kwargs)
-    expected = SO3.distance(q1, q2, **xp_kwargs)
+    distance = SO3.distance(x1, x2, rotation_type=rotation_type, convention=convention, rot_kwargs=rot_kwargs, **xp_kwargs)
+    if rotation_type == "hinge":
+        expected = SO3.distance(SO3.from_hinge(x1, axes, **xp_kwargs), SO3.from_hinge(x2, axes, **xp_kwargs), **xp_kwargs)
+    else:
+        expected = SO3.distance(q1, q2, **xp_kwargs)
 
     assert distance.shape == expected.shape
     assert np.allclose(np.array(distance), np.array(expected), atol=ATOL[32])

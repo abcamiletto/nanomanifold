@@ -6,15 +6,16 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .convert import RotationRep, convert
+from .convert import RotationSourceRep, convert
 
 
 def distance(
     q1: Float[Any, "..."],
     q2: Float[Any, "..."],
     *,
-    rotation_type: RotationRep = "quat",
+    rotation_type: RotationSourceRep = "quat",
     convention: str = "wxyz",
+    rot_kwargs: dict[str, Any] = {},
     xp: ModuleType | None = None,
 ) -> Float[Any, "..."]:
     """Compute the angular distance between two SO(3) rotations.
@@ -28,6 +29,7 @@ def distance(
         q2: Second rotation
         rotation_type: Representation shared by q1 and q2
         convention: Convention used when ``rotation_type`` is ``"euler"`` or ``"quat"``
+        rot_kwargs: Representation-specific keyword arguments passed to ``SO3.convert``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
@@ -35,9 +37,8 @@ def distance(
     """
     if xp is None:
         xp = get_namespace(q1)
-    src_kwargs = {"convention": convention}
-    q1 = convert(q1, src=rotation_type, dst="quat", src_kwargs=src_kwargs, xp=xp)
-    q2 = convert(q2, src=rotation_type, dst="quat", src_kwargs=src_kwargs, xp=xp)
+    q1 = convert(q1, src=rotation_type, dst="quat", src_kwargs={"convention": convention, **rot_kwargs}, xp=xp)
+    q2 = convert(q2, src=rotation_type, dst="quat", src_kwargs={"convention": convention, **rot_kwargs}, xp=xp)
 
     eps = common.safe_eps(q1.dtype, xp)
     eps_arr = xp.asarray(eps, dtype=q1.dtype)

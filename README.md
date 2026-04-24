@@ -89,6 +89,8 @@ Supported SO3 parametrizations:
 | `canonicalize(q, convention="wxyz")`  | `(...,4) -> (...,4)`                      |
 | `to_axis_angle(q, convention="wxyz")` | `(...,4) -> (...,3)`                      |
 | `from_axis_angle(axis_angle, convention="wxyz")` | `(...,3) -> (...,4)`         |
+| `from_hinge(angles, axes, convention="wxyz")` | `(...,1), (...,3) -> (...,4)` |
+| `to_hinge(q, axes, convention="wxyz")` | `(...,4), (...,3) -> (...,1)`          |
 | `to_euler(q, convention="ZYX", quat_convention="wxyz")` | `(...,4) -> (...,3)`     |
 | `from_euler(euler, convention="ZYX", quat_convention="wxyz")` | `(...,3) -> (...,4)` |
 | `convert(x, src=..., dst=...)`        | dynamic                                   |
@@ -183,6 +185,11 @@ quat_alt = SO3.convert(euler, src="euler", dst="quat", src_convention="XYZ", dst
 quat = SO3.convert(quat_alt, src="quat", dst="quat", src_convention="xyzw", dst_convention="wxyz")
 euler = SO3.convert(rotmat, src="rotmat", dst="euler", dst_convention="ZYX")
 ```
+
+For constrained one-axis rotations, use `SO3.from_hinge` and `SO3.to_hinge`.
+The hinge helpers map `(...,1)` scalar coefficients to axis-angle vectors with
+`angles * axes`. `to_hinge` projects the principal axis-angle vector back onto
+`axes`; for unit axes this is the signed principal rotation angle.
 
 ## Backend-Explicit Mode
 

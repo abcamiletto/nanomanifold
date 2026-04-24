@@ -84,6 +84,17 @@ def test_jit_to_axis_angle():
     compiled(_random_quat())
 
 
+def test_jit_from_hinge():
+    compiled = jax.jit(lambda angles, axes: SO3.from_hinge(angles, axes, xp=jnp))
+    compiled(jnp.array([[0.1], [-0.2]]), jnp.array([0.0, 0.0, 1.0]))
+
+
+def test_jit_to_hinge():
+    axes = jnp.array([0.0, 0.0, 1.0])
+    compiled = jax.jit(lambda q: SO3.to_hinge(q, axes, xp=jnp))
+    compiled(_random_quat())
+
+
 def test_jit_from_rotmat():
     compiled = jax.jit(lambda R: SO3.from_rotmat(R, xp=jnp))
     compiled(jnp.broadcast_to(jnp.eye(3), (2, 3, 3)))

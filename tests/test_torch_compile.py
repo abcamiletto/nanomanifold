@@ -91,6 +91,24 @@ def test_compile_to_axis_angle():
     compiled(_random_quat())
 
 
+def test_compile_from_hinge():
+    def f(angles, axes):
+        return SO3.from_hinge(angles, axes, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(torch.tensor([[0.1], [-0.2]]), torch.tensor([0.0, 0.0, 1.0]))
+
+
+def test_compile_to_hinge():
+    axes = torch.tensor([0.0, 0.0, 1.0])
+
+    def f(q):
+        return SO3.to_hinge(q, axes, xp=torch)
+
+    compiled = torch.compile(f, fullgraph=True)
+    compiled(_random_quat())
+
+
 def test_compile_from_rotmat():
     def f(R):
         return SO3.from_rotmat(R, xp=torch)

@@ -3,6 +3,7 @@ from .convert import RotationRep, convert
 from .distance import distance
 from .exp import exp
 from .hat import hat
+from .hinge import from_hinge, to_hinge
 from .identity import identity_as
 from .inverse import inverse
 from .log import log
@@ -25,6 +26,8 @@ __all__ = [
     "identity_as",
     "to_axis_angle",
     "from_axis_angle",
+    "from_hinge",
+    "to_hinge",
     "to_euler",
     "from_euler",
     "to_rotmat",

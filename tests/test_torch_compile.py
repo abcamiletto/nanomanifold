@@ -40,8 +40,8 @@ def _conv_input(rep: str):
 
 
 _CONV_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
-_PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
-_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "rotmat", "quat", "sixd"]
+_PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
+_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "hinge", "rotmat", "quat", "sixd"]
 _CONV_PAIRS = [(s, t) for s in _PAIRWISE_SOURCE_REPS for t in _PAIRWISE_TARGET_REPS if s != t]
 _DYNAMIC_CONV_CASES = [
     ("axis_angle", "rotmat"),
@@ -69,6 +69,8 @@ def _pairwise_input(rep: str):
         return SO3.to_quat(q, convention="xyzw", xp=torch)
     if rep == "sixd":
         return SO3.to_sixd(q, xp=torch)
+    if rep == "hinge":
+        return torch.tensor([[0.1], [-0.2]])
     raise ValueError(rep)
 
 
@@ -185,8 +187,33 @@ def test_compile_to_sixd():
 def test_compile_so3_pairwise_conversions(source, target):
     torch._dynamo.reset()
     fn = getattr(SO3.conversions, f"from_{source}_to_{target}")
+    axes = torch.tensor([0.0, 0.0, 1.0])
 
-    if source == "euler" and target == "quat":
+    if source == "hinge" and target == "euler":
+
+        def f(x):
+            return fn(x, axes, convention="XYZ", xp=torch)
+    elif source == "hinge" and target == "quat":
+
+        def f(x):
+            return fn(x, axes, convention="xyzw", xp=torch)
+    elif source == "hinge":
+
+        def f(x):
+            return fn(x, axes, xp=torch)
+    elif target == "hinge" and source == "euler":
+
+        def f(x):
+            return fn(x, axes, convention="XYZ", xp=torch)
+    elif target == "hinge" and source == "quat":
+
+        def f(x):
+            return fn(x, axes, convention="xyzw", xp=torch)
+    elif target == "hinge":
+
+        def f(x):
+            return fn(x, axes, xp=torch)
+    elif source == "euler" and target == "quat":
 
         def f(x):
             return fn(x, src_convention="XYZ", dst_convention="xyzw", xp=torch)

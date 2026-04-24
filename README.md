@@ -139,37 +139,49 @@ Supported SO3 parametrizations:
 ## Pairwise Conversions (`SO3.conversions`)
 
 Convert directly between any two rotation representations without going through
-quaternions manually. All 30 pairwise functions follow the naming pattern
+quaternions manually. Pairwise functions follow the naming pattern
 `from_{source}_to_{target}`.
 
-Representations: `axis_angle`, `euler`, `matrix`, `rotmat`, `quat`, `sixd`.
+Representations: `axis_angle`, `euler`, `hinge`, `matrix`, `rotmat`, `quat`, `sixd`.
 Quaternion conventions use lowercase `convention="wxyz"` or `convention="xyzw"`.
+Hinge conversions take `axes` as a required second argument.
 
 | Function                                                        | Signature                   |
 | --------------------------------------------------------------- | --------------------------- |
 | `SO3.conversions.from_axis_angle_to_rotmat(aa)`                | `(...,3) -> (...,3,3)`      |
 | `SO3.conversions.from_axis_angle_to_euler(aa, convention)`      | `(...,3) -> (...,3)`        |
+| `SO3.conversions.from_axis_angle_to_hinge(aa, axes)`            | `(...,3), (...,3) -> (...,1)` |
 | `SO3.conversions.from_axis_angle_to_quat(aa, convention="wxyz")` | `(...,3) -> (...,4)`      |
 | `SO3.conversions.from_axis_angle_to_sixd(aa)`                   | `(...,3) -> (...,6)`        |
 | `SO3.conversions.from_euler_to_axis_angle(e, convention)`       | `(...,3) -> (...,3)`        |
+| `SO3.conversions.from_euler_to_hinge(e, axes, convention)`      | `(...,3), (...,3) -> (...,1)` |
 | `SO3.conversions.from_euler_to_rotmat(e, convention)`          | `(...,3) -> (...,3,3)`      |
 | `SO3.conversions.from_euler_to_quat(e, src_convention="ZYX", dst_convention="wxyz")` | `(...,3) -> (...,4)` |
 | `SO3.conversions.from_euler_to_sixd(e, convention)`             | `(...,3) -> (...,6)`        |
+| `SO3.conversions.from_hinge_to_axis_angle(angles, axes)`        | `(...,1), (...,3) -> (...,3)` |
+| `SO3.conversions.from_hinge_to_euler(angles, axes, convention)` | `(...,1), (...,3) -> (...,3)` |
+| `SO3.conversions.from_hinge_to_rotmat(angles, axes)`            | `(...,1), (...,3) -> (...,3,3)` |
+| `SO3.conversions.from_hinge_to_quat(angles, axes, convention="wxyz")` | `(...,1), (...,3) -> (...,4)` |
+| `SO3.conversions.from_hinge_to_sixd(angles, axes)`              | `(...,1), (...,3) -> (...,6)` |
 | `SO3.conversions.from_rotmat_to_axis_angle(R)`                 | `(...,3,3) -> (...,3)`      |
+| `SO3.conversions.from_rotmat_to_hinge(R, axes)`                | `(...,3,3), (...,3) -> (...,1)` |
 | `SO3.conversions.from_rotmat_to_euler(R, convention)`          | `(...,3,3) -> (...,3)`      |
 | `SO3.conversions.from_rotmat_to_quat(R, convention="wxyz")`   | `(...,3,3) -> (...,4)`      |
 | `SO3.conversions.from_rotmat_to_sixd(R)`                      | `(...,3,3) -> (...,6)`      |
 | `SO3.conversions.from_matrix_to_rotmat(M, mode="svd")`       | `(...,3,3) -> (...,3,3)`    |
 | `SO3.conversions.from_matrix_to_axis_angle(M, mode="svd")` | `(...,3,3) -> (...,3)` |
+| `SO3.conversions.from_matrix_to_hinge(M, axes, mode="svd")` | `(...,3,3), (...,3) -> (...,1)` |
 | `SO3.conversions.from_matrix_to_euler(R, convention, mode="svd")` | `(...,3,3) -> (...,3)` |
 | `SO3.conversions.from_matrix_to_quat(R, convention="wxyz", mode="svd")` | `(...,3,3) -> (...,4)` |
 | `SO3.conversions.from_matrix_to_sixd(R, mode="svd")`       | `(...,3,3) -> (...,6)` |
 | `SO3.conversions.from_quat_to_axis_angle(q, convention="wxyz")` | `(...,4) -> (...,3)`       |
+| `SO3.conversions.from_quat_to_hinge(q, axes, convention="wxyz")` | `(...,4), (...,3) -> (...,1)` |
 | `SO3.conversions.from_quat_to_euler(q, src_convention="wxyz", dst_convention="ZYX")` | `(...,4) -> (...,3)` |
 | `SO3.conversions.from_quat_to_rotmat(q, convention="wxyz")`    | `(...,4) -> (...,3,3)`      |
 | `SO3.conversions.from_quat_to_quat(q, src_convention="wxyz", dst_convention="xyzw")` | `(...,4) -> (...,4)` |
 | `SO3.conversions.from_quat_to_sixd(q, convention="wxyz")`      | `(...,4) -> (...,6)`        |
 | `SO3.conversions.from_sixd_to_axis_angle(sixd)`                 | `(...,6) -> (...,3)`        |
+| `SO3.conversions.from_sixd_to_hinge(sixd, axes)`                | `(...,6), (...,3) -> (...,1)` |
 | `SO3.conversions.from_sixd_to_euler(sixd, convention)`          | `(...,6) -> (...,3)`        |
 | `SO3.conversions.from_sixd_to_rotmat(sixd)`                    | `(...,6) -> (...,3,3)`      |
 | `SO3.conversions.from_sixd_to_quat(sixd, convention="wxyz")`    | `(...,6) -> (...,4)`        |

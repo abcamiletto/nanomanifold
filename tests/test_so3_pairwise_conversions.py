@@ -15,6 +15,11 @@ _EULER_CONVENTIONS = ["ZYX", "XYZ", "ZXZ"]
 _QUAT_CONVENTION = "xyzw"
 
 
+def _make_hinge_axes(backend):
+    xp = get_namespace_by_name(backend)
+    return xp.asarray(np.array([0.0, 0.0, 2.0], dtype=np.float32))
+
+
 def _make_input(source: str, batch_dims, backend, precision=32, convention="ZYX", quat_convention="wxyz"):
     """Return a sample array in the given representation."""
     q = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
@@ -22,6 +27,9 @@ def _make_input(source: str, batch_dims, backend, precision=32, convention="ZYX"
         return SO3.to_axis_angle(q)
     if source == "euler":
         return SO3.to_euler(q, convention=convention)
+    if source == "hinge":
+        xp = get_namespace_by_name(backend)
+        return xp.asarray(np.full(batch_dims + (1,), 0.2, dtype=f"float{precision}"))
     if source == "matrix":
         xp = get_namespace_by_name(backend)
         rotmat = SO3.to_rotmat(q)
@@ -36,12 +44,14 @@ def _make_input(source: str, batch_dims, backend, precision=32, convention="ZYX"
     raise ValueError(source)
 
 
-def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX"):
+def _manual_convert(x, source, target, axes=None, src_convention="ZYX", dst_convention="ZYX"):
     """Convert via the two-step from/to primitive path (the reference)."""
     if source == "axis_angle":
         q = SO3.from_axis_angle(x)
     elif source == "euler":
         q = SO3.from_euler(x, convention=src_convention)
+    elif source == "hinge":
+        q = SO3.from_hinge(x, axes)
     elif source == "matrix":
         q = SO3.from_matrix(x)
     elif source == "rotmat":
@@ -57,6 +67,8 @@ def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX
         return SO3.to_axis_angle(q)
     if target == "euler":
         return SO3.to_euler(q, convention=dst_convention)
+    if target == "hinge":
+        return SO3.to_hinge(q, axes)
     if target == "rotmat":
         return SO3.to_rotmat(q)
     if target == "quat":
@@ -70,8 +82,8 @@ def _manual_convert(x, source, target, src_convention="ZYX", dst_convention="ZYX
 # All supported source-target pairs
 # ---------------------------------------------------------------------------
 
-_SOURCE_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
-_TARGET_REPS = ["axis_angle", "euler", "rotmat", "quat", "sixd"]
+_SOURCE_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
+_TARGET_REPS = ["axis_angle", "euler", "hinge", "rotmat", "quat", "sixd"]
 _PAIRS = [(s, t) for s in _SOURCE_REPS for t in _TARGET_REPS if s != t]
 
 
@@ -94,10 +106,23 @@ def test_equivalence(pair, backend, batch_dims, pass_xp):
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
     src_convention = _QUAT_CONVENTION if source == "quat" else "XYZ"
     dst_convention = _QUAT_CONVENTION if target == "quat" else "XYZ"
+    axes = _make_hinge_axes(backend)
     x = _make_input(source, batch_dims, backend, convention="XYZ", quat_convention=src_convention)
 
     fn = _get_conv_fn(source, target)
-    if source == "euler" and target == "euler":
+    if source == "hinge" and target == "euler":
+        result = fn(x, axes, convention=dst_convention, **xp_kwargs)
+    elif source == "hinge" and target == "quat":
+        result = fn(x, axes, convention=dst_convention, **xp_kwargs)
+    elif source == "hinge":
+        result = fn(x, axes, **xp_kwargs)
+    elif target == "hinge" and source == "euler":
+        result = fn(x, axes, convention=src_convention, **xp_kwargs)
+    elif target == "hinge" and source == "quat":
+        result = fn(x, axes, convention=src_convention, **xp_kwargs)
+    elif target == "hinge":
+        result = fn(x, axes, **xp_kwargs)
+    elif source == "euler" and target == "euler":
         result = fn(x, src_convention=src_convention, dst_convention=dst_convention, **xp_kwargs)
     elif source == "euler" and target == "quat":
         result = fn(x, src_convention=src_convention, dst_convention=dst_convention, **xp_kwargs)
@@ -115,7 +140,7 @@ def test_equivalence(pair, backend, batch_dims, pass_xp):
         result = fn(x, convention=src_convention, **xp_kwargs)
     else:
         result = fn(x, **xp_kwargs)
-    expected = _manual_convert(x, source, target, src_convention=src_convention, dst_convention=dst_convention)
+    expected = _manual_convert(x, source, target, axes=axes, src_convention=src_convention, dst_convention=dst_convention)
 
     result_np = np.array(result)
     expected_np = np.array(expected)

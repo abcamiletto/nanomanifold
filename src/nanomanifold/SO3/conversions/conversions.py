@@ -57,6 +57,19 @@ def from_axis_angle_to_euler(
     return _to_euler(_from_axis_angle(axis_angle, xp=xp), convention=convention, xp=xp)
 
 
+def from_axis_angle_to_hinge(
+    axis_angle: Float[Any, "... 3"],
+    axes: Float[Any, "... 3"],
+    *,
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 1"]:
+    if xp is None:
+        xp = get_namespace(axis_angle)
+    projected = xp.sum(axis_angle * axes, axis=-1, keepdims=True)
+    axis_norm_sq = xp.sum(axes * axes, axis=-1, keepdims=True)
+    return projected / axis_norm_sq
+
+
 def from_axis_angle_to_rotmat(axis_angle: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
     if xp is None:
         xp = get_namespace(axis_angle)
@@ -82,6 +95,18 @@ def from_euler_to_axis_angle(
 ) -> Float[Any, "... 3"]:
     assert convention in _EULER_CONVENTIONS, "Invalid Euler convention."
     return _to_axis_angle(_from_euler(euler, convention=convention, xp=xp), xp=xp)
+
+
+def from_euler_to_hinge(
+    euler: Float[Any, "... 3"],
+    axes: Float[Any, "... 3"],
+    *,
+    convention: EulerConvention = "ZYX",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 1"]:
+    assert convention in _EULER_CONVENTIONS, "Invalid Euler convention."
+    axis_angle = from_euler_to_axis_angle(euler, convention=convention, xp=xp)
+    return from_axis_angle_to_hinge(axis_angle, axes, xp=xp)
 
 
 def from_euler_to_euler(
@@ -122,8 +147,71 @@ def from_euler_to_sixd(
     return from_rotmat_to_sixd(from_euler_to_rotmat(euler, convention=convention, xp=xp), xp=xp)
 
 
+def from_hinge_to_axis_angle(
+    angles: Float[Any, "... 1"],
+    axes: Float[Any, "... 3"],
+    *,
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 3"]:
+    assert angles.shape[-1:] == (1,), "Hinge angles must have shape (..., 1)."
+    return angles * axes
+
+
+def from_hinge_to_euler(
+    angles: Float[Any, "... 1"],
+    axes: Float[Any, "... 3"],
+    *,
+    convention: EulerConvention = "ZYX",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 3"]:
+    assert convention in _EULER_CONVENTIONS, "Invalid Euler convention."
+    axis_angle = from_hinge_to_axis_angle(angles, axes, xp=xp)
+    return from_axis_angle_to_euler(axis_angle, convention=convention, xp=xp)
+
+
+def from_hinge_to_rotmat(
+    angles: Float[Any, "... 1"],
+    axes: Float[Any, "... 3"],
+    *,
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 3 3"]:
+    axis_angle = from_hinge_to_axis_angle(angles, axes, xp=xp)
+    return from_axis_angle_to_rotmat(axis_angle, xp=xp)
+
+
+def from_hinge_to_quat(
+    angles: Float[Any, "... 1"],
+    axes: Float[Any, "... 3"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 4"]:
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+    axis_angle = from_hinge_to_axis_angle(angles, axes, xp=xp)
+    return from_axis_angle_to_quat(axis_angle, convention=convention, xp=xp)
+
+
+def from_hinge_to_sixd(
+    angles: Float[Any, "... 1"],
+    axes: Float[Any, "... 3"],
+    *,
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 6"]:
+    return from_rotmat_to_sixd(from_hinge_to_rotmat(angles, axes, xp=xp), xp=xp)
+
+
 def from_rotmat_to_axis_angle(rotmat: Float[Any, "... 3 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 3"]:
     return _to_axis_angle(_from_rotmat(rotmat, xp=xp), xp=xp)
+
+
+def from_rotmat_to_hinge(
+    rotmat: Float[Any, "... 3 3"],
+    axes: Float[Any, "... 3"],
+    *,
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 1"]:
+    axis_angle = from_rotmat_to_axis_angle(rotmat, xp=xp)
+    return from_axis_angle_to_hinge(axis_angle, axes, xp=xp)
 
 
 def from_rotmat_to_euler(
@@ -158,6 +246,17 @@ def from_matrix_to_rotmat(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", x
 def from_matrix_to_axis_angle(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None) -> Float[Any, "... 3"]:
     rotmat = from_matrix_to_rotmat(matrix, mode=mode, xp=xp)
     return from_rotmat_to_axis_angle(rotmat, xp=xp)
+
+
+def from_matrix_to_hinge(
+    matrix: Float[Any, "... 3 3"],
+    axes: Float[Any, "... 3"],
+    *,
+    mode: str = "svd",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 1"]:
+    axis_angle = from_matrix_to_axis_angle(matrix, mode=mode, xp=xp)
+    return from_axis_angle_to_hinge(axis_angle, axes, xp=xp)
 
 
 def from_matrix_to_euler(
@@ -197,6 +296,18 @@ def from_quat_to_axis_angle(
 ) -> Float[Any, "... 3"]:
     assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     return _to_axis_angle(_from_quat(quat, convention=convention, xp=xp), xp=xp)
+
+
+def from_quat_to_hinge(
+    quat: Float[Any, "... 4"],
+    axes: Float[Any, "... 3"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 1"]:
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+    axis_angle = from_quat_to_axis_angle(quat, convention=convention, xp=xp)
+    return from_axis_angle_to_hinge(axis_angle, axes, xp=xp)
 
 
 def from_quat_to_euler(
@@ -249,6 +360,16 @@ def from_sixd_to_axis_angle(sixd: Float[Any, "... 6"], *, xp: ModuleType | None 
     return _to_axis_angle(_from_sixd(sixd, xp=xp), xp=xp)
 
 
+def from_sixd_to_hinge(
+    sixd: Float[Any, "... 6"],
+    axes: Float[Any, "... 3"],
+    *,
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 1"]:
+    axis_angle = from_sixd_to_axis_angle(sixd, xp=xp)
+    return from_axis_angle_to_hinge(axis_angle, axes, xp=xp)
+
+
 def from_sixd_to_euler(
     sixd: Float[Any, "... 6"], *, convention: EulerConvention = "ZYX", xp: ModuleType | None = None
 ) -> Float[Any, "... 3"]:
@@ -274,29 +395,40 @@ def from_sixd_to_quat(
 
 __all__ = [
     "from_axis_angle_to_euler",
+    "from_axis_angle_to_hinge",
     "from_axis_angle_to_rotmat",
     "from_axis_angle_to_quat",
     "from_axis_angle_to_sixd",
     "from_euler_to_axis_angle",
+    "from_euler_to_hinge",
     "from_euler_to_euler",
     "from_euler_to_rotmat",
     "from_euler_to_quat",
     "from_euler_to_sixd",
+    "from_hinge_to_axis_angle",
+    "from_hinge_to_euler",
+    "from_hinge_to_rotmat",
+    "from_hinge_to_quat",
+    "from_hinge_to_sixd",
     "from_rotmat_to_axis_angle",
+    "from_rotmat_to_hinge",
     "from_rotmat_to_euler",
     "from_rotmat_to_quat",
     "from_rotmat_to_sixd",
     "from_matrix_to_rotmat",
     "from_matrix_to_axis_angle",
+    "from_matrix_to_hinge",
     "from_matrix_to_euler",
     "from_matrix_to_quat",
     "from_matrix_to_sixd",
     "from_quat_to_axis_angle",
+    "from_quat_to_hinge",
     "from_quat_to_euler",
     "from_quat_to_rotmat",
     "from_quat_to_quat",
     "from_quat_to_sixd",
     "from_sixd_to_axis_angle",
+    "from_sixd_to_hinge",
     "from_sixd_to_euler",
     "from_sixd_to_rotmat",
     "from_sixd_to_quat",

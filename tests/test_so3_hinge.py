@@ -87,3 +87,37 @@ def test_hinge_helpers_accept_quaternion_convention():
     recovered = SO3.to_hinge(rotation, axes, convention="xyzw")
 
     assert np.allclose(recovered, angles, atol=ATOL[32])
+
+
+@pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("precision", TEST_PRECISIONS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_pairwise_from_hinge_to_axis_angle_is_direct(backend, precision, pass_xp):
+    xp = get_namespace_by_name(backend)
+    angles = xp.asarray(np.array([[0.1], [-0.2], [0.3]], dtype=f"float{precision}"))
+    axes = xp.asarray(np.array([[0.0, 0.0, 2.0]], dtype=f"float{precision}"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+
+    result = SO3.conversions.from_hinge_to_axis_angle(angles, axes, **xp_kwargs)
+    expected = angles * axes
+
+    assert result.dtype == expected.dtype
+    assert result.shape == (3, 3)
+    assert np.allclose(np.array(result), np.array(expected), atol=ATOL[precision])
+
+
+@pytest.mark.parametrize("backend", TEST_BACKENDS)
+@pytest.mark.parametrize("precision", TEST_PRECISIONS)
+@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
+def test_pairwise_from_axis_angle_to_hinge_is_projection(backend, precision, pass_xp):
+    xp = get_namespace_by_name(backend)
+    axis_angle = xp.asarray(np.array([[0.2, 0.3, 0.0], [-0.4, 0.1, 0.0]], dtype=f"float{precision}"))
+    axes = xp.asarray(np.array([2.0, 0.0, 0.0], dtype=f"float{precision}"))
+    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+
+    result = SO3.conversions.from_axis_angle_to_hinge(axis_angle, axes, **xp_kwargs)
+    expected = xp.asarray(np.array([[0.1], [-0.2]], dtype=f"float{precision}"))
+
+    assert result.dtype == expected.dtype
+    assert result.shape == expected.shape
+    assert np.allclose(np.array(result), np.array(expected), atol=ATOL[precision])

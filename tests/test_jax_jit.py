@@ -39,8 +39,8 @@ def _conv_input(rep: str):
 
 
 _CONV_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
-_PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
-_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "rotmat", "quat", "sixd"]
+_PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
+_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "hinge", "rotmat", "quat", "sixd"]
 _CONV_PAIRS = [(s, t) for s in _PAIRWISE_SOURCE_REPS for t in _PAIRWISE_TARGET_REPS if s != t]
 _DYNAMIC_CONV_CASES = [
     ("axis_angle", "rotmat"),
@@ -68,6 +68,8 @@ def _pairwise_input(rep: str):
         return SO3.to_quat(q, convention="xyzw", xp=jnp)
     if rep == "sixd":
         return SO3.to_sixd(q, xp=jnp)
+    if rep == "hinge":
+        return jnp.array([[0.1], [-0.2]])
     raise ValueError(rep)
 
 
@@ -143,7 +145,20 @@ def test_jit_to_sixd():
 @pytest.mark.parametrize("source,target", _CONV_PAIRS, ids=[f"{s}->{t}" for s, t in _CONV_PAIRS])
 def test_jit_so3_pairwise_conversions(source, target):
     fn = getattr(SO3.conversions, f"from_{source}_to_{target}")
-    if source == "euler" and target == "quat":
+    axes = jnp.array([0.0, 0.0, 1.0])
+    if source == "hinge" and target == "euler":
+        compiled = jax.jit(lambda x: fn(x, axes, convention="XYZ", xp=jnp))
+    elif source == "hinge" and target == "quat":
+        compiled = jax.jit(lambda x: fn(x, axes, convention="xyzw", xp=jnp))
+    elif source == "hinge":
+        compiled = jax.jit(lambda x: fn(x, axes, xp=jnp))
+    elif target == "hinge" and source == "euler":
+        compiled = jax.jit(lambda x: fn(x, axes, convention="XYZ", xp=jnp))
+    elif target == "hinge" and source == "quat":
+        compiled = jax.jit(lambda x: fn(x, axes, convention="xyzw", xp=jnp))
+    elif target == "hinge":
+        compiled = jax.jit(lambda x: fn(x, axes, xp=jnp))
+    elif source == "euler" and target == "quat":
         compiled = jax.jit(lambda x: fn(x, src_convention="XYZ", dst_convention="xyzw", xp=jnp))
     elif source == "quat" and target == "euler":
         compiled = jax.jit(lambda x: fn(x, src_convention="xyzw", dst_convention="XYZ", xp=jnp))

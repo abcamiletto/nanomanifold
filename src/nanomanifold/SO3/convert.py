@@ -1,168 +1,86 @@
 """Convenience dispatcher for SO(3) representation conversions."""
 
 from types import ModuleType
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from jaxtyping import Float
 
-from . import conversions
+from . import conversions, hinge
+from .primitives import axis_angle, euler, quaternion, rotmat, sixd
 
-RotationRep = Literal["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
-
-_REPRESENTATIONS = ("axis_angle", "euler", "matrix", "rotmat", "quat", "sixd")
-_EULER_CONVENTIONS = (
-    "xyz",
-    "xzy",
-    "yxz",
-    "yzx",
-    "zxy",
-    "zyx",
-    "XYZ",
-    "XZY",
-    "YXZ",
-    "YZX",
-    "ZXY",
-    "ZYX",
-    "xyx",
-    "xzx",
-    "yxy",
-    "yzy",
-    "zxz",
-    "zyz",
-    "XYX",
-    "XZX",
-    "YXY",
-    "YZY",
-    "ZXZ",
-    "ZYZ",
-)
+RotationRep = Literal["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
+RotationSourceRep = Literal["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
 
 
 def convert(
     value: Float[Any, "..."],
     *,
-    src: RotationRep,
+    src: RotationSourceRep,
     dst: RotationRep,
-    src_convention: str | None = None,
-    dst_convention: str | None = None,
+    src_kwargs: dict[str, Any] = {},
+    dst_kwargs: dict[str, Any] = {},
     xp: ModuleType | None = None,
 ) -> Float[Any, "..."]:
     """Convert between SO(3) representations selected at runtime."""
-    if src not in _REPRESENTATIONS:
-        supported = ", ".join(_REPRESENTATIONS)
-        raise ValueError(f"Unsupported rotation representation '{src}'. Supported values: {supported}.")
-    if dst not in _REPRESENTATIONS:
-        supported = ", ".join(_REPRESENTATIONS)
-        raise ValueError(f"Unsupported rotation representation '{dst}'. Supported values: {supported}.")
+    dst = "rotmat" if dst == "matrix" else dst
 
-    src_convention = "wxyz" if src == "quat" and src_convention is None else "ZYX" if src_convention is None else src_convention
-    dst_convention = "wxyz" if dst == "quat" and dst_convention is None else "ZYX" if dst_convention is None else dst_convention
-    if src == "quat":
-        assert src_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
-    if dst == "quat":
-        assert dst_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
-    if src == "euler":
-        assert src_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
-    if dst == "euler":
-        assert dst_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
-
-    quat_src_convention = cast(Literal["wxyz", "xyzw"], src_convention)
-    quat_dst_convention = cast(Literal["wxyz", "xyzw"], dst_convention)
-    euler_src_convention = cast(Any, src_convention)
-    euler_dst_convention = cast(Any, dst_convention)
-
-    if src == dst:
-        if src == "euler" and src_convention != dst_convention:
-            return conversions.from_euler_to_euler(
-                value,
-                src_convention=euler_src_convention,
-                dst_convention=euler_dst_convention,
-                xp=xp,
-            )
-        if src == "quat" and src_convention != dst_convention:
-            return conversions.from_quat_to_quat(
-                value,
-                src_convention=quat_src_convention,
-                dst_convention=quat_dst_convention,
-                xp=xp,
-            )
+    if src == dst and not src_kwargs and not dst_kwargs:
         return value
 
+    if src == "hinge" and dst != "hinge":
+        return getattr(conversions, f"from_hinge_to_{dst}")(value, **src_kwargs, **dst_kwargs, xp=xp)
+
+    if dst == "hinge" and src != "hinge":
+        return getattr(conversions, f"from_{src}_to_hinge")(value, **src_kwargs, **dst_kwargs, xp=xp)
+
+    quat = _to_canonical_quat(value, src, src_kwargs, xp=xp)
+    return _from_canonical_quat(quat, dst, dst_kwargs, xp=xp)
+
+
+def _to_canonical_quat(
+    value: Float[Any, "..."],
+    src: RotationSourceRep,
+    kwargs: dict[str, Any],
+    *,
+    xp: ModuleType | None,
+) -> Float[Any, "... 4"]:
     if src == "axis_angle":
-        if dst == "euler":
-            return conversions.from_axis_angle_to_euler(value, convention=euler_dst_convention, xp=xp)
-        if dst == "rotmat" or dst == "matrix":
-            return conversions.from_axis_angle_to_rotmat(value, xp=xp)
-        if dst == "quat":
-            return conversions.from_axis_angle_to_quat(value, convention=quat_dst_convention, xp=xp)
-        if dst == "sixd":
-            return conversions.from_axis_angle_to_sixd(value, xp=xp)
-
+        return axis_angle.from_axis_angle(value, **kwargs, xp=xp)
     if src == "euler":
-        if dst == "axis_angle":
-            return conversions.from_euler_to_axis_angle(value, convention=euler_src_convention, xp=xp)
-        if dst == "rotmat" or dst == "matrix":
-            return conversions.from_euler_to_rotmat(value, convention=euler_src_convention, xp=xp)
-        if dst == "quat":
-            return conversions.from_euler_to_quat(
-                value,
-                src_convention=euler_src_convention,
-                dst_convention=quat_dst_convention,
-                xp=xp,
-            )
-        if dst == "sixd":
-            return conversions.from_euler_to_sixd(value, convention=euler_src_convention, xp=xp)
-
+        return euler.from_euler(value, **kwargs, xp=xp)
+    if src == "hinge":
+        return hinge.from_hinge(value, **kwargs, xp=xp)
     if src == "matrix":
-        if dst == "axis_angle":
-            return conversions.from_matrix_to_axis_angle(value, xp=xp)
-        if dst == "euler":
-            return conversions.from_matrix_to_euler(value, convention=euler_dst_convention, xp=xp)
-        if dst == "rotmat":
-            return conversions.from_matrix_to_rotmat(value, xp=xp)
-        if dst == "quat":
-            return conversions.from_matrix_to_quat(value, convention=quat_dst_convention, xp=xp)
-        if dst == "sixd":
-            return conversions.from_matrix_to_sixd(value, xp=xp)
-
+        return rotmat.from_matrix(value, **kwargs, xp=xp)
     if src == "rotmat":
-        if dst == "axis_angle":
-            return conversions.from_rotmat_to_axis_angle(value, xp=xp)
-        if dst == "euler":
-            return conversions.from_rotmat_to_euler(value, convention=euler_dst_convention, xp=xp)
-        if dst == "matrix":
-            return value
-        if dst == "quat":
-            return conversions.from_rotmat_to_quat(value, convention=quat_dst_convention, xp=xp)
-        if dst == "sixd":
-            return conversions.from_rotmat_to_sixd(value, xp=xp)
-
+        return rotmat.from_rotmat(value, **kwargs, xp=xp)
     if src == "quat":
-        if dst == "axis_angle":
-            return conversions.from_quat_to_axis_angle(value, convention=quat_src_convention, xp=xp)
-        if dst == "euler":
-            return conversions.from_quat_to_euler(
-                value,
-                src_convention=quat_src_convention,
-                dst_convention=euler_dst_convention,
-                xp=xp,
-            )
-        if dst == "rotmat" or dst == "matrix":
-            return conversions.from_quat_to_rotmat(value, convention=quat_src_convention, xp=xp)
-        if dst == "sixd":
-            return conversions.from_quat_to_sixd(value, convention=quat_src_convention, xp=xp)
-
+        return quaternion.from_quat(value, **kwargs, xp=xp)
     if src == "sixd":
-        if dst == "axis_angle":
-            return conversions.from_sixd_to_axis_angle(value, xp=xp)
-        if dst == "euler":
-            return conversions.from_sixd_to_euler(value, convention=euler_dst_convention, xp=xp)
-        if dst == "rotmat" or dst == "matrix":
-            return conversions.from_sixd_to_rotmat(value, xp=xp)
-        if dst == "quat":
-            return conversions.from_sixd_to_quat(value, convention=quat_dst_convention, xp=xp)
-
-    raise ValueError(f"Unsupported conversion from '{src}' to '{dst}'.")
+        return sixd.from_sixd(value, **kwargs, xp=xp)
+    raise ValueError(f"Unsupported source representation '{src}'.")
 
 
-__all__ = ["RotationRep", "convert"]
+def _from_canonical_quat(
+    quat: Float[Any, "... 4"],
+    dst: RotationRep,
+    kwargs: dict[str, Any],
+    *,
+    xp: ModuleType | None,
+) -> Float[Any, "..."]:
+    if dst == "axis_angle":
+        return axis_angle.to_axis_angle(quat, **kwargs, xp=xp)
+    if dst == "euler":
+        return euler.to_euler(quat, **kwargs, xp=xp)
+    if dst == "hinge":
+        return hinge.to_hinge(quat, **kwargs, xp=xp)
+    if dst == "rotmat":
+        return rotmat.to_rotmat(quat, **kwargs, xp=xp)
+    if dst == "quat":
+        return quaternion.to_quat(quat, **kwargs, xp=xp)
+    if dst == "sixd":
+        return sixd.to_sixd(quat, **kwargs, xp=xp)
+    raise ValueError(f"Unsupported target representation '{dst}'.")
+
+
+__all__ = ["RotationRep", "RotationSourceRep", "convert"]

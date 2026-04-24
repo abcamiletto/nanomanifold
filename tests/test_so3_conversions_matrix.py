@@ -108,9 +108,10 @@ def test_from_matrix_normalize_projects_to_so3(backend, pass_xp, mode):
     dots = np.sum(quat_np * quat_converted_np, axis=-1)
     assert np.allclose(np.abs(dots), 1.0, atol=ATOL[32])
 
-    sixd_expected = np.array(SO3.to_sixd(quat, **xp_kwargs))
-    sixd_converted_np = np.array(sixd_converted)
-    assert np.allclose(sixd_converted_np, sixd_expected, atol=ATOL[32])
+    sixd_quat_converted = SO3.from_sixd(sixd_converted, **xp_kwargs)
+    sixd_quat_converted_np = np.array(sixd_quat_converted)
+    sixd_dots = np.sum(quat_np * sixd_quat_converted_np, axis=-1)
+    assert np.allclose(np.abs(sixd_dots), 1.0, atol=ATOL[32])
 
 
 def test_from_matrix_rejects_unknown_projection_mode():

@@ -26,24 +26,27 @@ def _conv_input(rep: str):
     if rep == "axis_angle":
         return SO3.to_axis_angle(q, xp=jnp)
     if rep == "euler":
-        return SO3.to_euler(q, "ZYX", xp=jnp)
+        return SO3.to_euler(q, convention="ZYX", xp=jnp)
     if rep == "matrix":
         return SO3.to_rotmat(q, xp=jnp) @ jnp.diag(jnp.array([1.05, 0.97, 1.02]))
     if rep == "rotmat":
         return SO3.to_rotmat(q, xp=jnp)
     if rep == "quat":
-        return SO3.to_quat(q, convention="xyzw", xp=jnp)
+        return SO3.to_quat(q, xp=jnp)
     if rep == "sixd":
         return SO3.to_sixd(q, xp=jnp)
+    if rep == "hinge":
+        return jnp.array([[0.1], [-0.2]])
     raise ValueError(rep)
 
 
-_CONV_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
+_CONV_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
 _PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
-_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "hinge", "rotmat", "quat", "sixd"]
+_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
 _CONV_PAIRS = [(s, t) for s in _PAIRWISE_SOURCE_REPS for t in _PAIRWISE_TARGET_REPS if s != t]
 _DYNAMIC_CONV_CASES = [
     ("axis_angle", "rotmat"),
+    ("axis_angle", "matrix"),
     ("matrix", "rotmat"),
     ("euler", "quat"),
     ("rotmat", "euler"),
@@ -51,6 +54,8 @@ _DYNAMIC_CONV_CASES = [
     ("quat", "quat"),
     ("sixd", "axis_angle"),
     ("euler", "euler"),
+    ("hinge", "axis_angle"),
+    ("rotmat", "hinge"),
 ]
 
 
@@ -59,7 +64,7 @@ def _pairwise_input(rep: str):
     if rep == "axis_angle":
         return SO3.to_axis_angle(q, xp=jnp)
     if rep == "euler":
-        return SO3.to_euler(q, "ZYX", xp=jnp)
+        return SO3.to_euler(q, convention="ZYX", xp=jnp)
     if rep == "matrix":
         return SO3.to_rotmat(q, xp=jnp) @ jnp.diag(jnp.array([1.05, 0.97, 1.02]))
     if rep == "rotmat":
@@ -118,17 +123,17 @@ def test_jit_to_rotmat():
 
 
 def test_jit_from_euler():
-    compiled = jax.jit(lambda e: SO3.from_euler(e, "XYZ", xp=jnp))
+    compiled = jax.jit(lambda e: SO3.from_euler(e, convention="XYZ", xp=jnp))
     compiled(jax.random.normal(jax.random.PRNGKey(0), (2, 3)))
 
 
 def test_jit_to_euler():
-    compiled = jax.jit(lambda q: SO3.to_euler(q, "XYZ", xp=jnp))
+    compiled = jax.jit(lambda q: SO3.to_euler(q, convention="XYZ", xp=jnp))
     compiled(_random_quat())
 
 
 def test_jit_from_euler_to_euler():
-    compiled = jax.jit(lambda e: SO3.conversions.from_euler_to_euler(e, src_convention="XYZ", dst_convention="ZYX", xp=jnp))
+    compiled = jax.jit(lambda e: SO3.conversions.from_euler_to_euler(e, input_convention="XYZ", output_convention="ZYX", xp=jnp))
     compiled(jax.random.normal(jax.random.PRNGKey(0), (2, 3)))
 
 
@@ -159,11 +164,11 @@ def test_jit_so3_pairwise_conversions(source, target):
     elif target == "hinge":
         compiled = jax.jit(lambda x: fn(x, axes, xp=jnp))
     elif source == "euler" and target == "quat":
-        compiled = jax.jit(lambda x: fn(x, src_convention="XYZ", dst_convention="xyzw", xp=jnp))
+        compiled = jax.jit(lambda x: fn(x, euler_convention="XYZ", quat_convention="xyzw", xp=jnp))
     elif source == "quat" and target == "euler":
-        compiled = jax.jit(lambda x: fn(x, src_convention="xyzw", dst_convention="XYZ", xp=jnp))
+        compiled = jax.jit(lambda x: fn(x, quat_convention="xyzw", euler_convention="XYZ", xp=jnp))
     elif source == "quat" and target == "quat":
-        compiled = jax.jit(lambda x: fn(x, src_convention="xyzw", dst_convention="wxyz", xp=jnp))
+        compiled = jax.jit(lambda x: fn(x, input_convention="xyzw", output_convention="wxyz", xp=jnp))
     elif source == "euler":
         compiled = jax.jit(lambda x: fn(x, convention="XYZ", xp=jnp))
     elif target == "euler":
@@ -180,13 +185,18 @@ def test_jit_so3_pairwise_conversions(source, target):
 @pytest.mark.parametrize("source,target", _DYNAMIC_CONV_CASES, ids=[f"{s}->{t}" for s, t in _DYNAMIC_CONV_CASES])
 def test_jit_so3_convert(source, target):
     source_input = _conv_input(source)
+    axes = jnp.array([0.0, 0.0, 1.0])
+    kwargs = {}
+    if source == "hinge" and target != "hinge":
+        kwargs["src_kwargs"] = {"axes": axes}
+    if target == "hinge" and source != "hinge":
+        kwargs["dst_kwargs"] = {"axes": axes}
     compiled = jax.jit(
         lambda x: SO3.convert(
             x,
             src=source,
             dst=target,
-            src_convention="xyzw" if source == "quat" else "ZYX",
-            dst_convention="xyzw" if target == "quat" else "XYZ",
+            **kwargs,
             xp=jnp,
         )
     )

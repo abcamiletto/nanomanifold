@@ -1,19 +1,20 @@
 from types import ModuleType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jaxtyping import Float
 
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .convert import RotationRep
+if TYPE_CHECKING:
+    from .convert import RotationRep
 
 
 def identity_as(
     ref: Float[Any, "..."],
     *,
     batch_dims: tuple[int, ...],
-    rotation_type: RotationRep = "quat",
+    rotation_type: "RotationRep" = "quat",
     convention: str = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "..."]:
@@ -30,6 +31,9 @@ def identity_as(
 
     if rotation_type == "axis_angle" or rotation_type == "euler":
         return common.zeros_as(ref, shape=batch_dims + (3,), xp=xp)
+
+    if rotation_type == "hinge":
+        return common.zeros_as(ref, shape=batch_dims + (1,), xp=xp)
 
     if rotation_type == "quat":
         zeros = common.zeros_as(ref, shape=batch_dims + (4,), xp=xp)

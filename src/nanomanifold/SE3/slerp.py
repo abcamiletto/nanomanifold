@@ -5,6 +5,7 @@ from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
 from nanomanifold.SO3 import slerp as so3_slerp
+from nanomanifold.SO3.primitives.quaternion import QuaternionConvention
 
 from .canonicalize import canonicalize
 
@@ -14,6 +15,7 @@ def slerp(
     se3_2: Float[Any, "... 7"],
     t: Float[Any, "... N"],
     *,
+    convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... N 7"]:
     """Interpolate between two SE(3) transformations.
@@ -23,20 +25,22 @@ def slerp(
     semantics as SO3.slerp: output shape is ``(..., N, 7)``.
 
     Args:
-        se3_1: Start SE(3) transformation in [w, x, y, z, tx, ty, tz] format.
-        se3_2: End SE(3) transformation in [w, x, y, z, tx, ty, tz] format.
+        se3_1: Start SE(3) transformation with quaternion components in the given convention.
+        se3_2: End SE(3) transformation with quaternion components in the given convention.
         t: Interpolation parameters. Last dimension N gives the number of
             interpolation points. t=0 returns se3_1, t=1 returns se3_2.
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
         Interpolated SE(3) transformations with shape (..., N, 7).
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(se3_1)
 
-    se3_1 = canonicalize(se3_1, xp=xp)
-    se3_2 = canonicalize(se3_2, xp=xp)
+    se3_1 = canonicalize(se3_1, convention=convention, xp=xp)
+    se3_2 = canonicalize(se3_2, convention=convention, xp=xp)
 
     q1 = se3_1[..., :4]
     t1 = se3_1[..., 4:7]
@@ -44,7 +48,7 @@ def slerp(
     t2 = se3_2[..., 4:7]
 
     # Slerp for rotation: (..., N, 4)
-    q_interp = so3_slerp(q1, q2, t, xp=xp)
+    q_interp = so3_slerp(q1, q2, t, convention=convention, xp=xp)
 
     # Linear interpolation for translation: (..., N, 3)
     t_expanded = t[..., None]  # (..., N, 1)

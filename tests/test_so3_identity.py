@@ -11,6 +11,7 @@ from nanomanifold import SO3
         ("quat", "wxyz", (4,), [1.0, 0.0, 0.0, 0.0]),
         ("quat", "xyzw", (4,), [0.0, 0.0, 0.0, 1.0]),
         ("axis_angle", "wxyz", (3,), [0.0, 0.0, 0.0]),
+        ("hinge", "wxyz", (1,), [0.0]),
         ("euler", "ZYX", (3,), [0.0, 0.0, 0.0]),
         ("sixd", "wxyz", (6,), [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
     ],
@@ -30,15 +31,16 @@ def test_identity_as_vector_representations(rotation_type, convention, expected_
     assert np.allclose(np.array(identity), np.array(expected, dtype=np.array(identity).dtype))
 
 
+@pytest.mark.parametrize("rotation_type", ["matrix", "rotmat"])
 @pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
 @pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_identity_as_rotmat(backend, batch_dims, precision, pass_xp):
+def test_identity_as_matrix_representations(rotation_type, backend, batch_dims, precision, pass_xp):
     ref = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
-    identity = SO3.identity_as(ref, batch_dims=batch_dims, rotation_type="rotmat", **xp_kwargs)
+    identity = SO3.identity_as(ref, batch_dims=batch_dims, rotation_type=rotation_type, **xp_kwargs)
 
     assert identity.dtype == ref.dtype
     assert identity.shape == batch_dims + (3, 3)

@@ -47,22 +47,29 @@ def to_matrix(
     return xp.concatenate([top_block, bottom_row], axis=-2)
 
 
-def from_matrix(matrix: Float[Any, "... 4 4"], *, xp: ModuleType | None = None) -> Float[Any, "... 7"]:
+def from_matrix(
+    matrix: Float[Any, "... 4 4"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 7"]:
     """Convert 4x4 transformation matrix to SE(3) representation.
 
     Args:
         matrix: 4x4 transformation matrix (..., 4, 4)
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
-        SE(3) representation (..., 7) with quaternion components in ``wxyz`` order
+        SE(3) representation (..., 7) with quaternion components in the requested convention
     """
+    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(matrix)
 
     rotmat = matrix[..., :3, :3]
-    quat = SO3.from_rotmat(rotmat, xp=xp)
+    quat = SO3.from_rotmat(rotmat, convention=convention, xp=xp)
     translation = matrix[..., :3, 3]
 
     se3 = xp.concatenate([quat, translation], axis=-1)
-    return canonicalize(se3, xp=xp)
+    return canonicalize(se3, convention=convention, xp=xp)

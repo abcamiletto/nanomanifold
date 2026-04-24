@@ -4,7 +4,8 @@ from typing import Any
 from jaxtyping import Float
 
 from nanomanifold.common import get_namespace
-from nanomanifold.SO3.primitives.quaternion import QuaternionConvention, to_quat
+from nanomanifold.SO3.primitives.quaternion import QuaternionConvention
+from nanomanifold.SO3.primitives.quaternion import canonicalize as canonicalize_quat
 
 from ..canonicalize import canonicalize as canonicalize_se3
 
@@ -21,11 +22,12 @@ def from_rt(
     Args:
         quat: Rotation quaternion (..., 4) in the given convention
         translation: Translation vector (..., 3)
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
         xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
 
     Returns:
-        SE(3) representation (..., 7) as [w, x, y, z, tx, ty, tz] with the
-        quaternion canonicalized to have a non-negative scalar component.
+        SE(3) representation (..., 7) with quaternion components in the given
+        convention and canonicalized to have a non-negative scalar component.
     """
     assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
@@ -43,7 +45,8 @@ def to_rt(
     """Extract rotation quaternion and translation from SE(3) representation.
 
     Args:
-        se3: SE(3) representation (..., 7) as [w, x, y, z, tx, ty, tz]
+        se3: SE(3) representation (..., 7) with quaternion components in the given convention
+        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
 
     Returns:
         quat: Rotation quaternion (..., 4) in the requested convention
@@ -54,4 +57,4 @@ def to_rt(
         xp = get_namespace(se3)
     quat = se3[..., :4]
     translation = se3[..., 4:7]
-    return to_quat(quat, convention=convention, xp=xp), translation
+    return canonicalize_quat(quat, convention=convention, xp=xp), translation

@@ -27,24 +27,27 @@ def _conv_input(rep: str):
     if rep == "axis_angle":
         return SO3.to_axis_angle(q, xp=torch)
     if rep == "euler":
-        return SO3.to_euler(q, "ZYX", xp=torch)
+        return SO3.to_euler(q, convention="ZYX", xp=torch)
     if rep == "matrix":
         return SO3.to_rotmat(q, xp=torch) @ torch.diag(torch.tensor([1.05, 0.97, 1.02]))
     if rep == "rotmat":
         return SO3.to_rotmat(q, xp=torch)
     if rep == "quat":
-        return SO3.to_quat(q, convention="xyzw", xp=torch)
+        return SO3.to_quat(q, xp=torch)
     if rep == "sixd":
         return SO3.to_sixd(q, xp=torch)
+    if rep == "hinge":
+        return torch.tensor([[0.1], [-0.2]])
     raise ValueError(rep)
 
 
-_CONV_REPS = ["axis_angle", "euler", "matrix", "rotmat", "quat", "sixd"]
+_CONV_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
 _PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
-_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "hinge", "rotmat", "quat", "sixd"]
+_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
 _CONV_PAIRS = [(s, t) for s in _PAIRWISE_SOURCE_REPS for t in _PAIRWISE_TARGET_REPS if s != t]
 _DYNAMIC_CONV_CASES = [
     ("axis_angle", "rotmat"),
+    ("axis_angle", "matrix"),
     ("matrix", "rotmat"),
     ("euler", "quat"),
     ("rotmat", "euler"),
@@ -52,6 +55,8 @@ _DYNAMIC_CONV_CASES = [
     ("quat", "quat"),
     ("sixd", "axis_angle"),
     ("euler", "euler"),
+    ("hinge", "axis_angle"),
+    ("rotmat", "hinge"),
 ]
 
 
@@ -60,7 +65,7 @@ def _pairwise_input(rep: str):
     if rep == "axis_angle":
         return SO3.to_axis_angle(q, xp=torch)
     if rep == "euler":
-        return SO3.to_euler(q, "ZYX", xp=torch)
+        return SO3.to_euler(q, convention="ZYX", xp=torch)
     if rep == "matrix":
         return SO3.to_rotmat(q, xp=torch) @ torch.diag(torch.tensor([1.05, 0.97, 1.02]))
     if rep == "rotmat":
@@ -145,7 +150,7 @@ def test_compile_to_rotmat():
 
 def test_compile_from_euler():
     def f(e):
-        return SO3.from_euler(e, "XYZ", xp=torch)
+        return SO3.from_euler(e, convention="XYZ", xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(torch.randn(2, 3))
@@ -153,7 +158,7 @@ def test_compile_from_euler():
 
 def test_compile_to_euler():
     def f(q):
-        return SO3.to_euler(q, "XYZ", xp=torch)
+        return SO3.to_euler(q, convention="XYZ", xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(_random_quat())
@@ -161,7 +166,7 @@ def test_compile_to_euler():
 
 def test_compile_from_euler_to_euler():
     def f(e):
-        return SO3.conversions.from_euler_to_euler(e, src_convention="XYZ", dst_convention="ZYX", xp=torch)
+        return SO3.conversions.from_euler_to_euler(e, input_convention="XYZ", output_convention="ZYX", xp=torch)
 
     compiled = torch.compile(f, fullgraph=True)
     compiled(torch.randn(2, 3))
@@ -216,15 +221,15 @@ def test_compile_so3_pairwise_conversions(source, target):
     elif source == "euler" and target == "quat":
 
         def f(x):
-            return fn(x, src_convention="XYZ", dst_convention="xyzw", xp=torch)
+            return fn(x, euler_convention="XYZ", quat_convention="xyzw", xp=torch)
     elif source == "quat" and target == "euler":
 
         def f(x):
-            return fn(x, src_convention="xyzw", dst_convention="XYZ", xp=torch)
+            return fn(x, quat_convention="xyzw", euler_convention="XYZ", xp=torch)
     elif source == "quat" and target == "quat":
 
         def f(x):
-            return fn(x, src_convention="xyzw", dst_convention="wxyz", xp=torch)
+            return fn(x, input_convention="xyzw", output_convention="wxyz", xp=torch)
     elif source == "euler":
 
         def f(x):
@@ -254,14 +259,19 @@ def test_compile_so3_pairwise_conversions(source, target):
 def test_compile_so3_convert(source, target):
     torch._dynamo.reset()
     source_input = _conv_input(source)
+    axes = torch.tensor([0.0, 0.0, 1.0])
+    kwargs = {}
+    if source == "hinge" and target != "hinge":
+        kwargs["src_kwargs"] = {"axes": axes}
+    if target == "hinge" and source != "hinge":
+        kwargs["dst_kwargs"] = {"axes": axes}
 
     def f(x):
         return SO3.convert(
             x,
             src=source,
             dst=target,
-            src_convention="xyzw" if source == "quat" else "ZYX",
-            dst_convention="xyzw" if target == "quat" else "XYZ",
+            **kwargs,
             xp=torch,
         )
 

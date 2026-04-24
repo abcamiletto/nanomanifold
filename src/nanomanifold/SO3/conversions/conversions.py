@@ -76,6 +76,10 @@ def from_axis_angle_to_rotmat(axis_angle: Float[Any, "... 3"], *, xp: ModuleType
     return _axis_angle_to_rotmat_direct(axis_angle, xp)
 
 
+def from_axis_angle_to_matrix(axis_angle: Float[Any, "... 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
+    return from_axis_angle_to_rotmat(axis_angle, xp=xp)
+
+
 def from_axis_angle_to_quat(
     axis_angle: Float[Any, "... 3"],
     *,
@@ -112,13 +116,13 @@ def from_euler_to_hinge(
 def from_euler_to_euler(
     euler: Float[Any, "... 3"],
     *,
-    src_convention: EulerConvention = "ZYX",
-    dst_convention: EulerConvention = "ZYX",
+    input_convention: EulerConvention = "ZYX",
+    output_convention: EulerConvention = "ZYX",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 3"]:
-    assert src_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
-    assert dst_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
-    return _to_euler(_from_euler(euler, convention=src_convention, xp=xp), convention=dst_convention, xp=xp)
+    assert input_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
+    assert output_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
+    return _to_euler(_from_euler(euler, convention=input_convention, xp=xp), convention=output_convention, xp=xp)
 
 
 def from_euler_to_rotmat(
@@ -128,16 +132,22 @@ def from_euler_to_rotmat(
     return _euler_to_rotmat(euler, convention, xp=xp)
 
 
+def from_euler_to_matrix(
+    euler: Float[Any, "... 3"], *, convention: EulerConvention = "ZYX", xp: ModuleType | None = None
+) -> Float[Any, "... 3 3"]:
+    return from_euler_to_rotmat(euler, convention=convention, xp=xp)
+
+
 def from_euler_to_quat(
     euler: Float[Any, "... 3"],
     *,
-    src_convention: EulerConvention = "ZYX",
-    dst_convention: QuaternionConvention = "wxyz",
+    euler_convention: EulerConvention = "ZYX",
+    quat_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
-    assert src_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
-    assert dst_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
-    return _to_quat(_from_euler(euler, convention=src_convention, xp=xp), convention=dst_convention, xp=xp)
+    assert euler_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
+    assert quat_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+    return _to_quat(_from_euler(euler, convention=euler_convention, xp=xp), convention=quat_convention, xp=xp)
 
 
 def from_euler_to_sixd(
@@ -177,6 +187,15 @@ def from_hinge_to_rotmat(
 ) -> Float[Any, "... 3 3"]:
     axis_angle = from_hinge_to_axis_angle(angles, axes, xp=xp)
     return from_axis_angle_to_rotmat(axis_angle, xp=xp)
+
+
+def from_hinge_to_matrix(
+    angles: Float[Any, "... 1"],
+    axes: Float[Any, "... 3"],
+    *,
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 3 3"]:
+    return from_hinge_to_rotmat(angles, axes, xp=xp)
 
 
 def from_hinge_to_quat(
@@ -221,6 +240,10 @@ def from_rotmat_to_euler(
     return _rotmat_to_euler(rotmat, convention, xp=xp)
 
 
+def from_rotmat_to_matrix(rotmat: Float[Any, "... 3 3"], *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
+    return rotmat
+
+
 def from_rotmat_to_quat(
     rotmat: Float[Any, "... 3 3"],
     *,
@@ -241,6 +264,10 @@ def from_matrix_to_rotmat(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", x
     if xp is None:
         xp = get_namespace(matrix)
     return _project_matrix_to_rotmat(matrix, xp, mode=mode)
+
+
+def from_matrix_to_matrix(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
+    return from_matrix_to_rotmat(matrix, mode=mode, xp=xp)
 
 
 def from_matrix_to_axis_angle(matrix: Float[Any, "... 3 3"], *, mode: str = "svd", xp: ModuleType | None = None) -> Float[Any, "... 3"]:
@@ -313,14 +340,14 @@ def from_quat_to_hinge(
 def from_quat_to_euler(
     quat: Float[Any, "... 4"],
     *,
-    src_convention: QuaternionConvention = "wxyz",
-    dst_convention: EulerConvention = "ZYX",
+    quat_convention: QuaternionConvention = "wxyz",
+    euler_convention: EulerConvention = "ZYX",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 3"]:
-    assert src_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
-    assert dst_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
-    quat_wxyz = _from_quat(quat, convention=src_convention, xp=xp)
-    return _to_euler(quat_wxyz, convention=dst_convention, xp=xp)
+    assert quat_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+    assert euler_convention in _EULER_CONVENTIONS, "Invalid Euler convention."
+    quat_wxyz = _from_quat(quat, convention=quat_convention, xp=xp)
+    return _to_euler(quat_wxyz, convention=euler_convention, xp=xp)
 
 
 def from_quat_to_rotmat(
@@ -333,17 +360,26 @@ def from_quat_to_rotmat(
     return _to_rotmat(_from_quat(quat, convention=convention, xp=xp), xp=xp)
 
 
+def from_quat_to_matrix(
+    quat: Float[Any, "... 4"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 3 3"]:
+    return from_quat_to_rotmat(quat, convention=convention, xp=xp)
+
+
 def from_quat_to_quat(
     quat: Float[Any, "... 4"],
     *,
-    src_convention: QuaternionConvention = "wxyz",
-    dst_convention: QuaternionConvention = "wxyz",
+    input_convention: QuaternionConvention = "wxyz",
+    output_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
-    assert src_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
-    assert dst_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
-    quat_wxyz = _canonicalize(_from_quat(quat, convention=src_convention, xp=xp), xp=xp)
-    return _to_quat(quat_wxyz, convention=dst_convention, xp=xp)
+    assert input_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+    assert output_convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+    quat_wxyz = _canonicalize(_from_quat(quat, convention=input_convention, xp=xp), xp=xp)
+    return _to_quat(quat_wxyz, convention=output_convention, xp=xp)
 
 
 def from_quat_to_sixd(
@@ -383,6 +419,10 @@ def from_sixd_to_rotmat(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = No
     return _from_sixd_to_rotmat(sixd, xp)
 
 
+def from_sixd_to_matrix(sixd: Float[Any, "... 6"], *, xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
+    return from_sixd_to_rotmat(sixd, xp=xp)
+
+
 def from_sixd_to_quat(
     sixd: Float[Any, "... 6"],
     *,
@@ -396,26 +436,31 @@ def from_sixd_to_quat(
 __all__ = [
     "from_axis_angle_to_euler",
     "from_axis_angle_to_hinge",
+    "from_axis_angle_to_matrix",
     "from_axis_angle_to_rotmat",
     "from_axis_angle_to_quat",
     "from_axis_angle_to_sixd",
     "from_euler_to_axis_angle",
     "from_euler_to_hinge",
     "from_euler_to_euler",
+    "from_euler_to_matrix",
     "from_euler_to_rotmat",
     "from_euler_to_quat",
     "from_euler_to_sixd",
     "from_hinge_to_axis_angle",
     "from_hinge_to_euler",
+    "from_hinge_to_matrix",
     "from_hinge_to_rotmat",
     "from_hinge_to_quat",
     "from_hinge_to_sixd",
     "from_rotmat_to_axis_angle",
     "from_rotmat_to_hinge",
     "from_rotmat_to_euler",
+    "from_rotmat_to_matrix",
     "from_rotmat_to_quat",
     "from_rotmat_to_sixd",
     "from_matrix_to_rotmat",
+    "from_matrix_to_matrix",
     "from_matrix_to_axis_angle",
     "from_matrix_to_hinge",
     "from_matrix_to_euler",
@@ -424,12 +469,14 @@ __all__ = [
     "from_quat_to_axis_angle",
     "from_quat_to_hinge",
     "from_quat_to_euler",
+    "from_quat_to_matrix",
     "from_quat_to_rotmat",
     "from_quat_to_quat",
     "from_quat_to_sixd",
     "from_sixd_to_axis_angle",
     "from_sixd_to_hinge",
     "from_sixd_to_euler",
+    "from_sixd_to_matrix",
     "from_sixd_to_rotmat",
     "from_sixd_to_quat",
 ]

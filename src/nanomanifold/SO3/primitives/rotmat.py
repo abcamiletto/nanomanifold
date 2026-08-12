@@ -77,7 +77,9 @@ def _project_matrix_to_rotmat_davenport(matrix: Float[Any, "... 3 3"], xp, *, st
 
     one = xp.ones_like(trace)
     zero = xp.zeros_like(trace)
-    quat = xp.stack([one, zero, zero, zero], axis=-1)
+    diagonal = xp.stack([k[..., i, i] for i in range(4)], axis=-1)
+    seed = xp.argmax(diagonal, axis=-1)
+    quat = xp.stack([xp.where(seed == i, one, zero) for i in range(4)], axis=-1)
 
     for _ in range(steps):
         quat = xp.matmul(k, quat[..., None])[..., 0]

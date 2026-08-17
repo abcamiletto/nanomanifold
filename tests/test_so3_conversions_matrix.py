@@ -117,3 +117,12 @@ def test_from_matrix_normalize_projects_to_so3(backend, pass_xp, mode):
 def test_from_matrix_rejects_unknown_projection_mode():
     with pytest.raises(ValueError, match="Unsupported projection mode"):
         SO3.from_matrix(np.eye(3), mode="bad")
+
+
+def test_davenport_projects_orientation_reversing_matrix():
+    matrix = np.array([[1.0, 0.2, 0.1], [0.3, 2.0, -0.4], [0.2, 0.1, -1.0]])
+
+    actual = SO3.conversions.from_matrix_to_rotmat(matrix, mode="davenport")
+    expected = SO3.conversions.from_matrix_to_rotmat(matrix, mode="svd")
+
+    assert np.allclose(actual, expected, atol=ATOL[64])

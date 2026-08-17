@@ -58,7 +58,7 @@ def _project_matrix_to_rotmat_svd(matrix: Float[Any, "... 3 3"], xp) -> Float[An
     return xp.matmul(u, xp.matmul(correction, vh))
 
 
-def _project_matrix_to_rotmat_davenport(matrix: Float[Any, "... 3 3"], xp, *, steps: int = 20, eps: float = 1e-7) -> Float[Any, "... 3 3"]:
+def _project_matrix_to_rotmat_davenport(matrix: Float[Any, "... 3 3"], xp, *, steps: int = 15, eps: float = 1e-7) -> Float[Any, "... 3 3"]:
     m00, m01, m02 = matrix[..., 0, 0], matrix[..., 0, 1], matrix[..., 0, 2]
     m10, m11, m12 = matrix[..., 1, 0], matrix[..., 1, 1], matrix[..., 1, 2]
     m20, m21, m22 = matrix[..., 2, 0], matrix[..., 2, 1], matrix[..., 2, 2]
@@ -77,15 +77,27 @@ def _project_matrix_to_rotmat_davenport(matrix: Float[Any, "... 3 3"], xp, *, st
 
     one = xp.ones_like(trace)
     zero = xp.zeros_like(trace)
-    diagonal = xp.stack([k[..., i, i] for i in range(4)], axis=-1)
-    seed = xp.argmax(diagonal, axis=-1)
-    quat = xp.stack([xp.where(seed == i, one, zero) for i in range(4)], axis=-1)
+    identity = xp.stack(
+        [
+            xp.stack([one, zero, zero, zero], axis=-1),
+            xp.stack([zero, one, zero, zero], axis=-1),
+            xp.stack([zero, zero, one, zero], axis=-1),
+            xp.stack([zero, zero, zero, one], axis=-1),
+        ],
+        axis=-2,
+    )
 
+    # Shift K so its largest algebraic eigenvalue also has the largest magnitude,
+    # then square from the full eigenspace to avoid dependence on a single seed.
+    projector = k + (xp.linalg.norm(k, axis=(-2, -1), keepdims=True) + eps) * identity
     for _ in range(steps):
-        quat = xp.matmul(k, quat[..., None])[..., 0]
-        quat = quat / (xp.linalg.norm(quat, axis=-1, keepdims=True) + eps)
+        projector = projector / (xp.linalg.norm(projector, axis=(-2, -1), keepdims=True) + eps)
+        projector = xp.matmul(projector, projector)
 
-    quat = xp.where(quat[..., :1] < 0, -quat, quat)
+    diagonal = xp.stack([projector[..., i, i] for i in range(4)], axis=-1)
+    column = xp.argmax(diagonal, axis=-1)
+    seed = xp.stack([xp.where(column == i, one, zero) for i in range(4)], axis=-1)
+    quat = xp.matmul(projector, seed[..., None])[..., 0]
     return to_rotmat(quat, xp=xp)
 
 

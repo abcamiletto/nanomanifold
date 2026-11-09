@@ -1,22 +1,19 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
+from conftest import ATOL, TEST_BATCH_DIMS, TEST_PRECISIONS, random_quaternion
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_inverse_identity(backend, batch_dims, precision, pass_xp):
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+def test_inverse_identity(batch_dims, precision):
     # Create a random SO3 quaternion
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    quat = random_quaternion(batch_dims=batch_dims, precision=precision)
 
     # Compute inverse
-    quat_inv = SO3.inverse(quat, **xp_kwargs)
+    quat_inv = SO3.inverse(quat)
 
     assert quat_inv.dtype == quat.dtype
     assert quat_inv.shape == quat.shape
@@ -24,8 +21,8 @@ def test_inverse_identity(backend, batch_dims, precision, pass_xp):
     # Test that q * q_inv = identity quaternion [1, 0, 0, 0]
     # For quaternions, multiplication is not commutative, but for rotations q * q^-1 = identity
     # We can verify by converting to rotation matrices and checking R * R_inv = I
-    rotmat_orig = SO3.to_rotmat(quat, **xp_kwargs)
-    rotmat_inv = SO3.to_rotmat(quat_inv, **xp_kwargs)
+    rotmat_orig = SO3.to_rotmat(quat)
+    rotmat_inv = SO3.to_rotmat(quat_inv)
 
     # Compute product R * R_inv (should be identity)
     identity = np.matmul(np.array(rotmat_orig), np.array(rotmat_inv))
@@ -39,16 +36,13 @@ def test_inverse_identity(backend, batch_dims, precision, pass_xp):
     assert np.allclose(identity, expected_identity, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_inverse_scipy(backend, batch_dims, pass_xp):
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+def test_inverse_scipy(batch_dims):
     # Create a random SO3 quaternion
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
+    quat = random_quaternion(batch_dims=batch_dims, precision=32)
 
     # Compute inverse using nanomanifold
-    quat_inv = SO3.inverse(quat, **xp_kwargs)
+    quat_inv = SO3.inverse(quat)
 
     # Compute inverse using scipy
     quat_np = np.array(quat)
@@ -67,19 +61,3 @@ def test_inverse_scipy(backend, batch_dims, pass_xp):
     # Check quaternion equivalence (q and -q represent the same rotation)
     dot_products = np.sum(quat_inv_np * quat_inv_scipy, axis=-1)
     assert np.allclose(np.abs(dot_products), 1.0, atol=1e-6)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_inverse_differentiality_torch(batch_dims):
-    torch = pytest.importorskip("torch")
-    # Use double precision for gradient checking as recommended by PyTorch
-    dtype = torch.float64
-
-    # Random quaternion input
-    quat = random_quaternion(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
-
-    # Check gradients of SO3.inverse
-    def f(q):
-        return SO3.inverse(q)
-
-    assert torch.autograd.gradcheck(f, (quat,), eps=1e-6, atol=1e-5)

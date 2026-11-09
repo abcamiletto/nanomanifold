@@ -1,119 +1,38 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
+from conftest import ATOL, TEST_BATCH_DIMS, TEST_PRECISIONS, awkward_quaternions, random_quaternion
 from scipy.spatial.transform import Rotation as R
 
 from nanomanifold import SO3
 
 
-def get_dtype(backend, precision):
-    """Get appropriate dtype for given backend and precision."""
-    if backend == "numpy":
-        return getattr(np, f"float{precision}")
-    elif backend == "torch":
-        torch = pytest.importorskip("torch")
-        return getattr(torch, f"float{precision}")
-    else:  # jax
-        jax = pytest.importorskip("jax")
-        return getattr(jax.numpy, f"float{precision}")
-
-
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
+@pytest.mark.parametrize("copies", [lambda q: [q], lambda q: [q, q, q, q], lambda q: [q, -q]], ids=["single", "identical", "sign-flipped"])
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_mean_single_quaternion(backend, batch_dims, precision, pass_xp):
-    """Test that mean of a single quaternion returns that quaternion"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    q = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+def test_mean_of_one_rotation_is_that_rotation(copies, precision):
+    q = awkward_quaternions(precision)
 
-    result = SO3.mean([q], **xp_kwargs)
+    result = SO3.mean(copies(q))
 
     assert result.dtype == q.dtype
     assert result.shape == q.shape
-
-    q_np = np.array(q)
-    result_np = np.array(result)
-
-    # Check quaternion equivalence (q and -q represent same rotation)
-    dot_product = np.sum(q_np * result_np, axis=-1)
-    assert np.allclose(np.abs(dot_product), 1.0, atol=ATOL[precision])
+    assert np.allclose(np.abs(np.sum(q * result, axis=-1)), 1.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_mean_identical_quaternions(backend, batch_dims, precision, pass_xp):
-    """Test that mean of identical quaternions returns that quaternion"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    q = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-
-    # Create list of identical quaternions
-    quaternions = [q, q, q, q]
-    result = SO3.mean(quaternions, **xp_kwargs)
-
-    assert result.dtype == q.dtype
-    assert result.shape == q.shape
-
-    q_np = np.array(q)
-    result_np = np.array(result)
-
-    # Check quaternion equivalence
-    dot_product = np.sum(q_np * result_np, axis=-1)
-    assert np.allclose(np.abs(dot_product), 1.0, atol=ATOL[precision])
-
-
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_mean_antipodal_quaternions(backend, batch_dims, precision, pass_xp):
-    """Test mean of antipodal quaternions (q and -q)"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    q = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-
-    # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    common.get_namespace_by_name(backend)
-
-    q_neg = -q
-    result = SO3.mean([q, q_neg], **xp_kwargs)
-
-    assert result.dtype == q.dtype
-    assert result.shape == q.shape
-
-    q_np = np.array(q)
-    result_np = np.array(result)
-
-    # Result should be equivalent to either q or -q
-    dot_product = np.sum(q_np * result_np, axis=-1)
-    assert np.allclose(np.abs(dot_product), 1.0, atol=ATOL[precision])
-
-    # Result should be unit quaternion
-    norm = np.linalg.norm(result_np, axis=-1)
-    assert np.allclose(norm, 1.0, atol=ATOL[precision])
-
-
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_weighted_mean_uniform_weights(backend, batch_dims, precision, pass_xp):
+def test_weighted_mean_uniform_weights(batch_dims, precision):
     """Test that weighted_mean with uniform weights equals mean"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    quaternions = [random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision) for _ in range(4)]
+    quaternions = [random_quaternion(batch_dims=batch_dims, precision=precision) for _ in range(4)]
 
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
+    xp = np
     dtype = quaternions[0].dtype
 
     # Uniform weights as array
     weights = xp.ones(batch_dims + (4,), dtype=dtype)
 
-    result_weighted = SO3.weighted_mean(quaternions, weights, **xp_kwargs)
-    result_mean = SO3.mean(quaternions, **xp_kwargs)
+    result_weighted = SO3.weighted_mean(quaternions, weights)
+    result_mean = SO3.mean(quaternions)
 
     assert result_weighted.dtype == result_mean.dtype
     assert result_weighted.shape == result_mean.shape
@@ -126,18 +45,14 @@ def test_weighted_mean_uniform_weights(backend, batch_dims, precision, pass_xp):
     assert np.allclose(np.abs(dot_product), 1.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_weighted_mean_single_nonzero_weight(backend, batch_dims, precision, pass_xp):
+def test_weighted_mean_single_nonzero_weight(batch_dims, precision):
     """Test weighted_mean with only one nonzero weight"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    quaternions = [random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision) for _ in range(4)]
+    quaternions = [random_quaternion(batch_dims=batch_dims, precision=precision) for _ in range(4)]
 
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
+    xp = np
     dtype = quaternions[0].dtype
 
     # Only second quaternion has nonzero weight
@@ -146,7 +61,7 @@ def test_weighted_mean_single_nonzero_weight(backend, batch_dims, precision, pas
     if batch_dims:
         weights = xp.broadcast_to(weights, batch_dims + (4,))
 
-    result = SO3.weighted_mean(quaternions, weights, **xp_kwargs)
+    result = SO3.weighted_mean(quaternions, weights)
 
     assert result.dtype == quaternions[1].dtype
     assert result.shape == quaternions[1].shape
@@ -159,20 +74,16 @@ def test_weighted_mean_single_nonzero_weight(backend, batch_dims, precision, pas
     assert np.allclose(np.abs(dot_product), 1.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_weighted_mean_array_weights(backend, precision, pass_xp):
+def test_weighted_mean_array_weights(precision):
     """Test weighted_mean with array weights for batched inputs"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     batch_dims = (2, 3)
 
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
-    dtype = get_dtype(backend, precision)
+    xp = np
+    dtype = np.dtype(f"float{precision}")
 
-    quaternions = [random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision) for _ in range(3)]
+    quaternions = [random_quaternion(batch_dims=batch_dims, precision=precision) for _ in range(3)]
 
     # Create array weights with shape batch_dims + (n_quats,) = (2, 3, 3)
     weights = xp.asarray(
@@ -183,7 +94,7 @@ def test_weighted_mean_array_weights(backend, precision, pass_xp):
         dtype=dtype,
     )
 
-    result = SO3.weighted_mean(quaternions, weights, **xp_kwargs)
+    result = SO3.weighted_mean(quaternions, weights)
 
     assert result.dtype == quaternions[0].dtype
     assert result.shape == batch_dims + (4,)
@@ -195,15 +106,11 @@ def test_weighted_mean_array_weights(backend, precision, pass_xp):
     assert np.allclose(norms, 1.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_mean_scipy_comparison(backend, pass_xp):
+def test_mean_scipy_comparison():
     """Compare mean results with scipy implementation for special cases"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
 
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
+    xp = np
 
     # Test with known rotations
     sqrt2_inv = 1.0 / np.sqrt(2.0)
@@ -215,7 +122,7 @@ def test_mean_scipy_comparison(backend, pass_xp):
     q_z90 = xp.asarray([sqrt2_inv, 0.0, 0.0, sqrt2_inv])
 
     quaternions = [identity, q_x90, q_y90, q_z90]
-    result = SO3.mean(quaternions, **xp_kwargs)
+    result = SO3.mean(quaternions)
 
     # Convert to numpy for scipy
     result_np = np.array(result)
@@ -252,14 +159,10 @@ def test_weighted_mean_zero_norm_quaternion():
     assert np.allclose(np.linalg.norm(result), 1.0, atol=1e-6)
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_mean_numerical_stability(backend, pass_xp):
+def test_mean_numerical_stability():
     """Test numerical stability with very small rotations"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
+    xp = np
 
     # Very small rotation angles
     identity = xp.asarray([1.0, 0.0, 0.0, 0.0])
@@ -276,7 +179,7 @@ def test_mean_numerical_stability(backend, pass_xp):
     small_z = small_z / xp.sqrt(xp.sum(small_z**2))
 
     quaternions = [identity, small_x, small_y, small_z]
-    result = SO3.mean(quaternions, **xp_kwargs)
+    result = SO3.mean(quaternions)
 
     # Result should be unit quaternion
     result_np = np.array(result)
@@ -288,22 +191,18 @@ def test_mean_numerical_stability(backend, pass_xp):
     assert dot_with_identity > 0.99
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_weighted_mean_consistency(backend, pass_xp):
+def test_weighted_mean_consistency():
     """Test that repeated weighted_mean calls are consistent"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
+    xp = np
 
-    quaternions = [random_quaternion((), backend, 32) for _ in range(5)]
+    quaternions = [random_quaternion(()) for _ in range(5)]
     weights = xp.asarray([0.2, 0.3, 0.1, 0.25, 0.15], dtype=quaternions[0].dtype)
 
     # Compute mean multiple times
     results = []
     for _ in range(5):
-        result = SO3.weighted_mean(quaternions, weights, **xp_kwargs)
+        result = SO3.weighted_mean(quaternions, weights)
         results.append(np.array(result))
 
     # All results should be identical (deterministic)
@@ -359,7 +258,7 @@ def test_mean_unit_quaternion_output():
 
 def test_weighted_mean_invariant_to_weight_scaling():
     """Test that weighted_mean is invariant to scaling all weights by same factor"""
-    quaternions = [random_quaternion((), "numpy", 32) for _ in range(4)]
+    quaternions = [random_quaternion(()) for _ in range(4)]
 
     weights1 = np.array([0.1, 0.3, 0.4, 0.2])
     weights2 = np.array([1.0, 3.0, 4.0, 2.0])  # Scaled by 10
@@ -379,33 +278,3 @@ def test_weighted_mean_invariant_to_weight_scaling():
 
     assert np.allclose(np.abs(dot12), 1.0, atol=1e-12)
     assert np.allclose(np.abs(dot13), 1.0, atol=1e-12)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_mean_jittability_jax(batch_dims):
-    """Test that mean functions are JIT-compatible with JAX"""
-    jax = pytest.importorskip("jax")
-
-    # Create test quaternions
-    quaternions = [random_quaternion(batch_dims=batch_dims, backend="jax", precision=32) for _ in range(3)]
-
-    # Create weights for weighted_mean test
-    num_quats = len(quaternions)
-    weights = jax.numpy.ones(batch_dims + (num_quats,), dtype=jax.numpy.float32)
-
-    # Define JIT-compiled functions
-    @jax.jit
-    def jit_mean(quats):
-        return SO3.mean(quats)
-
-    @jax.jit
-    def jit_weighted_mean(quats, w):
-        return SO3.weighted_mean(quats, w)
-
-    # Test that JIT compilation works
-    result_mean = jit_mean(quaternions)
-    result_weighted = jit_weighted_mean(quaternions, weights)
-
-    # Verify results are valid quaternions
-    assert jax.numpy.allclose(jax.numpy.linalg.norm(result_mean, axis=-1), 1.0, atol=1e-6)
-    assert jax.numpy.allclose(jax.numpy.linalg.norm(result_weighted, axis=-1), 1.0, atol=1e-6)

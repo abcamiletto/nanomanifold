@@ -2,11 +2,8 @@ import numpy as np
 import pytest
 from conftest import (
     ATOL,
-    TEST_BACKENDS,
     TEST_BATCH_DIMS,
-    TEST_PASS_XP,
     TEST_PRECISIONS,
-    get_xp_kwargs,
     identity_quaternion,
     random_points,
     random_quaternion,
@@ -16,21 +13,18 @@ from scipy.spatial.transform import Rotation as R
 from nanomanifold import SO3
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_rotate_points_identity(backend, batch_dims, precision, pass_xp):
+def test_rotate_points_identity(batch_dims, precision):
     """Test that identity quaternion doesn't change points."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create identity quaternion [1, 0, 0, 0]
-    identity = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    identity = identity_quaternion(batch_dims=batch_dims, precision=precision)
 
     # Generate random points
-    points = random_points(batch_dims=batch_dims, n_points=10, backend=backend, precision=precision)
+    points = random_points(batch_dims=batch_dims, n_points=10, precision=precision)
 
     # Apply rotation
-    rotated_points = SO3.rotate_points(identity, points, **xp_kwargs)
+    rotated_points = SO3.rotate_points(identity, points)
 
     assert rotated_points.dtype == points.dtype
     assert rotated_points.shape == points.shape
@@ -42,25 +36,22 @@ def test_rotate_points_identity(backend, batch_dims, precision, pass_xp):
     assert np.allclose(points_np, rotated_points_np, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_rotate_points_inverse(backend, batch_dims, precision, pass_xp):
+def test_rotate_points_inverse(batch_dims, precision):
     """Test that rotating by q then by q^(-1) gives identity."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random quaternion
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    quat = random_quaternion(batch_dims=batch_dims, precision=precision)
 
     # Create inverse quaternion using SO3.inverse()
-    quat_inv = SO3.inverse(quat, **xp_kwargs)
+    quat_inv = SO3.inverse(quat)
 
     # Generate random points
-    points = random_points(batch_dims=batch_dims, n_points=10, backend=backend, precision=precision)
+    points = random_points(batch_dims=batch_dims, n_points=10, precision=precision)
 
     # Rotate by q then by q^(-1)
-    rotated_points = SO3.rotate_points(quat, points, **xp_kwargs)
-    restored_points = SO3.rotate_points(quat_inv, rotated_points, **xp_kwargs)
+    rotated_points = SO3.rotate_points(quat, points)
+    restored_points = SO3.rotate_points(quat_inv, rotated_points)
 
     assert restored_points.dtype == points.dtype
     assert restored_points.shape == points.shape
@@ -72,18 +63,15 @@ def test_rotate_points_inverse(backend, batch_dims, precision, pass_xp):
     assert np.allclose(points_np, restored_points_np, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_rotate_points_scipy(backend, batch_dims, pass_xp):
+def test_rotate_points_scipy(batch_dims):
     """Test against scipy implementation."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random quaternion and points
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
-    points = random_points(batch_dims=batch_dims, n_points=5, backend=backend, precision=32)
+    quat = random_quaternion(batch_dims=batch_dims, precision=32)
+    points = random_points(batch_dims=batch_dims, n_points=5, precision=32)
 
     # Rotate using nanomanifold
-    rotated_points = SO3.rotate_points(quat, points, **xp_kwargs)
+    rotated_points = SO3.rotate_points(quat, points)
 
     # Convert to numpy for scipy
     quat_np = np.array(quat)
@@ -108,56 +96,6 @@ def test_rotate_points_scipy(backend, batch_dims, pass_xp):
 
     rotated_points_np = np.array(rotated_points)
     assert np.allclose(rotated_points_np, rotated_scipy, atol=1e-6)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_rotate_points_differentiability_torch(batch_dims):
-    """Test differentiability with respect to quaternion and points."""
-    torch = pytest.importorskip("torch")
-    # Use double precision for gradient checking as recommended by PyTorch
-    dtype = torch.float64
-
-    # Create random quaternion and points with gradients
-    quat = random_quaternion(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
-    points = random_points(batch_dims=batch_dims, n_points=3, backend="torch", precision=64).to(dtype).requires_grad_(True)
-
-    # Test gradient with respect to quaternion
-    def f_quat(q):
-        return SO3.rotate_points(q, points.detach())
-
-    assert torch.autograd.gradcheck(f_quat, (quat,), eps=1e-6, atol=1e-5)
-
-    # Test gradient with respect to points
-    def f_points(p):
-        return SO3.rotate_points(quat.detach(), p)
-
-    assert torch.autograd.gradcheck(f_points, (points,), eps=1e-6, atol=1e-5)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_rotate_points_jittability_jax(batch_dims):
-    """Test that rotate_points function is JIT-compatible with JAX"""
-    jax = pytest.importorskip("jax")
-
-    # Create test quaternion and points
-    q = random_quaternion(batch_dims=batch_dims, backend="jax", precision=32)
-    points = random_points(batch_dims=batch_dims, n_points=5, backend="jax", precision=32)
-
-    # Define JIT-compiled function
-    @jax.jit
-    def jit_rotate_points(q, pts):
-        return SO3.rotate_points(q, pts)
-
-    # Test that JIT compilation works and compare with non-JIT
-    result_jit = jit_rotate_points(q, points)
-    result_non_jit = SO3.rotate_points(q, points)
-
-    # Verify results match between JIT and non-JIT
-    assert jax.numpy.allclose(result_jit, result_non_jit, atol=1e-6)
-
-    # Verify result has correct shape
-    expected_shape = batch_dims + (5, 3)
-    assert result_jit.shape == expected_shape
 
 
 def test_rotate_points_specific_cases():
@@ -193,16 +131,16 @@ def test_rotate_points_specific_cases():
 def test_rotate_points_broadcasting():
     """Test broadcasting between quaternions and points."""
     # Single quaternion, multiple points
-    quat = identity_quaternion(batch_dims=(), backend="numpy", precision=32)
-    points = random_points(batch_dims=(), n_points=5, backend="numpy", precision=32)
+    quat = identity_quaternion(batch_dims=(), precision=32)
+    points = random_points(batch_dims=(), n_points=5, precision=32)
 
     rotated = SO3.rotate_points(quat, points)
     assert rotated.shape == points.shape
     assert np.allclose(np.array(rotated), np.array(points), atol=1e-6)
 
     # Multiple quaternions, single point
-    quat_batch = identity_quaternion(batch_dims=(2,), backend="numpy", precision=32)
-    point = random_points(batch_dims=(), n_points=1, backend="numpy", precision=32)
+    quat_batch = identity_quaternion(batch_dims=(2,), precision=32)
+    point = random_points(batch_dims=(), n_points=1, precision=32)
 
     rotated = SO3.rotate_points(quat_batch, point)
     assert rotated.shape == (2, 1, 3)

@@ -21,9 +21,13 @@ dev = [
 test = [
     "jax>=0.4.38",
     "pytest>=8.4.1",
+    "pytest-xdist>=3.6.1",
     "scipy>=1.13.1",
     "torch>=1.13.1",
 ]
+
+[tool.pytest.ini_options]
+addopts = "-n auto"
 
 [tool.ruff]
 line-length = 140

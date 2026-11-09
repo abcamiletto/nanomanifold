@@ -3,6 +3,7 @@ from typing import Any, Sequence
 
 from jaxtyping import Float
 
+from nanomanifold import common
 from nanomanifold.common import get_namespace
 from nanomanifold.SO3 import weighted_mean as so3_weighted_mean
 from nanomanifold.SO3.primitives.quaternion import QuaternionConvention
@@ -44,7 +45,7 @@ def weighted_mean(
 
     # Weighted average of translations
     original_dtype = transforms[0].dtype
-    weights_array = xp.asarray(weights, dtype=original_dtype)
+    weights_array = common.astype(weights, original_dtype, xp)
     weights_normalized = weights_array / xp.sum(weights_array, axis=-1, keepdims=True)
 
     t_stack = xp.stack(translations, axis=-2)  # (..., N, 3)

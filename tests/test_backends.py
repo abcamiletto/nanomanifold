@@ -31,7 +31,6 @@ class Case:
     canonical: Callable = lambda out: out
     precisions: tuple = (16, 32)
     differentiable: bool = True
-    gradient_bug: str | None = None  # known non-finite gradients on the awkward inputs
 
 
 def _rng():
@@ -131,7 +130,6 @@ CASES = [
         lambda a, b, w, xp: SO3.weighted_mean([a, b], w, xp=xp),
         lambda q: (q, np.roll(q, 1, axis=0), np.broadcast_to([0.7, 0.3], (len(q), 2)).copy()),
         _rotmat,
-        gradient_bug="eigh backward divides by eigenvalue gaps, which vanish for (nearly) identical rotations.",
     ),
     Case("SO3.mean", lambda a, b, c, xp: SO3.mean([a, b, c], xp=xp), lambda q: tuple(_random_quats(8) for _ in range(3)), _rotmat),
     Case(
@@ -168,7 +166,6 @@ CASES = [
         lambda a, b, w, xp: SE3.weighted_mean([a, b], w, xp=xp),
         lambda q: (_se3(q), _se3(np.roll(q, 1, axis=0)), np.broadcast_to([0.7, 0.3], (len(q), 2)).copy()),
         _se3_matrix,
-        gradient_bug="eigh backward divides by eigenvalue gaps, which vanish for (nearly) identical rotations.",
     ),
     Case(
         "SE3.mean", lambda a, b, c, xp: SE3.mean([a, b, c], xp=xp), lambda q: tuple(_se3(_random_quats(8)) for _ in range(3)), _se3_matrix
@@ -176,10 +173,6 @@ CASES = [
 ]
 CASE_IDS = [case.name for case in CASES]
 DIFFERENTIABLE = [case for case in CASES if case.differentiable]
-AWKWARD_GRADIENTS = [
-    pytest.param(case, id=case.name, marks=pytest.mark.xfail(strict=True, reason=case.gradient_bug) if case.gradient_bug else ())
-    for case in DIFFERENTIABLE
-]
 
 
 def _to_numpy(out):
@@ -259,7 +252,7 @@ def test_torch_gradcheck(case):
     assert torch.autograd.gradcheck(lambda *args: _flatten(case.fn(*args, xp=torch)), inputs, eps=1e-6, atol=1e-5)
 
 
-@pytest.mark.parametrize("case", AWKWARD_GRADIENTS)
+@pytest.mark.parametrize("case", DIFFERENTIABLE, ids=[case.name for case in DIFFERENTIABLE])
 def test_torch_gradients_finite_on_awkward_inputs(case):
     torch = pytest.importorskip("torch")
     _, inputs = _inputs(case, 64, torch)

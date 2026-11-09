@@ -68,8 +68,8 @@ def test_transform_points_inverse(backend, batch_dims, precision, pass_xp):
     points_np = np.array(points)
     restored_points_np = np.array(restored_points)
 
-    # Use more lenient tolerance for complex batch dimensions due to accumulated floating-point error
-    assert np.allclose(points_np, restored_points_np, atol=ATOL[precision])
+    # The round trip loses a few ulps of the point magnitude, so the tolerance must be relative too.
+    assert np.allclose(points_np, restored_points_np, rtol=ATOL[precision], atol=ATOL[precision])
 
 
 @pytest.mark.parametrize("backend", TEST_BACKENDS)

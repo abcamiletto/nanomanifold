@@ -1,3 +1,5 @@
+"""Axis-angle edges: axis_angle <-> canonical quaternion."""
+
 import math
 from types import ModuleType
 from typing import Any
@@ -5,79 +7,35 @@ from typing import Any
 from jaxtyping import Float
 
 from nanomanifold import common
-from nanomanifold.common import get_namespace
-
-from .quaternion import QuaternionConvention, canonicalize, from_quat, to_quat
 
 
-def to_axis_angle(
-    q: Float[Any, "... 4"],
-    *,
-    convention: QuaternionConvention = "wxyz",
-    xp: ModuleType | None = None,
-) -> Float[Any, "... 3"]:
-    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
-    if xp is None:
-        xp = get_namespace(q)
-    q_canonical = canonicalize(from_quat(q, convention=convention, xp=xp), xp=xp)
-
-    w = q_canonical[..., 0:1]
-    xyz = q_canonical[..., 1:4]
-
-    norm_xyz = xp.linalg.norm(xyz, axis=-1, keepdims=True)
-
-    thresh = xp.asarray(math.sqrt(common.safe_eps(q.dtype, xp, scale=1.0)), dtype=q.dtype)
-    small_angle_mask = norm_xyz < thresh
-
-    axis_angle_small = 2.0 * xyz
-
-    w_clipped = xp.clip(w, 0.0, 1.0)
-    angle = 2 * xp.arctan2(norm_xyz, w_clipped)
-
-    safe_norm = xp.where(norm_xyz < thresh, xp.ones_like(norm_xyz), norm_xyz)
-    axis = xyz / safe_norm
-
-    axis_angle_large = angle * axis
-
-    axis_angle = xp.where(small_angle_mask, axis_angle_small, axis_angle_large)
-
-    return axis_angle
-
-
-def from_axis_angle(
-    axis_angle: Float[Any, "... 3"],
-    *,
-    convention: QuaternionConvention = "wxyz",
-    xp: ModuleType | None = None,
-) -> Float[Any, "... 4"]:
-    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
-    if xp is None:
-        xp = get_namespace(axis_angle)
-
-    angle = xp.linalg.norm(axis_angle, axis=-1)
-    two = xp.ones_like(angle) + xp.ones_like(angle)
+def axis_angle_to_quat(axis_angle: Float[Any, "... 3"], *, xp: ModuleType) -> Float[Any, "... 4"]:
+    angle = xp.linalg.norm(axis_angle, axis=-1, keepdims=True)
+    half_angle = angle / 2
 
     thresh = xp.asarray(math.sqrt(common.safe_eps(axis_angle.dtype, xp, scale=1.0)), dtype=axis_angle.dtype)
-    small_angle_mask = angle < thresh
-    safe_angle = xp.where(small_angle_mask, xp.ones_like(angle), angle)
-    axis = axis_angle / safe_angle[..., None]
+    small = angle < thresh
+    safe_angle = xp.where(small, xp.ones_like(angle), angle)
 
-    half_angle = angle / two
+    # Below the threshold sin(angle / 2) / angle ≈ 1 / 2, which keeps gradients finite at the identity.
+    xyz_small = axis_angle / 2
+    xyz_large = xp.sin(half_angle) * axis_angle / safe_angle
+    xyz = xp.where(small, xyz_small, xyz_large)
 
-    # For small angles, use Taylor series: cos(x) ≈ 1 - x²/2, sin(x) ≈ x
-    cos_half = xp.cos(half_angle)
-    sin_half = xp.sin(half_angle)
+    quat = xp.concatenate([xp.cos(half_angle), xyz], axis=-1)
+    return xp.where(quat[..., 0:1] < 0, -quat, quat)
 
-    w = cos_half[..., None]
 
-    xyz_normal = sin_half[..., None] * axis
-    xyz_small = axis_angle / two[..., None]
+def quat_to_axis_angle(quat: Float[Any, "... 4"], *, xp: ModuleType) -> Float[Any, "... 3"]:
+    w = quat[..., 0:1]
+    xyz = quat[..., 1:4]
+    norm_xyz = xp.linalg.norm(xyz, axis=-1, keepdims=True)
 
-    xyz = xp.where(small_angle_mask[..., None], xyz_small, xyz_normal)
+    thresh = xp.asarray(math.sqrt(common.safe_eps(quat.dtype, xp, scale=1.0)), dtype=quat.dtype)
+    small = norm_xyz < thresh
+    safe_norm = xp.where(small, xp.ones_like(norm_xyz), norm_xyz)
 
-    q = xp.concatenate([w, xyz], axis=-1)
-
-    mask = q[..., 0:1] < 0
-    q = xp.where(mask, -q, q)
-
-    return to_quat(q, convention=convention, xp=xp)
+    angle = 2 * xp.arctan2(norm_xyz, xp.clip(w, 0.0, 1.0))
+    axis_angle_small = 2 * xyz
+    axis_angle_large = angle * xyz / safe_norm
+    return xp.where(small, axis_angle_small, axis_angle_large)

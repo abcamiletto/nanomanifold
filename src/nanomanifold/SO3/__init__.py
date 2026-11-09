@@ -1,18 +1,26 @@
-from . import conversions
-from .convert import RotationRep, RotationSourceRep, convert
+from .convert import (
+    RotationRep,
+    convert,
+    from_axis_angle,
+    from_euler,
+    from_hinge,
+    from_matrix,
+    from_rotmat,
+    from_sixd,
+    to_axis_angle,
+    to_euler,
+    to_hinge,
+    to_rotmat,
+    to_sixd,
+)
 from .distance import distance
 from .exp import exp
 from .hat import hat
-from .hinge import from_hinge, to_hinge
 from .identity import identity_as
 from .inverse import inverse
 from .log import log
 from .multiply import multiply
-from .primitives.axis_angle import from_axis_angle, to_axis_angle
-from .primitives.euler import from_euler, to_euler
 from .primitives.quaternion import canonicalize, from_quat, to_quat
-from .primitives.rotmat import from_matrix, from_rotmat, to_rotmat
-from .primitives.sixd import from_sixd, to_sixd
 from .random import random
 from .rotate_points import rotate_points
 from .slerp import slerp
@@ -20,9 +28,7 @@ from .vee import vee
 from .weighted_mean import mean, weighted_mean
 
 __all__ = [
-    "conversions",
     "RotationRep",
-    "RotationSourceRep",
     "convert",
     "identity_as",
     "to_axis_angle",

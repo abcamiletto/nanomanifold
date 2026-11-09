@@ -37,7 +37,7 @@ def test_distance_rotation_type_matches_quaternion_reference(rotation_type, conv
     q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
     q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
 
-    rot_kwargs = {}
+    rot_kwargs = {"convention": convention} if rotation_type in ("quat", "euler") else {}
     if rotation_type == "quat":
         x1 = SO3.to_quat(q1, convention=convention, **xp_kwargs)
         x2 = SO3.to_quat(q2, convention=convention, **xp_kwargs)
@@ -65,7 +65,7 @@ def test_distance_rotation_type_matches_quaternion_reference(rotation_type, conv
         x1 = SO3.to_sixd(q1, **xp_kwargs)
         x2 = SO3.to_sixd(q2, **xp_kwargs)
 
-    distance = SO3.distance(x1, x2, rotation_type=rotation_type, convention=convention, rot_kwargs=rot_kwargs, **xp_kwargs)
+    distance = SO3.distance(x1, x2, rotation_type=rotation_type, rot_kwargs=rot_kwargs, **xp_kwargs)
     if rotation_type == "hinge":
         expected = SO3.distance(SO3.from_hinge(x1, axes, **xp_kwargs), SO3.from_hinge(x2, axes, **xp_kwargs), **xp_kwargs)
     else:
@@ -82,7 +82,7 @@ def test_distance_supports_euler_convention():
     e1 = SO3.to_euler(q1, convention="XYZ")
     e2 = SO3.to_euler(q2, convention="XYZ")
 
-    distance = SO3.distance(e1, e2, rotation_type="euler", convention="XYZ")
+    distance = SO3.distance(e1, e2, rotation_type="euler", rot_kwargs={"convention": "XYZ"})
     expected = SO3.distance(q1, q2)
 
     assert np.allclose(np.array(distance), np.array(expected), atol=ATOL[32])

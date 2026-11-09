@@ -3,8 +3,8 @@ from typing import Any
 
 from jaxtyping import Float
 
-from .primitives.axis_angle import from_axis_angle
-from .primitives.quaternion import QuaternionConvention, to_quat
+from .convert import from_axis_angle
+from .primitives.quaternion import QuaternionConvention
 
 
 def exp(
@@ -31,5 +31,4 @@ def exp(
     Returns:
         Quaternion in the requested convention representing the rotation
     """
-    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
-    return to_quat(from_axis_angle(tangent_vector, xp=xp), convention=convention, xp=xp)
+    return from_axis_angle(tangent_vector, convention=convention, xp=xp)

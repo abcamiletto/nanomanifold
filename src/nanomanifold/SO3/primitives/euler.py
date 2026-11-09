@@ -58,8 +58,9 @@ def _rotmat_to_intrinsic_angles(rotmat: Float[Any, "... 3 3"], convention: str, 
     tait_bryan = i0 != i2
 
     if tait_bryan:
-        sign = -1.0 if i0 - i2 in (-1, 2) else 1.0
-        x = rotmat[..., i0, i2] * sign
+        x = rotmat[..., i0, i2]
+        if i0 - i2 in (-1, 2):
+            x = -x
         one = xp.ones_like(x)
         eps = xp.asarray(common.safe_eps(x.dtype, xp, scale=1.0), dtype=x.dtype)
         central_angle = xp.arcsin(xp.clip(x, -one + eps, one - eps))

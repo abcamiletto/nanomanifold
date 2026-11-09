@@ -177,17 +177,20 @@ def test_hinge_round_trip_with_batched_nonunit_axes(precision):
     assert np.allclose(recovered, angles, atol=ATOL[precision])
 
 
-@pytest.mark.xfail(strict=True, reason="Euler extraction picks the wrong rotation at gimbal lock.")
-@pytest.mark.parametrize("convention", ["ZYX", "xyz", "ZXZ", "xyx"])
-def test_euler_at_gimbal_lock(convention):
+@pytest.mark.filterwarnings("ignore:Gimbal lock detected")
+@pytest.mark.parametrize("convention", EULER_CONVENTIONS)
+def test_euler_at_gimbal_lock_matches_scipy(convention):
+    """Only the sum or difference of the outer angles is defined; like SciPy, the third angle is set to zero."""
     proper = convention[0].lower() == convention[2].lower()
-    middle = 0.0 if proper else np.pi / 2
-    euler = np.array([[0.3, middle, -0.7], [0.0, middle, 0.0]])
+    locks = [0.0, np.pi] if proper else [np.pi / 2, -np.pi / 2]
+    euler = np.array([[first, middle, third] for middle in locks for first, third in [(0.3, -0.7), (0.0, 0.0), (-2.0, 1.1)]])
     quat = SO3.from_euler(euler, convention=convention)
 
-    recovered = SO3.from_euler(SO3.to_euler(quat, convention=convention), convention=convention)
+    result = SO3.to_euler(quat, convention=convention)
 
-    assert _same_rotation(recovered, quat, 1e-9)
+    expected = R.from_quat(np.concatenate([quat[..., 1:], quat[..., :1]], axis=-1)).as_euler(convention)
+    assert np.allclose(result, expected, atol=1e-9)
+    assert _same_rotation(SO3.from_euler(result, convention=convention), quat, 1e-12)
 
 
 def test_float16_svd_projection_is_rejected():

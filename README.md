@@ -48,6 +48,8 @@ SO3.rotate_points(q, np.zeros((32, 10, 100, 3)))           # (32, 10, 100, 3)
 - `multiply(a, b)` composes like rotation matrices, `R(a) @ R(b)`, so `b` is applied first.
 - Euler conventions are three-letter strings: uppercase is intrinsic (`"ZYX"`, the default), lowercase is
   extrinsic (`"xyz"`). Proper Euler sequences such as `"ZXZ"` are supported.
+  At gimbal lock only the sum or difference of the outer angles is defined, so the third angle is set to 0, as in
+  SciPy.
 
 ## Representations
 
@@ -76,11 +78,11 @@ The representations form a tree, and each one only defines the step to its paren
 ```
 canonical quaternion
 ├── quat
+├── euler
 ├── axis_angle
 │   └── hinge
 └── rotmat
     ├── sixd
-    ├── euler
     └── matrix
 ```
 

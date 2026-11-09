@@ -57,19 +57,12 @@ def skip_torch_1_cpu_float16(request):
 
 
 def without_singularities(quat, rep, options):
-    """Drop the inputs where ``rep`` is legitimately ambiguous or where a known bug applies.
+    """Drop the inputs where converting to ``rep`` is legitimately ambiguous.
 
-    Hinge targets project an axis-angle vector whose sign is arbitrary at exact half turns. Euler extraction
-    picks the wrong rotation at gimbal lock (see ``test_so3_convert.test_euler_at_gimbal_lock``).
+    Hinge targets project an axis-angle vector whose sign is arbitrary at exact half turns.
     """
     if rep == "hinge":
         return quat[np.abs(quat[..., 0]) > 1e-6]
-    if rep == "euler":
-        convention = options.get("convention", "ZYX")
-        middle = SO3.to_euler(quat.astype(np.float64), convention=convention)[..., 1]
-        proper = convention[0].lower() == convention[2].lower()
-        distance_to_lock = np.abs(np.sin(middle)) if proper else np.abs(np.cos(middle))
-        return quat[distance_to_lock > 1e-2]
     return quat
 
 

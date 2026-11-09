@@ -20,8 +20,8 @@ def test_so3_conversion_outputs_stay_on_torch_accelerator():
     axis_angle = torch.randn(128, 3, device=device, dtype=torch.float32)
     euler = torch.randn(128, 3, device=device, dtype=torch.float32)
 
-    rotmat_from_axis = SO3.conversions.from_axis_angle_to_rotmat(axis_angle, xp=torch)
-    rotmat_from_euler = SO3.conversions.from_euler_to_rotmat(euler, xp=torch)
+    rotmat_from_axis = SO3.convert(axis_angle, src="axis_angle", dst="rotmat", xp=torch)
+    rotmat_from_euler = SO3.convert(euler, src="euler", dst="rotmat", xp=torch)
 
     assert rotmat_from_axis.device.type == device.type
     assert rotmat_from_euler.device.type == device.type

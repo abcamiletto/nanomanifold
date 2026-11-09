@@ -21,45 +21,21 @@ def _random_quat(batch_size=2):
     return q
 
 
-def _conv_input(rep: str):
-    q = _random_quat()
-    if rep == "axis_angle":
-        return SO3.to_axis_angle(q, xp=jnp)
-    if rep == "euler":
-        return SO3.to_euler(q, convention="ZYX", xp=jnp)
-    if rep == "matrix":
-        return SO3.to_rotmat(q, xp=jnp) @ jnp.diag(jnp.array([1.05, 0.97, 1.02]))
-    if rep == "rotmat":
-        return SO3.to_rotmat(q, xp=jnp)
-    if rep == "quat":
-        return SO3.to_quat(q, xp=jnp)
-    if rep == "sixd":
-        return SO3.to_sixd(q, xp=jnp)
-    if rep == "hinge":
-        return jnp.array([[0.1], [-0.2]])
-    raise ValueError(rep)
-
-
 _CONV_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
-_PAIRWISE_SOURCE_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
-_PAIRWISE_TARGET_REPS = ["axis_angle", "euler", "hinge", "matrix", "rotmat", "quat", "sixd"]
-_CONV_PAIRS = [(s, t) for s in _PAIRWISE_SOURCE_REPS for t in _PAIRWISE_TARGET_REPS if s != t]
-_DYNAMIC_CONV_CASES = [
-    ("axis_angle", "rotmat"),
-    ("axis_angle", "matrix"),
-    ("matrix", "rotmat"),
-    ("euler", "quat"),
-    ("rotmat", "euler"),
-    ("quat", "sixd"),
-    ("quat", "quat"),
-    ("sixd", "axis_angle"),
-    ("euler", "euler"),
-    ("hinge", "axis_angle"),
-    ("rotmat", "hinge"),
-]
+_CONV_PAIRS = [(s, t) for s in _CONV_REPS for t in _CONV_REPS]
 
 
-def _pairwise_input(rep: str):
+def _conv_kwargs(rep: str):
+    if rep == "euler":
+        return {"convention": "XYZ"}
+    if rep == "quat":
+        return {"convention": "xyzw"}
+    if rep == "hinge":
+        return {"axes": jnp.array([0.0, 0.0, 1.0])}
+    return {}
+
+
+def _conv_input(rep: str):
     q = _random_quat()
     if rep == "axis_angle":
         return SO3.to_axis_angle(q, xp=jnp)
@@ -132,11 +108,6 @@ def test_jit_to_euler():
     compiled(_random_quat())
 
 
-def test_jit_from_euler_to_euler():
-    compiled = jax.jit(lambda e: SO3.conversions.from_euler_to_euler(e, input_convention="XYZ", output_convention="ZYX", xp=jnp))
-    compiled(jax.random.normal(jax.random.PRNGKey(0), (2, 3)))
-
-
 def test_jit_from_sixd():
     compiled = jax.jit(lambda sixd: SO3.from_sixd(sixd, xp=jnp))
     compiled(jax.random.normal(jax.random.PRNGKey(0), (2, 6)))
@@ -148,59 +119,11 @@ def test_jit_to_sixd():
 
 
 @pytest.mark.parametrize("source,target", _CONV_PAIRS, ids=[f"{s}->{t}" for s, t in _CONV_PAIRS])
-def test_jit_so3_pairwise_conversions(source, target):
-    fn = getattr(SO3.conversions, f"from_{source}_to_{target}")
-    axes = jnp.array([0.0, 0.0, 1.0])
-    if source == "hinge" and target == "euler":
-        compiled = jax.jit(lambda x: fn(x, axes, convention="XYZ", xp=jnp))
-    elif source == "hinge" and target == "quat":
-        compiled = jax.jit(lambda x: fn(x, axes, convention="xyzw", xp=jnp))
-    elif source == "hinge":
-        compiled = jax.jit(lambda x: fn(x, axes, xp=jnp))
-    elif target == "hinge" and source == "euler":
-        compiled = jax.jit(lambda x: fn(x, axes, convention="XYZ", xp=jnp))
-    elif target == "hinge" and source == "quat":
-        compiled = jax.jit(lambda x: fn(x, axes, convention="xyzw", xp=jnp))
-    elif target == "hinge":
-        compiled = jax.jit(lambda x: fn(x, axes, xp=jnp))
-    elif source == "euler" and target == "quat":
-        compiled = jax.jit(lambda x: fn(x, euler_convention="XYZ", quat_convention="xyzw", xp=jnp))
-    elif source == "quat" and target == "euler":
-        compiled = jax.jit(lambda x: fn(x, quat_convention="xyzw", euler_convention="XYZ", xp=jnp))
-    elif source == "quat" and target == "quat":
-        compiled = jax.jit(lambda x: fn(x, input_convention="xyzw", output_convention="wxyz", xp=jnp))
-    elif source == "euler":
-        compiled = jax.jit(lambda x: fn(x, convention="XYZ", xp=jnp))
-    elif target == "euler":
-        compiled = jax.jit(lambda x: fn(x, convention="XYZ", xp=jnp))
-    elif source == "quat":
-        compiled = jax.jit(lambda x: fn(x, convention="xyzw", xp=jnp))
-    elif target == "quat":
-        compiled = jax.jit(lambda x: fn(x, convention="xyzw", xp=jnp))
-    else:
-        compiled = jax.jit(lambda x: fn(x, xp=jnp))
-    compiled(_pairwise_input(source))
-
-
-@pytest.mark.parametrize("source,target", _DYNAMIC_CONV_CASES, ids=[f"{s}->{t}" for s, t in _DYNAMIC_CONV_CASES])
 def test_jit_so3_convert(source, target):
-    source_input = _conv_input(source)
-    axes = jnp.array([0.0, 0.0, 1.0])
-    kwargs = {}
-    if source == "hinge" and target != "hinge":
-        kwargs["src_kwargs"] = {"axes": axes}
-    if target == "hinge" and source != "hinge":
-        kwargs["dst_kwargs"] = {"axes": axes}
-    compiled = jax.jit(
-        lambda x: SO3.convert(
-            x,
-            src=source,
-            dst=target,
-            **kwargs,
-            xp=jnp,
-        )
-    )
-    compiled(source_input)
+    src_kwargs = _conv_kwargs(source)
+    dst_kwargs = _conv_kwargs(target)
+    compiled = jax.jit(lambda x: SO3.convert(x, src=source, dst=target, src_kwargs=src_kwargs, dst_kwargs=dst_kwargs, xp=jnp))
+    compiled(_conv_input(source))
 
 
 # ── SO3 operations ───────────────────────────────────────────────────────────
@@ -233,7 +156,7 @@ def test_jit_distance_rotmat():
 
 
 def test_jit_distance_euler_convention():
-    compiled = jax.jit(lambda e1, e2: SO3.distance(e1, e2, rotation_type="euler", convention="XYZ", xp=jnp))
+    compiled = jax.jit(lambda e1, e2: SO3.distance(e1, e2, rotation_type="euler", rot_kwargs={"convention": "XYZ"}, xp=jnp))
     euler = jnp.zeros((2, 3))
     compiled(euler, euler)
 

@@ -101,7 +101,7 @@ def test_from_matrix_normalize_projects_to_so3(backend, pass_xp, mode):
     noisy_matrix = xp.asarray(np.matmul(np.array(rotmat), stretch))
 
     quat_converted = SO3.from_matrix(noisy_matrix, mode=mode, **xp_kwargs)
-    sixd_converted = SO3.conversions.from_matrix_to_sixd(noisy_matrix, mode=mode, **xp_kwargs)
+    sixd_converted = SO3.convert(noisy_matrix, src="matrix", dst="sixd", src_kwargs={"mode": mode}, **xp_kwargs)
 
     quat_np = np.array(quat)
     quat_converted_np = np.array(quat_converted)
@@ -122,7 +122,7 @@ def test_from_matrix_rejects_unknown_projection_mode():
 def test_davenport_projects_orientation_reversing_matrix():
     matrix = np.array([[1.0, 0.2, 0.1], [0.3, 2.0, -0.4], [0.2, 0.1, -1.0]])
 
-    actual = SO3.conversions.from_matrix_to_rotmat(matrix, mode="davenport")
-    expected = SO3.conversions.from_matrix_to_rotmat(matrix, mode="svd")
+    actual = SO3.convert(matrix, src="matrix", dst="rotmat", src_kwargs={"mode": "davenport"})
+    expected = SO3.convert(matrix, src="matrix", dst="rotmat", src_kwargs={"mode": "svd"})
 
     assert np.allclose(actual, expected, atol=ATOL[64])

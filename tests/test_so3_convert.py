@@ -83,9 +83,9 @@ def test_convert_matches_manual_two_stage_dispatch(source, target, backend, batc
     )
     xp_kwargs = get_xp_kwargs(backend, pass_xp)
     convert_kwargs = {}
-    if source == "hinge" and target != "hinge":
+    if source == "hinge":
         convert_kwargs["src_kwargs"] = {"axes": axes}
-    if target == "hinge" and source != "hinge":
+    if target == "hinge":
         convert_kwargs["dst_kwargs"] = {"axes": axes}
 
     if precision == 16 and source == "matrix":
@@ -177,7 +177,7 @@ def test_convert_distinguishes_matrix_from_rotmat():
     matrix = np.matmul(np.array(rotmat), stretch)
 
     converted = SO3.convert(matrix, src="matrix", dst="rotmat")
-    expected = SO3.conversions.from_matrix_to_rotmat(matrix)
+    expected = SO3.to_rotmat(SO3.from_matrix(matrix))
 
     assert np.allclose(np.array(converted), np.array(expected), atol=ATOL[32])
 
@@ -189,7 +189,7 @@ def test_convert_projects_matrix_before_quaternion_conversion():
     matrix = np.matmul(np.array(rotmat), stretch)
 
     converted = SO3.convert(matrix, src="matrix", dst="quat")
-    expected = SO3.conversions.from_rotmat_to_quat(SO3.conversions.from_matrix_to_rotmat(matrix))
+    expected = SO3.from_matrix(matrix)
 
     dots = np.sum(np.array(converted) * np.array(expected), axis=-1)
     assert np.allclose(np.abs(dots), 1.0, atol=ATOL[32])

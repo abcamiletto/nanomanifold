@@ -1,13 +1,13 @@
 """Uniform random sampling on SE(3)."""
 
-import math
 from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
 
 from nanomanifold.common import get_namespace_by_name, random_uniform
-from nanomanifold.SO3.primitives.quaternion import QuaternionConvention, canonicalize, to_quat
+from nanomanifold.SO3.primitives.quaternion import QuaternionConvention, to_quat
+from nanomanifold.SO3.random import shoemake
 
 
 def random(
@@ -39,23 +39,7 @@ def random(
     # Single draw: first 3 for Shoemake rotation, last 3 for translation
     u = random_uniform((*shape, 6), dtype=dtype, key=key, xp=xp)
 
-    # Shoemake's method for uniform SO(3)
-    u0 = u[..., 0]
-    u1 = u[..., 1]
-    u2 = u[..., 2]
-
-    r1 = xp.sqrt(1.0 - u0)
-    r2 = xp.sqrt(u0)
-    theta1 = 2.0 * math.pi * u1
-    theta2 = 2.0 * math.pi * u2
-
-    w = r2 * xp.cos(theta2)
-    x = r1 * xp.sin(theta1)
-    y = r1 * xp.cos(theta1)
-    z = r2 * xp.sin(theta2)
-
-    q = xp.stack([w, x, y, z], axis=-1)
-    q = to_quat(canonicalize(q, xp=xp), convention=convention, xp=xp)
+    q = to_quat(shoemake(u[..., :3], xp=xp), convention=convention, xp=xp)
 
     # Translation: map [0,1) -> [-1,1)
     t = 2.0 * u[..., 3:6] - 1.0

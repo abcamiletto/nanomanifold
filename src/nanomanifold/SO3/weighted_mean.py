@@ -6,14 +6,7 @@ from jaxtyping import Float
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .primitives.quaternion import QuaternionConvention, canonicalize, from_quat, to_quat
-
-
-def _as_dtype_preserve_grad(x, dtype, xp):
-    """Cast while preserving autograd for torch tensors."""
-    if "torch" in xp.__name__ and hasattr(x, "to"):
-        return x.to(dtype=dtype)
-    return xp.asarray(x, dtype=dtype)
+from .primitives.quaternion import QuaternionConvention, from_quat, largest_eigenvector, to_quat
 
 
 def weighted_mean(
@@ -52,37 +45,16 @@ def weighted_mean(
     original_dtype = quaternions[0].dtype
 
     quats = xp.stack(
-        [from_quat(_as_dtype_preserve_grad(q, original_dtype, xp), convention=convention, xp=xp) for q in quaternions],
+        [from_quat(common.astype(q, original_dtype, xp), convention=convention, xp=xp) for q in quaternions],
         axis=-2,
     )
-    weights_array = _as_dtype_preserve_grad(weights, original_dtype, xp)
-
-    norms = xp.linalg.norm(quats, axis=-1, keepdims=True)
-    eps = common.safe_eps(original_dtype, xp)
-    safe_norms = xp.where(norms < eps, eps, norms)
-    quats_normalized = quats / safe_norms
-
-    sign_mask = quats_normalized[..., 0:1] < 0
-    quats_canonical = xp.where(sign_mask, -quats_normalized, quats_normalized)
+    weights_array = common.astype(weights, original_dtype, xp)
 
     weights_normalized = weights_array / xp.sum(weights_array, axis=-1, keepdims=True)
+    weighted_quats = weights_normalized[..., :, None] * quats
+    M = xp.einsum("...nj,...nk->...jk", weighted_quats, quats)
 
-    weighted_quats = weights_normalized[..., :, None] * quats_canonical
-
-    M = xp.einsum("...nj,...nk->...jk", weighted_quats, quats_canonical)
-
-    if original_dtype == xp.float16:
-        M_compute = _as_dtype_preserve_grad(M, xp.float32, xp)
-        eigenvalues, eigenvectors = xp.linalg.eigh(M_compute)
-        eigenvectors = _as_dtype_preserve_grad(eigenvectors, original_dtype, xp)
-    else:
-        eigenvalues, eigenvectors = xp.linalg.eigh(M)
-
-    avg_quat = eigenvectors[..., :, -1]
-
-    avg_quat = avg_quat / xp.linalg.norm(avg_quat, axis=-1, keepdims=True)
-
-    return to_quat(canonicalize(avg_quat, xp=xp), convention=convention, xp=xp)
+    return to_quat(largest_eigenvector(M, xp=xp), convention=convention, xp=xp)
 
 
 def mean(

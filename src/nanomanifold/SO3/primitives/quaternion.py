@@ -79,4 +79,29 @@ def to_quat(
     return _from_wxyz(quat_wxyz, convention=convention, xp=xp)
 
 
-__all__ = ["QuaternionConvention", "canonicalize", "from_quat", "to_quat"]
+def largest_eigenvector(matrix: Float[Any, "... 4 4"], *, xp: ModuleType, steps: int = 15, eps: float = 1e-7) -> Float[Any, "... 4"]:
+    """Canonical unit eigenvector of the largest eigenvalue of symmetric 4x4 matrices.
+
+    Uses repeated squaring rather than ``eigh``: it is cheap at this size, works in float16, and keeps gradients
+    finite when the remaining eigenvalues are degenerate, e.g. when averaging identical rotations.
+    """
+    one = xp.ones_like(matrix[..., 0, 0])
+    zero = xp.zeros_like(one)
+    rows = [[one if row == col else zero for col in range(4)] for row in range(4)]
+    identity = xp.stack([xp.stack(row, axis=-1) for row in rows], axis=-2)
+
+    # Shift so the largest algebraic eigenvalue also has the largest magnitude, then square the whole matrix
+    # instead of iterating a single vector, so no starting guess can be orthogonal to the answer.
+    projector = matrix + (xp.linalg.norm(matrix, axis=(-2, -1), keepdims=True) + eps) * identity
+    for _ in range(steps):
+        projector = projector / (xp.linalg.norm(projector, axis=(-2, -1), keepdims=True) + eps)
+        projector = xp.matmul(projector, projector)
+
+    # The projector is close to v v^T; its column with the largest diagonal entry is the best-conditioned copy of v.
+    diagonal = xp.stack([projector[..., i, i] for i in range(4)], axis=-1)
+    column = xp.argmax(diagonal, axis=-1)
+    seed = xp.stack([xp.where(column == i, one, zero) for i in range(4)], axis=-1)
+    return canonicalize(xp.matmul(projector, seed[..., None])[..., 0], xp=xp)
+
+
+__all__ = ["QuaternionConvention", "canonicalize", "from_quat", "largest_eigenvector", "to_quat"]

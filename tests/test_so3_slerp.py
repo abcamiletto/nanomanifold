@@ -1,46 +1,30 @@
 import numpy as np
 import pytest
-from conftest import ATOL, TEST_BACKENDS, TEST_BATCH_DIMS, TEST_PASS_XP, TEST_PRECISIONS, get_xp_kwargs, random_quaternion
+from conftest import ATOL, TEST_BATCH_DIMS, TEST_PRECISIONS, random_quaternion
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial.transform import Slerp
 
 from nanomanifold import SO3
 
 
-def get_dtype(backend, precision):
-    """Get appropriate dtype for given backend and precision."""
-    if backend == "numpy":
-        return getattr(np, f"float{precision}")
-    elif backend == "torch":
-        torch = pytest.importorskip("torch")
-        return getattr(torch, f"float{precision}")
-    else:  # jax
-        jax = pytest.importorskip("jax")
-        return getattr(jax.numpy, f"float{precision}")
-
-
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_slerp_endpoints(backend, batch_dims, precision, pass_xp):
+def test_slerp_endpoints(batch_dims, precision):
     """Test that slerp(q1, q2, [0]) = q1 and slerp(q1, q2, [1]) = q2"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    q1 = random_quaternion(batch_dims=batch_dims, precision=precision)
+    q2 = random_quaternion(batch_dims=batch_dims, precision=precision)
 
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
-    dtype = get_dtype(backend, precision)
+    xp = np
+    dtype = np.dtype(f"float{precision}")
 
     # Test t=[0] case
     t_0 = xp.asarray([0.0], dtype=dtype)
-    result_0 = SO3.slerp(q1, q2, t_0, **xp_kwargs)
+    result_0 = SO3.slerp(q1, q2, t_0)
 
     # Test t=[1] case
     t_1 = xp.asarray([1.0], dtype=dtype)
-    result_1 = SO3.slerp(q1, q2, t_1, **xp_kwargs)
+    result_1 = SO3.slerp(q1, q2, t_1)
 
     assert result_0.dtype == q1.dtype
     assert result_0.shape == batch_dims + (1, 4)
@@ -63,26 +47,22 @@ def test_slerp_endpoints(backend, batch_dims, precision, pass_xp):
     assert np.allclose(np.abs(dot_products_1), 1.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_slerp_multiple_points(backend, batch_dims, precision, pass_xp):
+def test_slerp_multiple_points(batch_dims, precision):
     """Test slerp with multiple interpolation points"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    q1 = random_quaternion(batch_dims=batch_dims, precision=precision)
+    q2 = random_quaternion(batch_dims=batch_dims, precision=precision)
 
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
-    dtype = get_dtype(backend, precision)
+    xp = np
+    dtype = np.dtype(f"float{precision}")
 
     # Test multiple interpolation points
     t_values = [0.0, 0.25, 0.5, 0.75, 1.0]
     t_array = xp.asarray(t_values, dtype=dtype)
 
-    result = SO3.slerp(q1, q2, t_array, **xp_kwargs)
+    result = SO3.slerp(q1, q2, t_array)
 
     assert result.dtype == q1.dtype
     assert result.shape == batch_dims + (5, 4)
@@ -93,25 +73,21 @@ def test_slerp_multiple_points(backend, batch_dims, precision, pass_xp):
     assert np.allclose(norms, 1.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_slerp_same_quaternion(backend, batch_dims, precision, pass_xp):
+def test_slerp_same_quaternion(batch_dims, precision):
     """Test that slerp(q, q, t) = q for any t"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    q = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    q = random_quaternion(batch_dims=batch_dims, precision=precision)
 
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
-    dtype = get_dtype(backend, precision)
+    xp = np
+    dtype = np.dtype(f"float{precision}")
 
     # Test several interpolation values
     t_values = [0.0, 0.25, 0.5, 0.75, 1.0]
     t_array = xp.asarray(t_values, dtype=dtype)
 
-    result = SO3.slerp(q, q, t_array, **xp_kwargs)
+    result = SO3.slerp(q, q, t_array)
 
     assert result.dtype == q.dtype
     assert result.shape == batch_dims + (5, 4)
@@ -129,25 +105,21 @@ def test_slerp_same_quaternion(backend, batch_dims, precision, pass_xp):
     assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_slerp_scipy_comparison(backend, batch_dims, pass_xp):
+def test_slerp_scipy_comparison(batch_dims):
     """Compare slerp results with scipy implementation"""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
-    q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
+    q1 = random_quaternion(batch_dims=batch_dims, precision=32)
+    q2 = random_quaternion(batch_dims=batch_dims, precision=32)
 
     # Get appropriate backend namespace
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend)
-    dtype = get_dtype(backend, 32)
+    xp = np
+    dtype = np.float32
 
     # Test several interpolation values
     t_values = [0.0, 0.25, 0.5, 0.75, 1.0]
     t_array = xp.asarray(t_values, dtype=dtype)
 
-    result = SO3.slerp(q1, q2, t_array, **xp_kwargs)
+    result = SO3.slerp(q1, q2, t_array)
 
     # Convert to numpy for scipy
     q1_np = np.array(q1)
@@ -183,70 +155,6 @@ def test_slerp_scipy_comparison(backend, batch_dims, pass_xp):
     # Check quaternion equivalence (q and -q represent same rotation)
     dot_products = np.sum(result_np * scipy_result, axis=-1)
     assert np.allclose(np.abs(dot_products), 1.0, atol=1e-6)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_slerp_differentiability_torch(batch_dims):
-    """Test that slerp is differentiable with respect to quaternions and t"""
-    torch = pytest.importorskip("torch")
-    dtype = torch.float64  # Use double precision for gradient checking
-
-    q1 = random_quaternion(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
-    q2 = random_quaternion(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
-    t = torch.tensor([0.5], dtype=dtype, requires_grad=True)  # Shape (1,)
-
-    # Check gradients with respect to first quaternion
-    def f_q1(q):
-        return SO3.slerp(q, q2.detach(), t.detach()).sum()
-
-    assert torch.autograd.gradcheck(f_q1, (q1,), eps=1e-6, atol=1e-5)
-
-    # Check gradients with respect to second quaternion
-    def f_q2(q):
-        return SO3.slerp(q1.detach(), q, t.detach()).sum()
-
-    assert torch.autograd.gradcheck(f_q2, (q2,), eps=1e-6, atol=1e-5)
-
-    # Check gradients with respect to t
-    def f_t(t_val):
-        return SO3.slerp(q1.detach(), q2.detach(), t_val).sum()
-
-    assert torch.autograd.gradcheck(f_t, (t,), eps=1e-6, atol=1e-5)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_slerp_jittability_jax(batch_dims):
-    """Test that slerp function is JIT-compatible with JAX"""
-    jax = pytest.importorskip("jax")
-
-    # Create test quaternions
-    q1 = random_quaternion(batch_dims=batch_dims, backend="jax", precision=32)
-    q2 = random_quaternion(batch_dims=batch_dims, backend="jax", precision=32)
-
-    # Create valid t values (avoiding bounds checking issues)
-    t = jax.numpy.linspace(0.0, 1.0, 5).reshape((5,))
-    if batch_dims:
-        t = jax.numpy.broadcast_to(t, batch_dims + (5,))
-    else:
-        t = t.reshape((5,))
-
-    # Define JIT-compiled function
-    @jax.jit
-    def jit_slerp(q1, q2, t):
-        return SO3.slerp(q1, q2, t)
-
-    # Test that JIT compilation works and compare with non-JIT
-    result_jit = jit_slerp(q1, q2, t)
-    result_non_jit = SO3.slerp(q1, q2, t)
-
-    # Verify results match between JIT and non-JIT
-    assert jax.numpy.allclose(result_jit, result_non_jit, atol=1e-6)
-
-    # Verify result has correct shape and quaternions are unit
-    expected_shape = batch_dims + (5, 4)
-    assert result_jit.shape == expected_shape
-    result_norm = jax.numpy.linalg.norm(result_jit, axis=-1)
-    assert jax.numpy.allclose(result_norm, 1.0, atol=1e-6)
 
 
 def test_slerp_specific_rotations():

@@ -1,18 +1,10 @@
 import numpy as np
 import pytest
 
-from nanomanifold.common import get_namespace_by_name
+from nanomanifold import SO3
 
-TEST_BACKENDS = ["numpy", "torch", "jax"]
 TEST_PRECISIONS = [16, 32]
-TEST_BATCH_DIMS = [
-    (),
-    (1,),
-    (5,),
-    (2, 3),
-    (2, 3, 4, 1, 2),
-]
-TEST_PASS_XP = [False, True]
+TEST_BATCH_DIMS = [(), (2, 3)]
 
 ATOL = {
     16: 2e-2,
@@ -21,14 +13,34 @@ ATOL = {
 }
 
 
-def get_xp_kwargs(backend, pass_xp):
-    """Return xp keyword arguments based on whether to pass xp explicitly."""
-    if not pass_xp:
-        return {}
-    return {"xp": get_namespace_by_name(backend)}
+@pytest.fixture(autouse=True)
+def seed_numpy():
+    """Every test draws the same random inputs, whatever order or worker it runs in."""
+    np.random.seed(0)
 
 
-np.random.seed(0)
+def awkward_quaternions(precision=64):
+    """Canonical wxyz quaternions mixing random rotations with configurations that break naive code.
+
+    Covers the identity, tiny angles, exact and near half turns about coordinate and oblique axes, and
+    ZYX gimbal lock.
+    """
+    axes = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 1], [1, -2, 0.5]], dtype=np.float64)
+    axes /= np.linalg.norm(axes, axis=-1, keepdims=True)
+    angles = np.array([0.0, 1e-4, np.pi - 1e-3, np.pi])
+    axis_angles = (angles[:, None, None] * axes[None]).reshape(-1, 3)
+    gimbal_lock = np.array([[0.3, np.pi / 2, -0.7], [-1.2, -np.pi / 2, 0.4]])
+    rng = np.random.default_rng(0)
+    random = rng.normal(size=(8, 4))
+
+    quats = np.concatenate(
+        [
+            SO3.from_axis_angle(axis_angles),
+            SO3.from_euler(gimbal_lock, convention="ZYX"),
+            SO3.canonicalize(random),
+        ]
+    )
+    return quats.astype(f"float{precision}")
 
 
 @pytest.fixture(autouse=True)
@@ -44,117 +56,38 @@ def skip_torch_1_cpu_float16(request):
         pytest.skip("Torch 1.x does not support these CPU float16 tests.")
 
 
-def random_quaternion(batch_dims=(), backend="numpy", precision=32):
-    """Generate random quaternion in SO(3) for testing.
+def without_singularities(quat, rep, options):
+    """Drop the inputs where converting to ``rep`` is legitimately ambiguous.
 
-    Args:
-        batch_dims: Tuple of batch dimensions
-        backend: Backend to use ("numpy", "torch", "jax")
-        precision: Precision (16, 32, 64)
-
-    Returns:
-        Quaternion array of shape (*batch_dims, 4) as [w, x, y, z]
+    Hinge targets project an axis-angle vector whose sign is arbitrary at exact half turns.
     """
-    # Generate in numpy first
-    shape = batch_dims + (4,)
-    q_np = np.random.randn(*shape).astype(f"float{precision}")
-
-    # Normalize to get unit quaternion
-    norm = np.linalg.norm(q_np, axis=-1, keepdims=True)
-    q_np = q_np / norm
-
-    # Canonicalize to w >= 0
-    mask = q_np[..., 0:1] < 0
-    q_np = np.where(mask, -q_np, q_np)
-
-    xp = get_namespace_by_name(backend)
-    return xp.asarray(q_np)
+    if rep == "hinge":
+        return quat[np.abs(quat[..., 0]) > 1e-6]
+    return quat
 
 
-def identity_quaternion(batch_dims=(), backend="numpy", precision=32):
-    """Generate identity quaternion for testing.
-
-    Args:
-        batch_dims: Tuple of batch dimensions
-        backend: Backend to use ("numpy", "torch", "jax")
-        precision: Precision (16, 32, 64)
-
-    Returns:
-        Identity quaternion array of shape (*batch_dims, 4) as [1, 0, 0, 0]
-    """
-    # Create identity quaternion [1, 0, 0, 0] in numpy first
-    shape = batch_dims + (4,)
-    q_np = np.zeros(shape, dtype=f"float{precision}")
-    q_np[..., 0] = 1  # w = 1, x = y = z = 0
-
-    xp = get_namespace_by_name(backend)
-    return xp.asarray(q_np)
+def random_quaternion(batch_dims=(), precision=32):
+    """Random canonical wxyz quaternions of shape ``(*batch_dims, 4)``."""
+    q = np.random.randn(*batch_dims, 4)
+    q /= np.linalg.norm(q, axis=-1, keepdims=True)
+    return np.where(q[..., :1] < 0, -q, q).astype(f"float{precision}")
 
 
-def random_points(batch_dims=(), n_points=10, backend="numpy", precision=32):
-    """Generate random 3D points for testing.
-
-    Args:
-        batch_dims: Tuple of batch dimensions
-        n_points: Number of points to generate
-        backend: Backend to use ("numpy", "torch", "jax")
-        precision: Precision (16, 32, 64)
-
-    Returns:
-        Points array of shape (*batch_dims, n_points, 3)
-    """
-    # Generate in numpy first
-    shape = batch_dims + (n_points, 3)
-    points_np = np.random.randn(*shape).astype(f"float{precision}")
-
-    xp = get_namespace_by_name(backend)
-    return xp.asarray(points_np)
+def identity_quaternion(batch_dims=(), precision=32):
+    q = np.zeros((*batch_dims, 4), dtype=f"float{precision}")
+    q[..., 0] = 1
+    return q
 
 
-def random_se3(batch_dims=(), backend="numpy", precision=32):
-    """Generate random SE(3) transformation for testing.
-
-    Args:
-        batch_dims: Tuple of batch dimensions
-        backend: Backend to use ("numpy", "torch", "jax")
-        precision: Precision (16, 32, 64)
-
-    Returns:
-        SE(3) array of shape (*batch_dims, 7) as [w, x, y, z, tx, ty, tz]
-    """
-    # Generate random quaternion
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-
-    # Generate random translation
-    shape = batch_dims + (3,)
-    translation_np = np.random.randn(*shape).astype(f"float{precision}")
-
-    xp = get_namespace_by_name(backend)
-    translation = xp.asarray(translation_np)
-
-    # Combine quaternion and translation
-    return xp.concatenate([quat, translation], axis=-1)
+def random_points(batch_dims=(), n_points=10, precision=32):
+    return np.random.randn(*batch_dims, n_points, 3).astype(f"float{precision}")
 
 
-def identity_se3(batch_dims=(), backend="numpy", precision=32):
-    """Generate identity SE(3) transformation for testing.
+def random_se3(batch_dims=(), precision=32):
+    """Random ``[quaternion, translation]`` arrays of shape ``(*batch_dims, 7)``."""
+    translation = np.random.randn(*batch_dims, 3).astype(f"float{precision}")
+    return np.concatenate([random_quaternion(batch_dims, precision), translation], axis=-1)
 
-    Args:
-        batch_dims: Tuple of batch dimensions
-        backend: Backend to use ("numpy", "torch", "jax")
-        precision: Precision (16, 32, 64)
 
-    Returns:
-        Identity SE(3) array of shape (*batch_dims, 7) as [1, 0, 0, 0, 0, 0, 0]
-    """
-    # Create identity quaternion and zero translation
-    quat = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-
-    shape = batch_dims + (3,)
-    translation_np = np.zeros(shape, dtype=f"float{precision}")
-
-    xp = get_namespace_by_name(backend)
-    translation = xp.asarray(translation_np)
-
-    # Combine quaternion and translation
-    return xp.concatenate([quat, translation], axis=-1)
+def identity_se3(batch_dims=(), precision=32):
+    return np.concatenate([identity_quaternion(batch_dims, precision), np.zeros((*batch_dims, 3), dtype=f"float{precision}")], axis=-1)

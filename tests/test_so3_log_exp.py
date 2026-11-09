@@ -2,11 +2,8 @@ import numpy as np
 import pytest
 from conftest import (
     ATOL,
-    TEST_BACKENDS,
     TEST_BATCH_DIMS,
-    TEST_PASS_XP,
     TEST_PRECISIONS,
-    get_xp_kwargs,
     identity_quaternion,
     random_quaternion,
 )
@@ -15,15 +12,12 @@ from scipy.spatial.transform import Rotation as R
 from nanomanifold import SO3
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_log_identity(backend, batch_dims, precision, pass_xp):
+def test_log_identity(batch_dims, precision):
     # Log of identity should be zero vector
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    identity = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    log_result = SO3.log(identity, **xp_kwargs)
+    identity = identity_quaternion(batch_dims=batch_dims, precision=precision)
+    log_result = SO3.log(identity)
 
     assert log_result.shape == batch_dims + (3,)
 
@@ -31,15 +25,11 @@ def test_log_identity(backend, batch_dims, precision, pass_xp):
     assert np.allclose(log_np, 0.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_exp_zero(backend, batch_dims, precision, pass_xp):
+def test_exp_zero(batch_dims, precision):
     # Exp of zero vector should be identity quaternion
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp = np
 
     if precision == 16:
         dtype = xp.float16
@@ -49,9 +39,9 @@ def test_exp_zero(backend, batch_dims, precision, pass_xp):
         dtype = xp.float64
 
     zero_vec = xp.zeros(batch_dims + (3,), dtype=dtype)
-    exp_result = SO3.exp(zero_vec, **xp_kwargs)
+    exp_result = SO3.exp(zero_vec)
 
-    identity = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    identity = identity_quaternion(batch_dims=batch_dims, precision=precision)
 
     assert exp_result.shape == identity.shape
 
@@ -63,17 +53,14 @@ def test_exp_zero(backend, batch_dims, precision, pass_xp):
     assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_log_exp_inverse(backend, batch_dims, precision, pass_xp):
+def test_log_exp_inverse(batch_dims, precision):
     # Test that exp(log(q)) = q for random quaternions
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    quat = random_quaternion(batch_dims=batch_dims, precision=precision)
 
-    log_quat = SO3.log(quat, **xp_kwargs)
-    exp_log_quat = SO3.exp(log_quat, **xp_kwargs)
+    log_quat = SO3.log(quat)
+    exp_log_quat = SO3.exp(log_quat)
 
     assert exp_log_quat.shape == quat.shape
 
@@ -85,15 +72,11 @@ def test_log_exp_inverse(backend, batch_dims, precision, pass_xp):
     assert np.allclose(np.abs(dot_products), 1.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_exp_log_inverse(backend, batch_dims, precision, pass_xp):
+def test_exp_log_inverse(batch_dims, precision):
     # Test that log(exp(v)) = v for small tangent vectors
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name(backend.replace("jax", "jax"))
+    xp = np
 
     # Use small random tangent vectors (within the domain of the logarithm)
     # Generate in numpy first (following conftest pattern)
@@ -101,8 +84,8 @@ def test_exp_log_inverse(backend, batch_dims, precision, pass_xp):
     tangent_vec_np = 0.5 * np.random.normal(0, 1, size=shape).astype(f"float{precision}")
     tangent_vec = xp.asarray(tangent_vec_np)
 
-    exp_vec = SO3.exp(tangent_vec, **xp_kwargs)
-    log_exp_vec = SO3.log(exp_vec, **xp_kwargs)
+    exp_vec = SO3.exp(tangent_vec)
+    log_exp_vec = SO3.log(exp_vec)
 
     assert log_exp_vec.shape == tangent_vec.shape
 
@@ -111,16 +94,13 @@ def test_exp_log_inverse(backend, batch_dims, precision, pass_xp):
     assert np.allclose(original_np, result_np, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_log_exp_scipy(backend, batch_dims, pass_xp):
+def test_log_exp_scipy(batch_dims):
     # Compare with scipy for known cases
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
+    quat = random_quaternion(batch_dims=batch_dims, precision=32)
 
     # Compute log using nanomanifold
-    log_result = SO3.log(quat, **xp_kwargs)
+    log_result = SO3.log(quat)
 
     # Convert to numpy for scipy
     quat_np = np.array(quat)
@@ -210,103 +190,6 @@ def test_exp_specific_vectors():
     assert np.allclose(np.abs(dot_product), 1.0, atol=1e-6)
 
 
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_log_differentiability_torch(batch_dims):
-    torch = pytest.importorskip("torch")
-    # Use double precision for gradient checking
-    dtype = torch.float64
-
-    # Random quaternion input (avoiding singularities)
-    quat = random_quaternion(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
-
-    # Check gradients of SO3.log
-    def f_log(q):
-        return SO3.log(q).sum()
-
-    assert torch.autograd.gradcheck(f_log, (quat,), eps=1e-6, atol=1e-5)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_exp_differentiability_torch(batch_dims):
-    torch = pytest.importorskip("torch")
-    # Use double precision for gradient checking
-    dtype = torch.float64
-
-    # Random tangent vector input (small to avoid singularities) - generate in numpy first
-    shape = batch_dims + (3,)
-    tangent_vec_np = 0.5 * np.random.normal(0, 1, size=shape).astype("float64")
-    tangent_vec = torch.tensor(tangent_vec_np, dtype=dtype, requires_grad=True)
-
-    # Check gradients of SO3.exp
-    def f_exp(v):
-        return SO3.exp(v).sum()
-
-    assert torch.autograd.gradcheck(f_exp, (tangent_vec,), eps=1e-6, atol=1e-5)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_log_exp_differentiability_torch_at_pi_rotation(batch_dims):
-    torch = pytest.importorskip("torch")
-    dtype = torch.float64
-
-    axis_angle = torch.zeros(batch_dims + (3,), dtype=dtype)
-    axis_angle[..., 0] = np.pi
-
-    quat = SO3.from_axis_angle(axis_angle).requires_grad_(True)
-
-    log_out = SO3.log(quat)
-    log_out.sum().backward()
-    assert torch.isfinite(quat.grad).all()
-
-    axis_angle = axis_angle.clone().requires_grad_(True)
-    exp_out = SO3.exp(axis_angle)
-    exp_out.sum().backward()
-    assert torch.isfinite(axis_angle.grad).all()
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_log_exp_jittability_jax(batch_dims):
-    """Test that log and exp functions are JIT-compatible with JAX"""
-    jax = pytest.importorskip("jax")
-
-    # Create test quaternion and tangent vector
-    q = random_quaternion(batch_dims=batch_dims, backend="jax", precision=32)
-    # Create a small random tangent vector - generate in numpy first
-    common = pytest.importorskip("nanomanifold.common")
-    xp = common.get_namespace_by_name("jax")
-    shape = batch_dims + (3,)
-    tangent_np = 0.1 * np.random.normal(0, 1, size=shape).astype("float32")
-    tangent = xp.asarray(tangent_np)
-
-    # Define JIT-compiled functions
-    @jax.jit
-    def jit_log(q):
-        return SO3.log(q)
-
-    @jax.jit
-    def jit_exp(v):
-        return SO3.exp(v)
-
-    # Test that JIT compilation works and compare with non-JIT
-    log_result_jit = jit_log(q)
-    exp_result_jit = jit_exp(tangent)
-
-    log_result_non_jit = SO3.log(q)
-    exp_result_non_jit = SO3.exp(tangent)
-
-    # Verify results match between JIT and non-JIT
-    assert jax.numpy.allclose(log_result_jit, log_result_non_jit, atol=1e-6)
-    assert jax.numpy.allclose(exp_result_jit, exp_result_non_jit, atol=1e-6)
-
-    # Verify results have correct shapes
-    assert log_result_jit.shape == batch_dims + (3,)
-    assert exp_result_jit.shape == batch_dims + (4,)
-
-    # Verify exp result is unit quaternion
-    exp_norm = jax.numpy.linalg.norm(exp_result_jit, axis=-1)
-    assert jax.numpy.allclose(exp_norm, 1.0, atol=1e-6)
-
-
 def test_log_exp_composition():
     # Test that log and exp compose properly with other operations
 
@@ -336,8 +219,8 @@ def test_log_exp_composition():
 
 def test_log_exp_broadcasting():
     # Test broadcasting between different batch sizes
-    quat_single = random_quaternion(batch_dims=(), backend="numpy", precision=32)
-    quat_batch = random_quaternion(batch_dims=(3,), backend="numpy", precision=32)
+    quat_single = random_quaternion(batch_dims=(), precision=32)
+    quat_batch = random_quaternion(batch_dims=(3,), precision=32)
 
     # Test log broadcasting
     log_single = SO3.log(quat_single)

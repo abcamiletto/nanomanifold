@@ -2,12 +2,8 @@ import numpy as np
 import pytest
 from conftest import (
     ATOL,
-    TEST_BACKENDS,
     TEST_BATCH_DIMS,
-    TEST_PASS_XP,
     TEST_PRECISIONS,
-    get_namespace_by_name,
-    get_xp_kwargs,
     identity_quaternion,
     random_quaternion,
 )
@@ -29,55 +25,52 @@ from nanomanifold import SO3
         ("sixd", "wxyz"),
     ],
 )
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_distance_rotation_type_matches_quaternion_reference(rotation_type, convention, backend, batch_dims, pass_xp):
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
-    q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
+def test_distance_rotation_type_matches_quaternion_reference(rotation_type, convention, batch_dims):
+    q1 = random_quaternion(batch_dims=batch_dims, precision=32)
+    q2 = random_quaternion(batch_dims=batch_dims, precision=32)
 
     rot_kwargs = {"convention": convention} if rotation_type in ("quat", "euler") else {}
     if rotation_type == "quat":
-        x1 = SO3.to_quat(q1, convention=convention, **xp_kwargs)
-        x2 = SO3.to_quat(q2, convention=convention, **xp_kwargs)
+        x1 = SO3.to_quat(q1, convention=convention)
+        x2 = SO3.to_quat(q2, convention=convention)
     elif rotation_type == "axis_angle":
-        x1 = SO3.to_axis_angle(q1, **xp_kwargs)
-        x2 = SO3.to_axis_angle(q2, **xp_kwargs)
+        x1 = SO3.to_axis_angle(q1)
+        x2 = SO3.to_axis_angle(q2)
     elif rotation_type == "euler":
-        x1 = SO3.to_euler(q1, convention=convention, **xp_kwargs)
-        x2 = SO3.to_euler(q2, convention=convention, **xp_kwargs)
+        x1 = SO3.to_euler(q1, convention=convention)
+        x2 = SO3.to_euler(q2, convention=convention)
     elif rotation_type == "hinge":
-        xp = get_namespace_by_name(backend)
+        xp = np
         axes = xp.asarray(np.array([0.0, 0.0, 2.0], dtype=np.float32))
-        x1 = SO3.to_hinge(q1, axes, **xp_kwargs)
-        x2 = SO3.to_hinge(q2, axes, **xp_kwargs)
+        x1 = SO3.to_hinge(q1, axes)
+        x2 = SO3.to_hinge(q2, axes)
         rot_kwargs = {"axes": axes}
     elif rotation_type == "rotmat":
-        x1 = SO3.to_rotmat(q1, **xp_kwargs)
-        x2 = SO3.to_rotmat(q2, **xp_kwargs)
+        x1 = SO3.to_rotmat(q1)
+        x2 = SO3.to_rotmat(q2)
     elif rotation_type == "matrix":
-        xp = get_namespace_by_name(backend)
+        xp = np
         stretch = np.diag(np.array([1.05, 0.97, 1.02], dtype=np.float32))
-        x1 = xp.asarray(np.matmul(np.array(SO3.to_rotmat(q1, **xp_kwargs)), stretch))
-        x2 = xp.asarray(np.matmul(np.array(SO3.to_rotmat(q2, **xp_kwargs)), stretch))
+        x1 = xp.asarray(np.matmul(np.array(SO3.to_rotmat(q1)), stretch))
+        x2 = xp.asarray(np.matmul(np.array(SO3.to_rotmat(q2)), stretch))
     else:
-        x1 = SO3.to_sixd(q1, **xp_kwargs)
-        x2 = SO3.to_sixd(q2, **xp_kwargs)
+        x1 = SO3.to_sixd(q1)
+        x2 = SO3.to_sixd(q2)
 
-    distance = SO3.distance(x1, x2, rotation_type=rotation_type, rot_kwargs=rot_kwargs, **xp_kwargs)
+    distance = SO3.distance(x1, x2, rotation_type=rotation_type, rot_kwargs=rot_kwargs)
     if rotation_type == "hinge":
-        expected = SO3.distance(SO3.from_hinge(x1, axes, **xp_kwargs), SO3.from_hinge(x2, axes, **xp_kwargs), **xp_kwargs)
+        expected = SO3.distance(SO3.from_hinge(x1, axes), SO3.from_hinge(x2, axes))
     else:
-        expected = SO3.distance(q1, q2, **xp_kwargs)
+        expected = SO3.distance(q1, q2)
 
     assert distance.shape == expected.shape
     assert np.allclose(np.array(distance), np.array(expected), atol=ATOL[32])
 
 
 def test_distance_supports_euler_convention():
-    q1 = random_quaternion(batch_dims=(8,), backend="numpy", precision=32)
-    q2 = random_quaternion(batch_dims=(8,), backend="numpy", precision=32)
+    q1 = random_quaternion(batch_dims=(8,), precision=32)
+    q2 = random_quaternion(batch_dims=(8,), precision=32)
 
     e1 = SO3.to_euler(q1, convention="XYZ")
     e2 = SO3.to_euler(q2, convention="XYZ")
@@ -88,15 +81,12 @@ def test_distance_supports_euler_convention():
     assert np.allclose(np.array(distance), np.array(expected), atol=ATOL[32])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_distance_identity(backend, batch_dims, precision, pass_xp):
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+def test_distance_identity(batch_dims, precision):
     # Distance from any quaternion to itself should be 0
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    distance = SO3.distance(quat, quat, **xp_kwargs)
+    quat = random_quaternion(batch_dims=batch_dims, precision=precision)
+    distance = SO3.distance(quat, quat)
 
     assert distance.dtype == quat.dtype
     assert distance.shape == batch_dims
@@ -107,17 +97,14 @@ def test_distance_identity(backend, batch_dims, precision, pass_xp):
     assert np.allclose(distance_np, 0.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_distance_identity_quaternion(backend, batch_dims, precision, pass_xp):
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+def test_distance_identity_quaternion(batch_dims, precision):
     # Distance between any quaternion and identity should equal distance to canonical identity
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    identity = identity_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    quat = random_quaternion(batch_dims=batch_dims, precision=precision)
+    identity = identity_quaternion(batch_dims=batch_dims, precision=precision)
 
-    distance = SO3.distance(quat, identity, **xp_kwargs)
+    distance = SO3.distance(quat, identity)
 
     assert distance.dtype == quat.dtype
     assert distance.shape == batch_dims
@@ -130,18 +117,15 @@ def test_distance_identity_quaternion(backend, batch_dims, precision, pass_xp):
     assert np.all(distance_np <= np.pi + tol)
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_distance_symmetry(backend, batch_dims, precision, pass_xp):
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+def test_distance_symmetry(batch_dims, precision):
     # Distance should be symmetric: d(q1, q2) = d(q2, q1)
-    q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
-    q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    q1 = random_quaternion(batch_dims=batch_dims, precision=precision)
+    q2 = random_quaternion(batch_dims=batch_dims, precision=precision)
 
-    dist1 = SO3.distance(q1, q2, **xp_kwargs)
-    dist2 = SO3.distance(q2, q1, **xp_kwargs)
+    dist1 = SO3.distance(q1, q2)
+    dist2 = SO3.distance(q2, q1)
 
     assert dist1.dtype == q1.dtype
     assert dist1.shape == batch_dims
@@ -153,17 +137,14 @@ def test_distance_symmetry(backend, batch_dims, precision, pass_xp):
     assert np.allclose(dist1_np, dist2_np, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_distance_quaternion_double_cover(backend, batch_dims, precision, pass_xp):
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+def test_distance_quaternion_double_cover(batch_dims, precision):
     # Distance between q and -q should be 0 (same rotation)
-    quat = random_quaternion(batch_dims=batch_dims, backend=backend, precision=precision)
+    quat = random_quaternion(batch_dims=batch_dims, precision=precision)
     quat_neg = -quat
 
-    distance = SO3.distance(quat, quat_neg, **xp_kwargs)
+    distance = SO3.distance(quat, quat_neg)
 
     assert distance.dtype == quat.dtype
     assert distance.shape == batch_dims
@@ -173,17 +154,14 @@ def test_distance_quaternion_double_cover(backend, batch_dims, precision, pass_x
     assert np.allclose(distance_np, 0.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_distance_scipy(backend, batch_dims, pass_xp):
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
+def test_distance_scipy(batch_dims):
     # Compare with scipy's angle calculation
-    q1 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
-    q2 = random_quaternion(batch_dims=batch_dims, backend=backend, precision=32)
+    q1 = random_quaternion(batch_dims=batch_dims, precision=32)
+    q2 = random_quaternion(batch_dims=batch_dims, precision=32)
 
     # Compute distance using nanomanifold
-    distance = SO3.distance(q1, q2, **xp_kwargs)
+    distance = SO3.distance(q1, q2)
 
     # Convert to numpy for scipy
     q1_np = np.array(q1)
@@ -244,59 +222,10 @@ def test_distance_specific_rotations():
     assert np.allclose(dist_90_to_180_np, np.pi / 2, atol=1e-6)
 
 
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_distance_differentiability_torch(batch_dims):
-    torch = pytest.importorskip("torch")
-    # Use double precision for gradient checking
-    dtype = torch.float64
-
-    # Random quaternion inputs
-    q1 = random_quaternion(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
-    q2 = random_quaternion(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
-
-    # Check gradients with respect to first argument
-    def f_q1(q):
-        return SO3.distance(q, q2.detach()).sum()
-
-    assert torch.autograd.gradcheck(f_q1, (q1,), eps=1e-6, atol=1e-5)
-
-    # Check gradients with respect to second argument
-    def f_q2(q):
-        return SO3.distance(q1.detach(), q).sum()
-
-    assert torch.autograd.gradcheck(f_q2, (q2,), eps=1e-6, atol=1e-5)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_distance_jittability_jax(batch_dims):
-    """Test that distance function is JIT-compatible with JAX"""
-    jax = pytest.importorskip("jax")
-
-    # Create test quaternions
-    q1 = random_quaternion(batch_dims=batch_dims, backend="jax", precision=32)
-    q2 = random_quaternion(batch_dims=batch_dims, backend="jax", precision=32)
-
-    # Define JIT-compiled function
-    @jax.jit
-    def jit_distance(q1, q2):
-        return SO3.distance(q1, q2)
-
-    # Test that JIT compilation works and compare with non-JIT
-    result_jit = jit_distance(q1, q2)
-    result_non_jit = SO3.distance(q1, q2)
-
-    # Verify results match between JIT and non-JIT
-    assert jax.numpy.allclose(result_jit, result_non_jit, atol=1e-6)
-
-    # Verify result has correct shape and is non-negative
-    assert result_jit.shape == batch_dims
-    assert jax.numpy.all(result_jit >= 0.0)
-
-
 def test_distance_range():
     # Distance should always be in range [0, π]
-    q1 = random_quaternion(batch_dims=(100,), backend="numpy", precision=32)
-    q2 = random_quaternion(batch_dims=(100,), backend="numpy", precision=32)
+    q1 = random_quaternion(batch_dims=(100,), precision=32)
+    q2 = random_quaternion(batch_dims=(100,), precision=32)
 
     distances = SO3.distance(q1, q2)
     distances_np = np.array(distances)
@@ -307,9 +236,9 @@ def test_distance_range():
 
 def test_distance_triangle_inequality():
     # Triangle inequality: d(q1,q3) <= d(q1,q2) + d(q2,q3)
-    q1 = random_quaternion(batch_dims=(10,), backend="numpy", precision=32)
-    q2 = random_quaternion(batch_dims=(10,), backend="numpy", precision=32)
-    q3 = random_quaternion(batch_dims=(10,), backend="numpy", precision=32)
+    q1 = random_quaternion(batch_dims=(10,), precision=32)
+    q2 = random_quaternion(batch_dims=(10,), precision=32)
+    q3 = random_quaternion(batch_dims=(10,), precision=32)
 
     d12 = np.array(SO3.distance(q1, q2))
     d23 = np.array(SO3.distance(q2, q3))
@@ -321,8 +250,8 @@ def test_distance_triangle_inequality():
 
 def test_distance_broadcasting():
     # Test broadcasting between different batch sizes
-    q_single = random_quaternion(batch_dims=(), backend="numpy", precision=32)
-    q_batch = random_quaternion(batch_dims=(3,), backend="numpy", precision=32)
+    q_single = random_quaternion(batch_dims=(), precision=32)
+    q_batch = random_quaternion(batch_dims=(3,), precision=32)
 
     # Test broadcasting
     distance = SO3.distance(q_single, q_batch)

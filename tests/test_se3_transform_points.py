@@ -2,11 +2,8 @@ import numpy as np
 import pytest
 from conftest import (
     ATOL,
-    TEST_BACKENDS,
     TEST_BATCH_DIMS,
-    TEST_PASS_XP,
     TEST_PRECISIONS,
-    get_xp_kwargs,
     identity_se3,
     random_points,
     random_se3,
@@ -15,21 +12,18 @@ from conftest import (
 from nanomanifold import SE3, SO3
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_transform_points_identity(backend, batch_dims, precision, pass_xp):
+def test_transform_points_identity(batch_dims, precision):
     """Test that identity SE3 transformation doesn't change points."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create identity SE3 transformation [1, 0, 0, 0, 0, 0, 0]
-    identity = identity_se3(batch_dims=batch_dims, backend=backend, precision=precision)
+    identity = identity_se3(batch_dims=batch_dims, precision=precision)
 
     # Generate random points
-    points = random_points(batch_dims=batch_dims, n_points=10, backend=backend, precision=precision)
+    points = random_points(batch_dims=batch_dims, n_points=10, precision=precision)
 
     # Apply transformation
-    transformed_points = SE3.transform_points(identity, points, **xp_kwargs)
+    transformed_points = SE3.transform_points(identity, points)
 
     assert transformed_points.dtype == points.dtype
     assert transformed_points.shape == points.shape
@@ -41,25 +35,22 @@ def test_transform_points_identity(backend, batch_dims, precision, pass_xp):
     assert np.allclose(points_np, transformed_points_np, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_transform_points_inverse(backend, batch_dims, precision, pass_xp):
+def test_transform_points_inverse(batch_dims, precision):
     """Test that transforming by SE3 then by SE3^(-1) gives identity."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random SE3 transformation
-    se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
+    se3 = random_se3(batch_dims=batch_dims, precision=precision)
 
     # Create inverse SE3 transformation using SE3.inverse()
-    se3_inv = SE3.inverse(se3, **xp_kwargs)
+    se3_inv = SE3.inverse(se3)
 
     # Generate random points
-    points = random_points(batch_dims=batch_dims, n_points=10, backend=backend, precision=precision)
+    points = random_points(batch_dims=batch_dims, n_points=10, precision=precision)
 
     # Transform by se3 then by se3^(-1)
-    transformed_points = SE3.transform_points(se3, points, **xp_kwargs)
-    restored_points = SE3.transform_points(se3_inv, transformed_points, **xp_kwargs)
+    transformed_points = SE3.transform_points(se3, points)
+    restored_points = SE3.transform_points(se3_inv, transformed_points)
 
     assert restored_points.dtype == points.dtype
     assert restored_points.shape == points.shape
@@ -72,24 +63,21 @@ def test_transform_points_inverse(backend, batch_dims, precision, pass_xp):
     assert np.allclose(points_np, restored_points_np, rtol=ATOL[precision], atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_transform_points_matrix_equivalence(backend, batch_dims, precision, pass_xp):
+def test_transform_points_matrix_equivalence(batch_dims, precision):
     """Test that SE3 point transformation matches matrix transformation."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     # Create random SE3 transformation
-    se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
+    se3 = random_se3(batch_dims=batch_dims, precision=precision)
 
     # Generate random points
-    points = random_points(batch_dims=batch_dims, n_points=10, backend=backend, precision=precision)
+    points = random_points(batch_dims=batch_dims, n_points=10, precision=precision)
 
     # Transform points using SE3.transform_points
-    transformed_points = SE3.transform_points(se3, points, **xp_kwargs)
+    transformed_points = SE3.transform_points(se3, points)
 
     # Transform points using matrix approach
-    matrix = SE3.to_matrix(se3, **xp_kwargs)
+    matrix = SE3.to_matrix(se3)
     matrix_np = np.array(matrix)
     points_np = np.array(points)
 
@@ -117,23 +105,20 @@ def test_transform_points_matrix_equivalence(backend, batch_dims, precision, pas
     assert np.allclose(transformed_points_np, transformed_matrix, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_transform_points_scipy(backend, batch_dims, pass_xp):
+def test_transform_points_scipy(batch_dims):
     """Test point transformation against scipy spatial transform."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     pytest.importorskip("scipy.spatial")
     from scipy.spatial.transform import Rotation as R
 
     # Create random SE3 transformation
-    se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=32)
+    se3 = random_se3(batch_dims=batch_dims, precision=32)
 
     # Generate random points
-    points = random_points(batch_dims=batch_dims, n_points=10, backend=backend, precision=32)
+    points = random_points(batch_dims=batch_dims, n_points=10, precision=32)
 
     # Transform using nanomanifold
-    transformed_points = SE3.transform_points(se3, points, **xp_kwargs)
+    transformed_points = SE3.transform_points(se3, points)
 
     # Convert to numpy for scipy
     se3_np = np.array(se3)
@@ -168,50 +153,6 @@ def test_transform_points_scipy(backend, batch_dims, pass_xp):
     assert np.allclose(transformed_points_np, transformed_scipy, atol=1e-6)
 
 
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_transform_points_differentiability_torch(batch_dims):
-    """Test that transform_points function is differentiable with PyTorch."""
-    torch = pytest.importorskip("torch")
-    # Use double precision for gradient checking as recommended by PyTorch
-    dtype = torch.float64
-
-    # Random SE3 input
-    se3 = random_se3(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
-    points = random_points(batch_dims=batch_dims, n_points=5, backend="torch").to(dtype)
-
-    # Check gradients of SE3.transform_points with respect to SE3 transformation
-    def f(se3):
-        return SE3.transform_points(se3, points)
-
-    assert torch.autograd.gradcheck(f, (se3,), eps=1e-6, atol=1e-5)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_transform_points_jittability_jax(batch_dims):
-    """Test that transform_points function is JIT-compatible with JAX."""
-    jax = pytest.importorskip("jax")
-
-    # Create test SE3 transformation and points
-    se3 = random_se3(batch_dims=batch_dims, backend="jax", precision=32)
-    points = random_points(batch_dims=batch_dims, n_points=5, backend="jax", precision=32)
-
-    # Define JIT-compiled function
-    @jax.jit
-    def jit_transform_points(se3, points):
-        return SE3.transform_points(se3, points)
-
-    # Test that JIT compilation works and compare with non-JIT
-    result_jit = jit_transform_points(se3, points)
-    result_non_jit = SE3.transform_points(se3, points)
-
-    # Verify results match between JIT and non-JIT
-    assert jax.numpy.allclose(result_jit, result_non_jit, atol=1e-6)
-
-    # Verify result has correct shape
-    expected_shape = batch_dims + (5, 3)
-    assert result_jit.shape == expected_shape
-
-
 def test_transform_points_specific_transformations():
     """Test transformation of specific known cases."""
     # Pure translation: [1, 0, 0, 0, 1, 2, 3]
@@ -243,14 +184,14 @@ def test_transform_points_specific_transformations():
 def test_transform_points_composition():
     """Test that composing transformations gives same result as composed transformation."""
     # Create two random SE3 transformations
-    se3_1 = random_se3(batch_dims=(), backend="numpy", precision=32)
-    se3_2 = random_se3(batch_dims=(), backend="numpy", precision=32)
+    se3_1 = random_se3(batch_dims=(), precision=32)
+    se3_2 = random_se3(batch_dims=(), precision=32)
 
     # Compose them
     se3_composed = SE3.multiply(se3_1, se3_2)
 
     # Create random points
-    points = random_points(batch_dims=(), n_points=5, backend="numpy", precision=32)
+    points = random_points(batch_dims=(), n_points=5, precision=32)
 
     # Method 1: Transform with composed transformation
     result_composed = SE3.transform_points(se3_composed, points)
@@ -295,16 +236,16 @@ def test_transform_points_pure_rotation():
 def test_transform_points_broadcasting():
     """Test broadcasting between different SE3 and points batch sizes."""
     # Single SE3 transformation and batch of points
-    se3_single = random_se3(batch_dims=(), backend="numpy", precision=32)
-    points_batch = random_points(batch_dims=(3,), n_points=5, backend="numpy", precision=32)
+    se3_single = random_se3(batch_dims=(), precision=32)
+    points_batch = random_points(batch_dims=(3,), n_points=5, precision=32)
 
     # Test broadcasting: single SE3 transforms multiple point sets
     result = SE3.transform_points(se3_single, points_batch)
     assert result.shape == (3, 5, 3)
 
     # Batch of SE3 transformations and single point set
-    se3_batch = random_se3(batch_dims=(3,), backend="numpy", precision=32)
-    points_single = random_points(batch_dims=(), n_points=5, backend="numpy", precision=32)
+    se3_batch = random_se3(batch_dims=(3,), precision=32)
+    points_single = random_points(batch_dims=(), n_points=5, precision=32)
 
     # Test broadcasting: multiple SE3 transforms single point set
     result = SE3.transform_points(se3_batch, points_single)

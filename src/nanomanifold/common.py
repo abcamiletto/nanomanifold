@@ -34,6 +34,13 @@ def get_namespace_by_name(name: str) -> ModuleType:
     raise ValueError(f"Unknown array namespace '{name}'. Supported: 'numpy', 'torch', 'jax'.")
 
 
+def astype(x: Any, dtype: Any, xp: ModuleType) -> Any:
+    """Cast ``x`` to ``dtype``, keeping it in the autograd graph (``torch.asarray`` would detach it)."""
+    if "torch" in xp.__name__ and hasattr(x, "to"):
+        return x.to(dtype=dtype)
+    return xp.asarray(x, dtype=dtype)
+
+
 def safe_eps(dtype: Any, xp: ModuleType, scale: float = 10.0) -> float:
     """Machine epsilon * scale. Used for division-by-zero guards."""
     return float(xp.finfo(dtype).eps) * scale

@@ -4,11 +4,11 @@ Representations form a tree rooted at the canonical quaternion (unit norm, wxyz 
 
     canonical quaternion
     ├── quat           convention
+    ├── euler          convention
     ├── axis_angle
     │   └── hinge      axes
     └── rotmat
         ├── sixd
-        ├── euler      convention
         └── matrix     mode
 
 Each representation only defines the edge to its parent and back. A conversion climbs from
@@ -152,7 +152,7 @@ _TREE: dict[str, _Node] = {
     "rotmat": _Node(_ROOT, rotmat.rotmat_to_quat, rotmat.quat_to_rotmat),
     "hinge": _Node("axis_angle", hinge.hinge_to_axis_angle, hinge.axis_angle_to_hinge),
     "sixd": _Node("rotmat", sixd.sixd_to_rotmat, sixd.rotmat_to_sixd),
-    "euler": _Node("rotmat", euler.euler_to_rotmat, euler.rotmat_to_euler),
+    "euler": _Node(_ROOT, euler.euler_to_quat, euler.quat_to_euler),
     "matrix": _Node("rotmat", matrix.matrix_to_rotmat, matrix.rotmat_to_matrix),
 }
 

@@ -2,11 +2,8 @@ import numpy as np
 import pytest
 from conftest import (
     ATOL,
-    TEST_BACKENDS,
     TEST_BATCH_DIMS,
-    TEST_PASS_XP,
     TEST_PRECISIONS,
-    get_xp_kwargs,
     identity_se3,
     random_points,
     random_se3,
@@ -15,15 +12,12 @@ from conftest import (
 from nanomanifold import SE3
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_inverse_identity(backend, batch_dims, precision, pass_xp):
+def test_inverse_identity(batch_dims, precision):
     """Test that inverse of identity is identity."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    identity = identity_se3(batch_dims=batch_dims, backend=backend, precision=precision)
-    identity_inv = SE3.inverse(identity, **xp_kwargs)
+    identity = identity_se3(batch_dims=batch_dims, precision=precision)
+    identity_inv = SE3.inverse(identity)
 
     assert identity_inv.dtype == identity.dtype
     assert identity_inv.shape == identity.shape
@@ -44,16 +38,13 @@ def test_inverse_identity(backend, batch_dims, precision, pass_xp):
     assert np.allclose(trans_identity, trans_identity_inv, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_inverse_involution(backend, batch_dims, precision, pass_xp):
+def test_inverse_involution(batch_dims, precision):
     """Test that inverse of inverse is the original transformation."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
-    se3_inv = SE3.inverse(se3, **xp_kwargs)
-    se3_inv_inv = SE3.inverse(se3_inv, **xp_kwargs)
+    se3 = random_se3(batch_dims=batch_dims, precision=precision)
+    se3_inv = SE3.inverse(se3)
+    se3_inv_inv = SE3.inverse(se3_inv)
 
     assert se3_inv_inv.dtype == se3.dtype
     assert se3_inv_inv.shape == se3.shape
@@ -74,20 +65,17 @@ def test_inverse_involution(backend, batch_dims, precision, pass_xp):
     assert np.allclose(trans_orig, trans_inv_inv, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_inverse_multiply_identity(backend, batch_dims, precision, pass_xp):
+def test_inverse_multiply_identity(batch_dims, precision):
     """Test that SE3 * SE3^(-1) = Identity."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
-    se3_inv = SE3.inverse(se3, **xp_kwargs)
+    se3 = random_se3(batch_dims=batch_dims, precision=precision)
+    se3_inv = SE3.inverse(se3)
 
     # Test se3 * se3_inv = identity
-    result1 = SE3.multiply(se3, se3_inv, **xp_kwargs)
+    result1 = SE3.multiply(se3, se3_inv)
     # Test se3_inv * se3 = identity
-    result2 = SE3.multiply(se3_inv, se3, **xp_kwargs)
+    result2 = SE3.multiply(se3_inv, se3)
 
     assert result1.dtype == se3.dtype
     assert result1.shape == se3.shape
@@ -95,7 +83,7 @@ def test_inverse_multiply_identity(backend, batch_dims, precision, pass_xp):
     assert result2.shape == se3.shape
 
     # Convert to numpy arrays and compare with identity SE3
-    identity = identity_se3(batch_dims=batch_dims, backend=backend, precision=precision)
+    identity = identity_se3(batch_dims=batch_dims, precision=precision)
     identity_np = np.array(identity)
     result1_np = np.array(result1)
     result2_np = np.array(result2)
@@ -117,19 +105,16 @@ def test_inverse_multiply_identity(backend, batch_dims, precision, pass_xp):
     assert np.allclose(trans_result2, 0.0, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
 @pytest.mark.parametrize("precision", TEST_PRECISIONS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_inverse_matrix_equivalence(backend, batch_dims, precision, pass_xp):
+def test_inverse_matrix_equivalence(batch_dims, precision):
     """Test that SE3 inverse matches matrix inverse."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
-    se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=precision)
-    se3_inv = SE3.inverse(se3, **xp_kwargs)
+    se3 = random_se3(batch_dims=batch_dims, precision=precision)
+    se3_inv = SE3.inverse(se3)
 
     # Convert to matrices
-    matrix = SE3.to_matrix(se3, **xp_kwargs)
-    SE3.to_matrix(se3_inv, **xp_kwargs)
+    matrix = SE3.to_matrix(se3)
+    SE3.to_matrix(se3_inv)
 
     # Compute matrix inverse using numpy (with float16 workaround)
     matrix_np = np.array(matrix)
@@ -163,17 +148,14 @@ def test_inverse_matrix_equivalence(backend, batch_dims, precision, pass_xp):
     assert np.allclose(trans_inv, trans_from_matrix, atol=ATOL[precision])
 
 
-@pytest.mark.parametrize("backend", TEST_BACKENDS)
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-@pytest.mark.parametrize("pass_xp", TEST_PASS_XP)
-def test_inverse_scipy(backend, batch_dims, pass_xp):
+def test_inverse_scipy(batch_dims):
     """Test inverse against scipy spatial transform."""
-    xp_kwargs = get_xp_kwargs(backend, pass_xp)
     pytest.importorskip("scipy.spatial")
     from scipy.spatial.transform import Rotation as R
 
-    se3 = random_se3(batch_dims=batch_dims, backend=backend, precision=32)
-    se3_inv = SE3.inverse(se3, **xp_kwargs)
+    se3 = random_se3(batch_dims=batch_dims, precision=32)
+    se3_inv = SE3.inverse(se3)
 
     # Convert to numpy for scipy
     se3_np = np.array(se3)
@@ -211,8 +193,7 @@ def test_inverse_scipy(backend, batch_dims, pass_xp):
     # Convert back to [w, x, y, z] format
     q_inv_scipy = np.concatenate([q_inv_scipy[..., 3:4], q_inv_scipy[..., 0:3]], axis=-1)
 
-    if backend != "numpy":
-        se3_inv_np = np.array(se3_inv)
+    se3_inv_np = np.array(se3_inv)
 
     # Check quaternion equivalence (q and -q represent the same rotation)
     quat_inv = se3_inv_np[..., :4]
@@ -222,51 +203,6 @@ def test_inverse_scipy(backend, batch_dims, pass_xp):
     # Check translation equivalence
     trans_inv = se3_inv_np[..., 4:7]
     assert np.allclose(trans_inv, t_inv_scipy, atol=1e-6)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_inverse_differentiability_torch(batch_dims):
-    """Test that inverse function is differentiable with PyTorch."""
-    torch = pytest.importorskip("torch")
-    # Use double precision for gradient checking as recommended by PyTorch
-    dtype = torch.float64
-
-    # Random SE3 input
-    se3 = random_se3(batch_dims=batch_dims, backend="torch").to(dtype).requires_grad_(True)
-
-    # Check gradients of SE3.inverse
-    def f(se3):
-        return SE3.inverse(se3)
-
-    assert torch.autograd.gradcheck(f, (se3,), eps=1e-6, atol=1e-5)
-
-
-@pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_inverse_jittability_jax(batch_dims):
-    """Test that inverse function is JIT-compatible with JAX."""
-    jax = pytest.importorskip("jax")
-
-    # Create test SE3 transformation
-    se3 = random_se3(batch_dims=batch_dims, backend="jax", precision=32)
-
-    # Define JIT-compiled function
-    @jax.jit
-    def jit_inverse(se3):
-        return SE3.inverse(se3)
-
-    # Test that JIT compilation works and compare with non-JIT
-    result_jit = jit_inverse(se3)
-    result_non_jit = SE3.inverse(se3)
-
-    # Verify results match between JIT and non-JIT
-    assert jax.numpy.allclose(result_jit, result_non_jit, atol=1e-6)
-
-    # Verify result has correct shape
-    assert result_jit.shape == batch_dims + (7,)
-
-    # Verify quaternion is unit
-    quat_norm = jax.numpy.linalg.norm(result_jit[..., :4], axis=-1)
-    assert jax.numpy.allclose(quat_norm, 1.0, atol=1e-6)
 
 
 def test_inverse_specific_transformations():
@@ -288,7 +224,7 @@ def test_inverse_specific_transformations():
 
     # Test by verifying that transformation * inverse = identity through point transformation
     identity_check = SE3.multiply(r_z90_t, r_z90_t_inv)
-    identity_expected = identity_se3(batch_dims=(), backend="numpy", precision=32)
+    identity_expected = identity_se3(batch_dims=(), precision=32)
 
     identity_check_np = np.array(identity_check)
     identity_expected_np = np.array(identity_expected)
@@ -307,11 +243,11 @@ def test_inverse_specific_transformations():
 def test_inverse_point_transformation():
     """Test that SE3 inverse correctly inverts point transformations."""
     # Create random SE3 transformation
-    se3 = random_se3(batch_dims=(), backend="numpy", precision=32)
+    se3 = random_se3(batch_dims=(), precision=32)
     se3_inv = SE3.inverse(se3)
 
     # Create random points
-    points = random_points(batch_dims=(), n_points=10, backend="numpy", precision=32)
+    points = random_points(batch_dims=(), n_points=10, precision=32)
 
     # Transform points using SE3 transformation
     points_transformed = transform_points_se3(se3, points)

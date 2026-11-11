@@ -27,7 +27,7 @@ def from_rt(
     """Transforms ``(..., 7)`` from rotations ``(..., 4)`` and translations ``(..., 3)``; the rotation is canonicalized."""
     if xp is None:
         xp = get_namespace(q)
-    return canonicalize(xp.concatenate([q, t], axis=-1), convention=convention, xp=xp)
+    return xp.concatenate([SO3.canonicalize(q, convention=convention, xp=xp), t], axis=-1)
 
 
 def to_rt(

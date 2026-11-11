@@ -9,8 +9,8 @@ from nanomanifold import common
 from nanomanifold.common import get_namespace
 
 from .convert import RotationRep, convert
-from .primitives import euler, matrix
-from .primitives.quaternion import QuaternionConvention, _from_wxyz, conjugate, from_quat, positive_w, product, rotate
+from .primitives import euler, matrix, rotmat
+from .primitives.quaternion import QuaternionConvention, _from_wxyz, conjugate, from_quat, positive_w, product
 
 
 def identity_as(
@@ -78,7 +78,7 @@ def rotate_points(
     """Rotate points ``(..., N, 3)`` by quaternions ``(..., 4)``."""
     if xp is None:
         xp = get_namespace(q)
-    return rotate(from_quat(q, convention=convention, xp=xp), points, xp)
+    return rotmat.rotate(from_quat(q, convention=convention, xp=xp), points, xp=xp)
 
 
 def distance(

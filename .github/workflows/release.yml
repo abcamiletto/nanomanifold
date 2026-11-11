@@ -14,15 +14,18 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# The tag is created last, together with the GitHub release, so it only exists once
+# PyPI has the files. A failed run leaves no tag and re-running retries every step;
+# publishing skips files already on PyPI.
 jobs:
   release:
     runs-on: ubuntu-latest
     environment: pypi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           python-version: "3.11"
       - name: Detect unreleased version
@@ -30,34 +33,23 @@ jobs:
         run: |
           version=$(uv version --short)
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          git fetch --tags
-          if git rev-parse "v$version" >/dev/null 2>&1; then
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Push tag
-        if: steps.version.outputs.changed == 'true'
-        run: |
-          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
-            echo "Tag v${{ steps.version.outputs.version }} already exists"
-            exit 0
-          fi
-          git config user.name "${GITHUB_ACTOR}"
-          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin "v${{ steps.version.outputs.version }}"
       - name: Build
         if: steps.version.outputs.changed == 'true'
         run: uv build
       - name: Publish to PyPI
         if: steps.version.outputs.changed == 'true'
         run: uv publish --check-url https://pypi.org/simple
-      - name: Create GitHub release
+      - name: Tag and create GitHub release
         if: steps.version.outputs.changed == 'true'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
           files: dist/*

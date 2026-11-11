@@ -61,12 +61,14 @@ def convert(
 def from_axis_angle(
     axis_angle: Float[Any, "... 3"], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None
 ) -> Float[Any, "... 4"]:
+    """Quaternions ``(..., 4)`` from rotation vectors ``(..., 3)``, the axis scaled by the angle."""
     return convert(axis_angle, src="axis_angle", dst="quat", dst_kwargs={"convention": convention}, xp=xp)
 
 
 def to_axis_angle(
     q: Float[Any, "... 4"], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None
 ) -> Float[Any, "... 3"]:
+    """Rotation vectors ``(..., 3)``, of norm ``<= π``, from quaternions ``(..., 4)``."""
     return convert(q, src="quat", dst="axis_angle", src_kwargs={"convention": convention}, xp=xp)
 
 
@@ -77,6 +79,7 @@ def from_hinge(
     convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
+    """Quaternions ``(..., 4)`` of the rotation vectors ``angles * axes``, from ``angles`` ``(..., 1)``."""
     return convert(angles, src="hinge", dst="quat", src_kwargs={"axes": axes}, dst_kwargs={"convention": convention}, xp=xp)
 
 
@@ -87,6 +90,7 @@ def to_hinge(
     convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 1"]:
+    """Least-squares coefficients ``(..., 1)`` of the rotation vectors of ``q`` along ``axes``."""
     return convert(q, src="quat", dst="hinge", src_kwargs={"convention": convention}, dst_kwargs={"axes": axes}, xp=xp)
 
 
@@ -97,6 +101,7 @@ def from_euler(
     quat_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
+    """Quaternions ``(..., 4)`` from Euler angles ``(..., 3)`` in the Euler sequence ``convention``."""
     return convert(euler, src="euler", dst="quat", src_kwargs={"convention": convention}, dst_kwargs={"convention": quat_convention}, xp=xp)
 
 
@@ -107,16 +112,19 @@ def to_euler(
     quat_convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 3"]:
+    """Euler angles ``(..., 3)`` in the Euler sequence ``convention`` from quaternions ``(..., 4)``."""
     return convert(q, src="quat", dst="euler", src_kwargs={"convention": quat_convention}, dst_kwargs={"convention": convention}, xp=xp)
 
 
 def from_rotmat(
     rotmat: Float[Any, "... 3 3"], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None
 ) -> Float[Any, "... 4"]:
+    """Quaternions ``(..., 4)`` from rotation matrices ``(..., 3, 3)``."""
     return convert(rotmat, src="rotmat", dst="quat", dst_kwargs={"convention": convention}, xp=xp)
 
 
 def to_rotmat(q: Float[Any, "... 4"], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None) -> Float[Any, "... 3 3"]:
+    """Rotation matrices ``(..., 3, 3)`` from quaternions ``(..., 4)``."""
     return convert(q, src="quat", dst="rotmat", src_kwargs={"convention": convention}, xp=xp)
 
 
@@ -127,14 +135,17 @@ def from_matrix(
     mode: ProjectionMode = "svd",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
+    """Quaternions ``(..., 4)`` of the rotations closest to any matrices ``(..., 3, 3)``, by SVD or Davenport's method."""
     return convert(matrix, src="matrix", dst="quat", src_kwargs={"mode": mode}, dst_kwargs={"convention": convention}, xp=xp)
 
 
 def from_sixd(sixd: Float[Any, "... 6"], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None) -> Float[Any, "... 4"]:
+    """Quaternions ``(..., 4)`` from 6D rotations ``(..., 6)``, two matrix columns orthonormalized by Gram-Schmidt."""
     return convert(sixd, src="sixd", dst="quat", dst_kwargs={"convention": convention}, xp=xp)
 
 
 def to_sixd(q: Float[Any, "... 4"], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None) -> Float[Any, "... 6"]:
+    """6D rotations ``(..., 6)``: the first two columns of the rotation matrices of ``q``."""
     return convert(q, src="quat", dst="sixd", src_kwargs={"convention": convention}, xp=xp)
 
 
@@ -147,7 +158,7 @@ class _Node(NamedTuple):
 _ROOT = "canonical_quat"
 
 _TREE: dict[str, _Node] = {
-    "quat": _Node(_ROOT, quaternion.from_quat, quaternion.to_quat),
+    "quat": _Node(_ROOT, quaternion.from_quat, quaternion._from_wxyz),
     "axis_angle": _Node(_ROOT, axis_angle.axis_angle_to_quat, axis_angle.quat_to_axis_angle),
     "rotmat": _Node(_ROOT, rotmat.rotmat_to_quat, rotmat.quat_to_rotmat),
     "hinge": _Node("axis_angle", hinge.hinge_to_axis_angle, hinge.axis_angle_to_hinge),

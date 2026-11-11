@@ -4,11 +4,12 @@ import math
 from types import ModuleType
 from typing import Any
 
+import numpy as np
 from jaxtyping import Float
 
-from nanomanifold.common import get_namespace_by_name, random_uniform
+from nanomanifold.common import random_uniform
 
-from .primitives.quaternion import QuaternionConvention, canonicalize, to_quat
+from .primitives.quaternion import QuaternionConvention, _from_wxyz, positive_w
 
 
 def random(
@@ -18,26 +19,14 @@ def random(
     convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 4"]:
-    """Sample uniformly distributed random rotations on SO(3).
+    """Uniformly distributed rotations of shape ``(*shape, 4)``, on NumPy unless ``xp`` is given.
 
-    Uses Shoemake's method to generate uniform unit quaternions.
-
-    Args:
-        *shape: Batch dimensions (e.g. ``random(10)`` gives 10 rotations).
-        dtype: Output dtype. If None, uses backend default.
-        key: JAX PRNG key (required when xp is JAX).
-        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
-        xp: Array namespace. If None, uses numpy.
-
-    Returns:
-        Quaternions in the requested convention, shape ``(*shape, 4)``.
+    ``dtype`` defaults to the backend's; JAX needs a PRNG ``key``.
     """
-    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
-        xp = get_namespace_by_name("numpy")
-
+        xp = np
     u = random_uniform((*shape, 3), dtype=dtype, key=key, xp=xp)
-    return to_quat(shoemake(u, xp=xp), convention=convention, xp=xp)
+    return _from_wxyz(shoemake(u, xp=xp), convention=convention, xp=xp)
 
 
 def shoemake(u: Float[Any, "... 3"], *, xp: ModuleType) -> Float[Any, "... 4"]:
@@ -49,5 +38,6 @@ def shoemake(u: Float[Any, "... 3"], *, xp: ModuleType) -> Float[Any, "... 4"]:
     theta1 = 2.0 * math.pi * u1
     theta2 = 2.0 * math.pi * u2
 
+    # Unit by construction: r1² + r2² = 1.
     q = xp.concatenate([r2 * xp.cos(theta2), r1 * xp.sin(theta1), r1 * xp.cos(theta1), r2 * xp.sin(theta2)], axis=-1)
-    return canonicalize(q, xp=xp)
+    return positive_w(q, xp)

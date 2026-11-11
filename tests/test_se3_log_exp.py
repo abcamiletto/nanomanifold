@@ -250,3 +250,39 @@ def test_log_exp_edge_cases():
     pure_translation_np = np.array(pure_translation_tangent)
     log_pure_trans_np = np.array(log_pure_trans)
     assert np.allclose(pure_translation_np, log_pure_trans_np, atol=1e-6)
+
+
+SMALL_ANGLES = [1e-4, 3e-4, 5e-4, 1e-3, 3e-3, 1e-2, 1e-1]
+
+
+def _tangents_at(angle, n=64):
+    """float32 tangents with rotation angle ``angle`` and unit translation, in random directions."""
+    unit = np.random.normal(size=(2, n, 3))
+    unit /= np.linalg.norm(unit, axis=-1, keepdims=True)
+    return np.concatenate([angle * unit[0], unit[1]], axis=-1).astype(np.float32)
+
+
+@pytest.mark.parametrize("angle", SMALL_ANGLES)
+def test_float32_matches_float64_at_small_angles(angle):
+    """The Jacobian coefficients' cancellation near the small-angle branch must not cost float32 precision."""
+    tangent = _tangents_at(angle)
+    se3 = SE3.exp(tangent.astype(np.float64)).astype(np.float32)
+
+    assert np.allclose(SE3.exp(tangent), SE3.exp(tangent.astype(np.float64)), atol=1e-6)
+    assert np.allclose(SE3.log(se3), SE3.log(se3.astype(np.float64)), atol=1e-6)
+    assert np.allclose(SE3.log(SE3.exp(tangent)), tangent, atol=1e-6)
+
+
+@pytest.mark.parametrize("angle", SMALL_ANGLES)
+def test_float32_gradients_match_float64_at_small_angles(angle):
+    torch = pytest.importorskip("torch")
+    tangent = _tangents_at(angle)
+    weights = np.random.normal(size=(tangent.shape[0], 7))
+
+    for fn, x, w in [(SE3.exp, tangent, weights), (SE3.log, SE3.exp(tangent.astype(np.float64)), weights[:, :6])]:
+        grads = []
+        for dtype in (torch.float32, torch.float64):
+            x_t = torch.tensor(np.asarray(x), dtype=dtype, requires_grad=True)
+            (fn(x_t) * torch.tensor(w, dtype=dtype)).sum().backward()
+            grads.append(x_t.grad.double().numpy())
+        assert np.allclose(*grads, atol=1e-5)

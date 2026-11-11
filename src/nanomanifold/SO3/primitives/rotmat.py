@@ -57,8 +57,8 @@ def rotmat_to_quat(rotmat: Float[Any, "... 3 3"], *, xp: ModuleType) -> Float[An
     y = xp.where(cond1, y1, xp.where(cond2, y2, xp.where(cond3, y3, y4)))
     z = xp.where(cond1, z1, xp.where(cond2, z2, xp.where(cond3, z3, z4)))
 
-    quat = xp.stack([w, x, y, z], axis=-1)
-    return quaternion.canonicalize(quat, xp=xp)
+    # Unit only for an exactly orthonormal input, so normalize rather than just flip the sign.
+    return quaternion.normalize(xp.stack([w, x, y, z], axis=-1), xp)
 
 
 def quat_to_rotmat(q: Float[Any, "... 4"], *, xp: ModuleType) -> Float[Any, "... 3 3"]:

@@ -1,28 +1,54 @@
 [project]
 name = "nanomanifold"
-version = "0.9.1"
+version = "0.10.0"
 description = "SO3/SE3 operations on any backend"
 readme = "README.md"
 authors = [
     { name = "Andrea Boscolo Camiletto", email = "abcamiletto@gmail.com" },
 ]
 requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["so3", "se3", "lie-group", "rotation", "quaternion", "rigid-transform", "numpy", "pytorch", "jax"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Typing :: Typed",
+]
 dependencies = ["jaxtyping>=0.3.2,<1", "numpy>=1.26.4,<3"]
 
+[project.urls]
+Homepage = "https://github.com/abcamiletto/nanomanifold"
+Repository = "https://github.com/abcamiletto/nanomanifold"
+Issues = "https://github.com/abcamiletto/nanomanifold/issues"
+
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
     "ruff>=0.9.0",
-    "setuptools>=80.9.0",
+    "ty>=0.0.100",
 ]
 test = [
     "jax>=0.4.38",
     "pytest>=8.4.1",
     "pytest-xdist>=3.6.1",
     "scipy>=1.13.1",
+    "setuptools>=80.9.0", # torch.compile imports it at runtime; torch only declares it on Python >= 3.12
     "torch>=1.13.1",
 ]
 

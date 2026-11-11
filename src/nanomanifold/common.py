@@ -55,39 +55,23 @@ def zeros_as(ref: Any, *, shape: tuple[int, ...], xp: ModuleType | None = None) 
     return xp.zeros(shape, dtype=ref.dtype)
 
 
-def random_uniform(shape: tuple[int, ...], *, dtype=None, key=None, xp: ModuleType | None = None):
-    """Return U[0,1) samples of the given shape.
+def cross(a: Any, b: Any, xp: ModuleType) -> Any:
+    """Cross product over the last axis, with broadcasting (``linalg.cross`` is missing from NumPy 1.x)."""
+    ax, ay, az = a[..., 0], a[..., 1], a[..., 2]
+    bx, by, bz = b[..., 0], b[..., 1], b[..., 2]
+    return xp.stack([ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx], axis=-1)
 
-    Backend dispatch:
-      - JAX: uses jax.random.uniform (key is required)
-      - PyTorch: uses torch.rand
-      - NumPy (default): uses numpy.random.uniform
-    """
-    if xp is None:
-        import numpy as np
 
-        arr = np.random.uniform(0, 1, shape)
-        if dtype is not None:
-            arr = arr.astype(dtype)
-        return arr
-
-    name = xp.__name__
-    if "jax" in name:
+def random_uniform(shape: tuple[int, ...], *, dtype=None, key=None, xp: ModuleType = np):
+    """Return U[0,1) samples of the given shape: ``jax.random.uniform`` (``key`` required), ``torch.rand`` or NumPy."""
+    kwargs = {} if dtype is None else {"dtype": dtype}
+    if "jax" in xp.__name__:
         import jax
 
         if key is None:
             raise ValueError("A PRNG key is required for JAX: pass key=jax.random.PRNGKey(...)")
-        kwargs = {"dtype": dtype} if dtype is not None else {}
         return jax.random.uniform(key, shape, **kwargs)
-    elif "torch" in name:
-        import torch
-
-        kwargs = {"dtype": dtype} if dtype is not None else {}
-        return torch.rand(shape, **kwargs)
-    else:
-        import numpy as np
-
-        arr = np.random.uniform(0, 1, shape)
-        if dtype is not None:
-            arr = arr.astype(dtype)
-        return arr
+    if "torch" in xp.__name__:
+        return xp.rand(shape, **kwargs)
+    samples = np.random.uniform(0, 1, shape)
+    return samples if dtype is None else samples.astype(dtype)

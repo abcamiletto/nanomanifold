@@ -2,7 +2,7 @@
 
 Each case runs on the awkward rotation batch from conftest and must agree with NumPy, keep the input dtype and
 shape, trace under ``torch.compile(fullgraph=True)`` and ``jax.jit``, pass ``torch.autograd.gradcheck`` on regular
-inputs and keep gradients finite on the awkward ones. The math itself is tested on NumPy in the other files.
+inputs and keep gradients finite on the awkward ones, on torch and JAX. The math itself is tested on NumPy in the other files.
 """
 
 from collections.abc import Callable
@@ -134,8 +134,14 @@ CASES = [
     Case("SO3.mean", lambda a, b, c, xp: SO3.mean([a, b, c], xp=xp), lambda q: tuple(_random_quats(8) for _ in range(3)), _rotmat),
     Case(
         "SO3.identity_as",
-        lambda ref, xp: SO3.identity_as(ref, batch_dims=ref.shape[:-1], rotation_type="rotmat", xp=xp),
+        lambda ref, xp: SO3.identity_as(ref, batch_dims=ref.shape[:-1], rep="rotmat", xp=xp),
         lambda q: (q,),
+        differentiable=False,
+    ),
+    Case(
+        "SE3.identity_as",
+        lambda ref, xp: SE3.identity_as(ref, batch_dims=ref.shape[:-1], convention="xyzw", xp=xp),
+        lambda q: (_se3(q),),
         differentiable=False,
     ),
     Case("SE3.canonicalize", lambda T, xp: SE3.canonicalize(T, xp=xp), lambda q: (_se3(-q),), _se3_matrix),
@@ -252,17 +258,28 @@ def test_torch_gradcheck(case):
     assert torch.autograd.gradcheck(lambda *args: _flatten(case.fn(*args, xp=torch)), inputs, eps=1e-6, atol=1e-5)
 
 
+def _awkward_gradients(case, backend):
+    """Gradients of the summed outputs with respect to every input, in float64 on the awkward batch."""
+    if backend == "torch":
+        torch = pytest.importorskip("torch")
+        _, inputs = _inputs(case, 64, torch)
+        inputs = tuple(x.requires_grad_(True) for x in inputs)
+        sum(out.sum() for out in _flatten(case.fn(*inputs, xp=torch))).backward()
+        return [x.grad.numpy() for x in inputs]
+
+    jax = pytest.importorskip("jax")
+    # jax >= 0.5 scopes float64 with jax.enable_x64, older versions with jax.experimental.enable_x64.
+    with jax.enable_x64(True) if hasattr(jax, "enable_x64") else jax.experimental.enable_x64():
+        _, inputs = _inputs(case, 64, jax.numpy)
+        loss = lambda *args: sum(out.sum() for out in _flatten(case.fn(*args, xp=jax.numpy)))  # noqa: E731
+        return [np.asarray(g) for g in jax.grad(loss, argnums=tuple(range(len(inputs))))(*inputs)]
+
+
+@pytest.mark.parametrize("backend", ["torch", "jax"])
 @pytest.mark.parametrize("case", DIFFERENTIABLE, ids=[case.name for case in DIFFERENTIABLE])
-def test_torch_gradients_finite_on_awkward_inputs(case):
-    torch = pytest.importorskip("torch")
-    _, inputs = _inputs(case, 64, torch)
-    inputs = tuple(x.requires_grad_(True) for x in inputs)
-
-    loss = sum(out.sum() for out in _flatten(case.fn(*inputs, xp=torch)))
-    loss.backward()
-
-    for x in inputs:
-        assert torch.isfinite(x.grad).all()
+def test_gradients_finite_on_awkward_inputs(case, backend):
+    for grad in _awkward_gradients(case, backend):
+        assert np.isfinite(grad).all()
 
 
 @pytest.mark.parametrize("backend", ["numpy", "torch", "jax"])

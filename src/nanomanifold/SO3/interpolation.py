@@ -1,13 +1,15 @@
+"""Interpolation and averaging of SO(3) rotations."""
+
 import math
 from types import ModuleType
-from typing import Any
+from typing import Any, Sequence
 
 from jaxtyping import Float
 
 from nanomanifold import common
 from nanomanifold.common import get_namespace
 
-from .primitives.quaternion import QuaternionConvention, canonicalize, from_quat, to_quat
+from .primitives.quaternion import QuaternionConvention, _from_wxyz, from_quat, largest_eigenvector, normalize
 
 
 def slerp(
@@ -18,70 +20,70 @@ def slerp(
     convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... N 4"]:
-    """Spherical linear interpolation between two quaternions representing SO(3).
+    """Spherical linear interpolation along the shorter arc, at the ``N`` times in the last axis of ``t``.
 
-    The routine performs geodesic interpolation on the SO(3) manifold, taking the
-    shortest path between two rotations after canonicalizing the inputs to the same
-    hemisphere. The interpolation parameters ``t`` are typically chosen in the
-    closed interval ``[0, 1]`` where ``t = 0`` returns ``q1`` and ``t = 1`` returns
-    ``q2``, but values outside that range are accepted and will extrapolate beyond
-    the arc connecting the endpoints.
-
-    Args:
-        q1: Start quaternion in the given convention.
-        q2: End quaternion in the given convention.
-        t: Array of interpolation parameters whose last dimension ``N`` represents
-            the number of interpolation points. For a single point use shape
-            ``[..., 1]``.
-        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
-        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
-
-    Returns:
-        Interpolated quaternions with shape ``[..., N, 4]`` where ``N`` is the last
-        dimension of ``t``.
+    ``t = 0`` gives ``q1`` and ``t = 1`` gives ``q2``; values outside ``[0, 1]`` extrapolate. Returns ``(..., N, 4)``.
     """
-    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
         xp = get_namespace(q1)
+    q1 = from_quat(q1, convention=convention, xp=xp)[..., None, :]
+    q2 = from_quat(q2, convention=convention, xp=xp)[..., None, :]
+    t = t[..., None]
 
-    q1 = canonicalize(from_quat(q1, convention=convention, xp=xp), xp=xp)
-    q2 = canonicalize(from_quat(q2, convention=convention, xp=xp), xp=xp)
+    # Interpolate along the shorter arc.
+    dot = xp.sum(q1 * q2, axis=-1, keepdims=True)
+    q2 = xp.where(dot < 0, -q2, q2)
+    dot = xp.clip(xp.where(dot < 0, -dot, dot), 0.0, 1.0)
 
-    q1_expanded = q1[..., None, :]
-    q2_expanded = q2[..., None, :]
-
-    dot_product = xp.sum(q1_expanded * q2_expanded, axis=-1, keepdims=True)
-
-    q2_corrected = xp.where(dot_product < 0, -q2_expanded, q2_expanded)
-    dot_product = xp.where(dot_product < 0, -dot_product, dot_product)
-
-    dot_product = xp.clip(dot_product, 0.0, 1.0)
-
-    threshold = 1.0 - math.sqrt(common.safe_eps(dot_product.dtype, xp, scale=1.0))
-
-    t_expanded = t[..., None]
-
-    use_linear = dot_product > threshold
-
-    linear_result = (1.0 - t_expanded) * q1_expanded + t_expanded * q2_corrected
-    linear_norm = xp.sqrt(xp.sum(linear_result**2, axis=-1, keepdims=True))
-    linear_result = linear_result / linear_norm
+    eps = common.safe_eps(dot.dtype, xp, scale=1.0)
+    use_linear = dot > 1.0 - math.sqrt(eps)
+    linear = (1.0 - t) * q1 + t * q2
 
     # Keep the acos argument away from exactly 1.0 so the unselected spherical
     # path does not introduce NaN gradients at the linear/spherical boundary.
-    one = xp.ones_like(dot_product)
-    eps = xp.asarray(common.safe_eps(dot_product.dtype, xp, scale=1.0), dtype=dot_product.dtype)
-    dot_for_trig = xp.minimum(dot_product, one - eps)
-    omega = xp.arccos(dot_for_trig)
+    eps = xp.asarray(eps, dtype=dot.dtype)
+    omega = xp.arccos(xp.minimum(dot, xp.ones_like(dot) - eps))
     sin_omega = xp.sin(omega)
+    sin_omega = xp.where(xp.abs(sin_omega) < eps, eps, sin_omega)
+    spherical = xp.sin((1.0 - t) * omega) / sin_omega * q1 + xp.sin(t * omega) / sin_omega * q2
 
-    sin_omega_safe = xp.where(xp.abs(sin_omega) < eps, eps, sin_omega)
+    # The linear branch needs renormalizing; the spherical one drifts off the unit sphere by rounding.
+    return _from_wxyz(normalize(xp.where(use_linear, linear, spherical), xp), convention=convention, xp=xp)
 
-    weight1 = xp.sin((1.0 - t_expanded) * omega) / sin_omega_safe
-    weight2 = xp.sin(t_expanded * omega) / sin_omega_safe
 
-    spherical_result = weight1 * q1_expanded + weight2 * q2_corrected
+def weighted_mean(
+    qs: Sequence[Float[Any, "... 4"]],
+    weights: Float[Any, "... N"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 4"]:
+    """Weighted mean of ``N`` rotations ``(..., 4)``, with weights ``(..., N)`` normalized to sum to one.
 
-    result = xp.where(use_linear, linear_result, spherical_result)
+    The mean is the top eigenvector of ``Σ wᵢ qᵢ qᵢᵀ`` (Markley et al., "Averaging Quaternions", 2007), which
+    ignores the sign of each quaternion.
+    """
+    if xp is None:
+        xp = get_namespace(qs[0])
+    original_dtype = qs[0].dtype
 
-    return to_quat(canonicalize(result, xp=xp), convention=convention, xp=xp)
+    quats = xp.stack([from_quat(common.astype(q, original_dtype, xp), convention=convention, xp=xp) for q in qs], axis=-2)
+    weights_array = common.astype(weights, original_dtype, xp)
+
+    weights_normalized = weights_array / xp.sum(weights_array, axis=-1, keepdims=True)
+    weighted_quats = weights_normalized[..., :, None] * quats
+    M = xp.einsum("...nj,...nk->...jk", weighted_quats, quats)
+
+    return _from_wxyz(largest_eigenvector(M, xp=xp), convention=convention, xp=xp)
+
+
+def mean(
+    qs: Sequence[Float[Any, "... 4"]], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None
+) -> Float[Any, "... 4"]:
+    """``weighted_mean`` with equal weights."""
+    if len(qs) == 0:
+        raise ValueError("Cannot compute mean of empty quaternion sequence")
+    if xp is None:
+        xp = get_namespace(qs[0])
+    weights = xp.broadcast_to(xp.ones_like(qs[0][..., :1]), qs[0].shape[:-1] + (len(qs),))
+    return weighted_mean(qs, weights, convention=convention, xp=xp)

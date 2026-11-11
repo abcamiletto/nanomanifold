@@ -13,7 +13,7 @@ from nanomanifold import SO3
 
 
 @pytest.mark.parametrize(
-    "rotation_type,convention",
+    "rep,convention",
     [
         ("quat", "wxyz"),
         ("quat", "xyzw"),
@@ -26,30 +26,30 @@ from nanomanifold import SO3
     ],
 )
 @pytest.mark.parametrize("batch_dims", TEST_BATCH_DIMS)
-def test_distance_rotation_type_matches_quaternion_reference(rotation_type, convention, batch_dims):
+def test_distance_rep_matches_quaternion_reference(rep, convention, batch_dims):
     q1 = random_quaternion(batch_dims=batch_dims, precision=32)
     q2 = random_quaternion(batch_dims=batch_dims, precision=32)
 
-    rot_kwargs = {"convention": convention} if rotation_type in ("quat", "euler") else {}
-    if rotation_type == "quat":
+    rep_kwargs = {"convention": convention} if rep in ("quat", "euler") else {}
+    if rep == "quat":
         x1 = SO3.to_quat(q1, convention=convention)
         x2 = SO3.to_quat(q2, convention=convention)
-    elif rotation_type == "axis_angle":
+    elif rep == "axis_angle":
         x1 = SO3.to_axis_angle(q1)
         x2 = SO3.to_axis_angle(q2)
-    elif rotation_type == "euler":
+    elif rep == "euler":
         x1 = SO3.to_euler(q1, convention=convention)
         x2 = SO3.to_euler(q2, convention=convention)
-    elif rotation_type == "hinge":
+    elif rep == "hinge":
         xp = np
         axes = xp.asarray(np.array([0.0, 0.0, 2.0], dtype=np.float32))
         x1 = SO3.to_hinge(q1, axes)
         x2 = SO3.to_hinge(q2, axes)
-        rot_kwargs = {"axes": axes}
-    elif rotation_type == "rotmat":
+        rep_kwargs = {"axes": axes}
+    elif rep == "rotmat":
         x1 = SO3.to_rotmat(q1)
         x2 = SO3.to_rotmat(q2)
-    elif rotation_type == "matrix":
+    elif rep == "matrix":
         xp = np
         stretch = np.diag(np.array([1.05, 0.97, 1.02], dtype=np.float32))
         x1 = xp.asarray(np.matmul(np.array(SO3.to_rotmat(q1)), stretch))
@@ -58,8 +58,8 @@ def test_distance_rotation_type_matches_quaternion_reference(rotation_type, conv
         x1 = SO3.to_sixd(q1)
         x2 = SO3.to_sixd(q2)
 
-    distance = SO3.distance(x1, x2, rotation_type=rotation_type, rot_kwargs=rot_kwargs)
-    if rotation_type == "hinge":
+    distance = SO3.distance(x1, x2, rep=rep, rep_kwargs=rep_kwargs)
+    if rep == "hinge":
         expected = SO3.distance(SO3.from_hinge(x1, axes), SO3.from_hinge(x2, axes))
     else:
         expected = SO3.distance(q1, q2)
@@ -75,7 +75,7 @@ def test_distance_supports_euler_convention():
     e1 = SO3.to_euler(q1, convention="XYZ")
     e2 = SO3.to_euler(q2, convention="XYZ")
 
-    distance = SO3.distance(e1, e2, rotation_type="euler", rot_kwargs={"convention": "XYZ"})
+    distance = SO3.distance(e1, e2, rep="euler", rep_kwargs={"convention": "XYZ"})
     expected = SO3.distance(q1, q2)
 
     assert np.allclose(np.array(distance), np.array(expected), atol=ATOL[32])

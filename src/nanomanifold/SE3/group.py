@@ -1,60 +1,63 @@
+"""Group operations on SE(3): identity, composition, inverse and action on points."""
+
 from types import ModuleType
 from typing import Any
 
 from jaxtyping import Float
 
+from nanomanifold import SO3, common
 from nanomanifold.common import get_namespace
-from nanomanifold.SO3 import multiply as so3_multiply
-from nanomanifold.SO3 import rotate_points
-from nanomanifold.SO3.primitives.quaternion import QuaternionConvention
+from nanomanifold.SO3.primitives.quaternion import QuaternionConvention, _from_wxyz, conjugate, from_quat, positive_w, product, rotate
 
-from .canonicalize import canonicalize
+
+def identity_as(
+    ref: Float[Any, "..."],
+    *,
+    batch_dims: tuple[int, ...],
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 7"]:
+    """Identity transforms of shape ``(*batch_dims, 7)``, on ``ref``'s backend, dtype and device."""
+    if xp is None:
+        xp = get_namespace(ref)
+    q = SO3.identity_as(ref, batch_dims=batch_dims, rep_kwargs={"convention": convention}, xp=xp)
+    return xp.concatenate([q, common.zeros_as(ref, shape=batch_dims + (3,), xp=xp)], axis=-1)
 
 
 def multiply(
-    se3_1: Float[Any, "... 7"],
-    se3_2: Float[Any, "... 7"],
+    T1: Float[Any, "... 7"],
+    T2: Float[Any, "... 7"],
     *,
     convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... 7"]:
-    """Multiply two SE(3) transformations.
-
-    The multiplication order matches transformation matrix multiplication:
-    multiply(se3_1, se3_2) represents the same composition as to_matrix(se3_1) @ to_matrix(se3_2)
-
-    This means se3_2 is applied first, then se3_1.
-
-    For SE(3) transformations [q1, t1] and [q2, t2], the result is:
-    - Quaternion: q1 * q2 (quaternion multiplication)
-    - Translation: R1 * t2 + t1 (where R1 rotates by q1)
-
-    Args:
-        se3_1: First SE(3) transformation with quaternion components in the given convention
-        se3_2: Second SE(3) transformation with quaternion components in the given convention
-        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
-        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
-
-    Returns:
-        Product SE(3) transformation representing the composed transformation
-    """
-    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
+    """Compose transforms like 4x4 matrices, ``M(T1) @ M(T2)``: ``T2`` is applied first."""
     if xp is None:
-        xp = get_namespace(se3_1)
+        xp = get_namespace(T1)
+    q1 = from_quat(T1[..., :4], convention=convention, xp=xp)
+    q2 = from_quat(T2[..., :4], convention=convention, xp=xp)
+    q = _from_wxyz(positive_w(product(q1, q2, xp), xp), convention=convention, xp=xp)
+    t = rotate(q1, T2[..., None, 4:7], xp)[..., 0, :] + T1[..., 4:7]
+    return xp.concatenate([q, t], axis=-1)
 
-    se3_1 = canonicalize(se3_1, convention=convention, xp=xp)
-    se3_2 = canonicalize(se3_2, convention=convention, xp=xp)
 
-    q1 = se3_1[..., :4]
-    t1 = se3_1[..., 4:7]
-    q2 = se3_2[..., :4]
-    t2 = se3_2[..., 4:7]
+def inverse(T: Float[Any, "... 7"], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None) -> Float[Any, "... 7"]:
+    """Inverse transforms ``(..., 7)``: ``[q, t]`` becomes ``[q⁻¹, -(q⁻¹ t)]``."""
+    if xp is None:
+        xp = get_namespace(T)
+    q_inv = conjugate(from_quat(T[..., :4], convention=convention, xp=xp), xp)
+    t_inv = -rotate(q_inv, T[..., None, 4:7], xp)[..., 0, :]
+    return xp.concatenate([_from_wxyz(q_inv, convention=convention, xp=xp), t_inv], axis=-1)
 
-    q_result = so3_multiply(q1, q2, convention=convention, xp=xp)
 
-    t2_rotated = rotate_points(q1, t2[..., None, :], convention=convention, xp=xp).squeeze(-2)
-    t_result = t2_rotated + t1
-
-    result = xp.concatenate([q_result, t_result], axis=-1)
-
-    return canonicalize(result, convention=convention, xp=xp)
+def transform_points(
+    T: Float[Any, "... 7"],
+    points: Float[Any, "... N 3"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... N 3"]:
+    """Apply transforms ``(..., 7)`` to points ``(..., N, 3)``: rotate, then translate."""
+    if xp is None:
+        xp = get_namespace(T)
+    return SO3.rotate_points(T[..., :4], points, convention=convention, xp=xp) + T[..., None, 4:7]

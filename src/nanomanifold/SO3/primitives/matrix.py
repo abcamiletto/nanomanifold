@@ -10,15 +10,19 @@ from . import quaternion, rotmat
 ProjectionMode = Literal["svd", "davenport"]
 
 
+def _check(mode: str) -> None:
+    if mode not in ("svd", "davenport"):
+        raise ValueError(f"Unsupported projection mode '{mode}'. Supported values: svd, davenport.")
+
+
 def matrix_to_rotmat(matrix: Float[Any, "... 3 3"], *, mode: ProjectionMode = "svd", xp: ModuleType) -> Float[Any, "... 3 3"]:
-    if mode == "svd":
-        return _svd(matrix, xp)
-    if mode == "davenport":
-        return _davenport(matrix, xp)
-    raise ValueError(f"Unsupported projection mode '{mode}'. Supported values: svd, davenport.")
+    _check(mode)
+    return _svd(matrix, xp) if mode == "svd" else _davenport(matrix, xp)
 
 
-def rotmat_to_matrix(rotmat: Float[Any, "... 3 3"], *, xp: ModuleType) -> Float[Any, "... 3 3"]:
+def rotmat_to_matrix(rotmat: Float[Any, "... 3 3"], *, mode: ProjectionMode = "svd", xp: ModuleType) -> Float[Any, "... 3 3"]:
+    """A rotation matrix already is one; ``mode`` only matters when reading a matrix, so it is just checked."""
+    _check(mode)
     return rotmat
 
 
@@ -26,7 +30,7 @@ def _svd(matrix: Float[Any, "... 3 3"], xp: ModuleType) -> Float[Any, "... 3 3"]
     if matrix.dtype == xp.float16:
         raise ValueError("SO3 matrix projection with mode='svd' does not support float16.")
 
-    u, _, vh = xp.linalg.svd(matrix)
+    u, _, vh = xp.linalg.svd(matrix, full_matrices=False)  # reduced form: old JAX cannot differentiate the full one
     det = xp.linalg.det(xp.matmul(u, vh))
 
     zero = xp.zeros_like(det)

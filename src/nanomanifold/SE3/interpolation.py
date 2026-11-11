@@ -1,59 +1,66 @@
+"""Interpolation and averaging of SE(3) transforms: the rotation as in SO(3), the translation linearly."""
+
 from types import ModuleType
-from typing import Any
+from typing import Any, Sequence
 
 from jaxtyping import Float
 
+from nanomanifold import SO3, common
 from nanomanifold.common import get_namespace
-from nanomanifold.SO3 import slerp as so3_slerp
 from nanomanifold.SO3.primitives.quaternion import QuaternionConvention
-
-from .canonicalize import canonicalize
 
 
 def slerp(
-    se3_1: Float[Any, "... 7"],
-    se3_2: Float[Any, "... 7"],
+    T1: Float[Any, "... 7"],
+    T2: Float[Any, "... 7"],
     t: Float[Any, "... N"],
     *,
     convention: QuaternionConvention = "wxyz",
     xp: ModuleType | None = None,
 ) -> Float[Any, "... N 7"]:
-    """Interpolate between two SE(3) transformations.
+    """Interpolate at the ``N`` times in the last axis of ``t``: ``SO3.slerp`` for rotations, linear for translations.
 
-    Uses SO3.slerp for the rotation part and linear interpolation for the
-    translation part. The interpolation parameter ``t`` follows the same
-    semantics as SO3.slerp: output shape is ``(..., N, 7)``.
-
-    Args:
-        se3_1: Start SE(3) transformation with quaternion components in the given convention.
-        se3_2: End SE(3) transformation with quaternion components in the given convention.
-        t: Interpolation parameters. Last dimension N gives the number of
-            interpolation points. t=0 returns se3_1, t=1 returns se3_2.
-        convention: Quaternion component order, either ``"wxyz"`` or ``"xyzw"``
-        xp: Array namespace (e.g. torch, jax.numpy). If None, auto-detected.
-
-    Returns:
-        Interpolated SE(3) transformations with shape (..., N, 7).
+    ``t = 0`` gives ``T1`` and ``t = 1`` gives ``T2``. Returns ``(..., N, 7)``.
     """
-    assert convention in ("wxyz", "xyzw"), "Quaternion convention must be 'wxyz' or 'xyzw'."
     if xp is None:
-        xp = get_namespace(se3_1)
+        xp = get_namespace(T1)
+    q = SO3.slerp(T1[..., :4], T2[..., :4], t, convention=convention, xp=xp)  # (..., N, 4)
+    t = t[..., None]
+    translation = (1.0 - t) * T1[..., None, 4:7] + t * T2[..., None, 4:7]  # (..., N, 3)
+    return xp.concatenate([q, translation], axis=-1)
 
-    se3_1 = canonicalize(se3_1, convention=convention, xp=xp)
-    se3_2 = canonicalize(se3_2, convention=convention, xp=xp)
 
-    q1 = se3_1[..., :4]
-    t1 = se3_1[..., 4:7]
-    q2 = se3_2[..., :4]
-    t2 = se3_2[..., 4:7]
+def weighted_mean(
+    Ts: Sequence[Float[Any, "... 7"]],
+    weights: Float[Any, "... N"],
+    *,
+    convention: QuaternionConvention = "wxyz",
+    xp: ModuleType | None = None,
+) -> Float[Any, "... 7"]:
+    """Weighted mean of ``N`` transforms ``(..., 7)``, with weights ``(..., N)`` normalized to sum to one.
 
-    # Slerp for rotation: (..., N, 4)
-    q_interp = so3_slerp(q1, q2, t, convention=convention, xp=xp)
+    The rotation is ``SO3.weighted_mean`` of the rotations, the translation the weighted average of the translations.
+    """
+    if xp is None:
+        xp = get_namespace(Ts[0])
 
-    # Linear interpolation for translation: (..., N, 3)
-    t_expanded = t[..., None]  # (..., N, 1)
-    t1_expanded = t1[..., None, :]  # (..., 1, 3)
-    t2_expanded = t2[..., None, :]  # (..., 1, 3)
-    t_interp = (1.0 - t_expanded) * t1_expanded + t_expanded * t2_expanded
+    q_mean = SO3.weighted_mean([T[..., :4] for T in Ts], weights, convention=convention, xp=xp)
 
-    return xp.concatenate([q_interp, t_interp], axis=-1)
+    weights = common.astype(weights, Ts[0].dtype, xp)
+    weights = weights / xp.sum(weights, axis=-1, keepdims=True)
+    t_stack = xp.stack([T[..., 4:7] for T in Ts], axis=-2)  # (..., N, 3)
+    t_mean = xp.sum(weights[..., :, None] * t_stack, axis=-2)
+
+    return xp.concatenate([q_mean, t_mean], axis=-1)
+
+
+def mean(
+    Ts: Sequence[Float[Any, "... 7"]], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None
+) -> Float[Any, "... 7"]:
+    """``weighted_mean`` with equal weights."""
+    if len(Ts) == 0:
+        raise ValueError("Cannot compute mean of empty transform sequence")
+    if xp is None:
+        xp = get_namespace(Ts[0])
+    weights = xp.broadcast_to(xp.ones_like(Ts[0][..., :1]), Ts[0].shape[:-1] + (len(Ts),))
+    return weighted_mean(Ts, weights, convention=convention, xp=xp)

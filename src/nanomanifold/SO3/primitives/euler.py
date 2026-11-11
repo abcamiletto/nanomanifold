@@ -12,7 +12,8 @@ from jaxtyping import Float
 
 from nanomanifold import common
 
-from ..multiply import multiply
+from . import quaternion
+from .quaternion import product
 
 EulerConvention = Literal[
     "xyz", "xzy", "yxz", "yzx", "zxy", "zyx",
@@ -24,12 +25,16 @@ EulerConvention = Literal[
 EULER_CONVENTIONS = get_args(EulerConvention)
 
 
+def _check(convention: str) -> None:
+    assert convention in EULER_CONVENTIONS, f"Invalid Euler convention {convention!r}: expected three axes such as 'ZYX' or 'xyz'."
+
+
 def euler_to_quat(euler: Float[Any, "... 3"], *, convention: EulerConvention = "ZYX", xp: ModuleType) -> Float[Any, "... 4"]:
-    assert convention in EULER_CONVENTIONS, "Invalid Euler convention."
+    _check(convention)
     first, second, third = [_axis_quat(euler[..., i : i + 1], axis, xp) for i, axis in enumerate(convention.lower())]
-    if convention.islower():
-        return multiply(third, multiply(second, first, xp=xp), xp=xp)
-    return multiply(first, multiply(second, third, xp=xp), xp=xp)
+    quat = product(third, product(second, first, xp), xp) if convention.islower() else product(first, product(second, third, xp), xp)
+    # Three float16 products drift by up to 1.5 ulp; renormalizing keeps euler -> rotmat as accurate as one rounding.
+    return quaternion.normalize(quat, xp)
 
 
 def quat_to_euler(quat: Float[Any, "... 4"], *, convention: EulerConvention = "ZYX", xp: ModuleType) -> Float[Any, "... 3"]:
@@ -37,7 +42,7 @@ def quat_to_euler(quat: Float[Any, "... 4"], *, convention: EulerConvention = "Z
     efficient method". At gimbal lock only the sum or difference of the outer angles is defined; like SciPy, the
     third angle is then set to zero.
     """
-    assert convention in EULER_CONVENTIONS, "Invalid Euler convention."
+    _check(convention)
     extrinsic = convention.islower()
     # The method is written for extrinsic sequences; an intrinsic sequence is the reversed extrinsic one.
     sequence = convention.lower() if extrinsic else convention.lower()[::-1]

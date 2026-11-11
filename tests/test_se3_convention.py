@@ -1,4 +1,7 @@
+import inspect
+
 import numpy as np
+import pytest
 
 from nanomanifold import SE3, SO3
 
@@ -79,3 +82,77 @@ def test_se3_random_supports_xyzw():
 
     assert se3.shape == (16, 7)
     assert np.allclose(np.linalg.norm(np.array(quat), axis=-1), 1.0, atol=1e-6)
+
+
+def _valid_args():
+    """Valid positional arguments for every public function that takes a quaternion convention."""
+    q, T = SO3.random(2), SE3.random(2)
+    points, t, w, axes = np.zeros((2, 1, 3)), np.array([0.5]), np.ones((2, 2)), np.array([0.0, 0.0, 1.0])
+    so3 = {
+        "from_axis_angle": (q[..., 1:],),
+        "to_axis_angle": (q,),
+        "from_hinge": (q[..., :1], axes),
+        "to_hinge": (q, axes),
+        "from_euler": (q[..., 1:],),
+        "to_euler": (q,),
+        "from_rotmat": (np.eye(3),),
+        "to_rotmat": (q,),
+        "from_matrix": (np.eye(3),),
+        "from_sixd": (SO3.to_sixd(q),),
+        "to_sixd": (q,),
+        "from_quat": (q,),
+        "to_quat": (q,),
+        "canonicalize": (q,),
+        "identity_as": (q,),
+        "random": (2,),
+        "multiply": (q, q),
+        "inverse": (q,),
+        "rotate_points": (q, points),
+        "slerp": (q, q, t),
+        "log": (q,),
+        "exp": (q[..., 1:],),
+        "weighted_mean": ([q, q], w),
+        "mean": ([q, q],),
+    }
+    se3 = {
+        "from_rt": (q, T[..., 4:]),
+        "to_rt": (T,),
+        "from_matrix": (SE3.to_matrix(T),),
+        "to_matrix": (T,),
+        "canonicalize": (T,),
+        "identity_as": (T,),
+        "random": (2,),
+        "multiply": (T, T),
+        "inverse": (T,),
+        "transform_points": (T, points),
+        "slerp": (T, T, t),
+        "log": (T,),
+        "exp": (T[..., 1:],),
+        "weighted_mean": ([T, T], w),
+        "mean": ([T, T],),
+    }
+    return {SO3: so3, SE3: se3}
+
+
+VALID_ARGS = _valid_args()
+CONVENTION_CALLS = [
+    (group, name, keyword)
+    for group in (SO3, SE3)
+    for name in group.__all__
+    if callable(fn := getattr(group, name))
+    for keyword in ("convention", "quat_convention")
+    if keyword in inspect.signature(fn).parameters
+]
+
+
+@pytest.mark.parametrize(
+    "group,name,keyword", CONVENTION_CALLS, ids=[f"{g.__name__.split('.')[-1]}.{n}-{k}" for g, n, k in CONVENTION_CALLS]
+)
+def test_bad_convention_is_rejected(group, name, keyword):
+    """Every public function that takes a convention rejects a bad one."""
+    fn, args = getattr(group, name), VALID_ARGS[group][name]
+    kwargs = {"batch_dims": (2,)} if name == "identity_as" else {}
+    fn(*args, **kwargs)
+
+    with pytest.raises(AssertionError, match="onvention"):
+        fn(*args, **kwargs, **{keyword: "bad"})

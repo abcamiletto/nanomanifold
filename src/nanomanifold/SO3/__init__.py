@@ -13,19 +13,11 @@ from .convert import (
     to_rotmat,
     to_sixd,
 )
-from .distance import distance
-from .exp import exp
-from .hat import hat
-from .identity import identity_as
-from .inverse import inverse
-from .log import log
-from .multiply import multiply
+from .group import distance, identity_as, inverse, multiply, rotate_points
+from .interpolation import mean, slerp, weighted_mean
+from .lie import exp, hat, log, vee
 from .primitives.quaternion import canonicalize, from_quat, to_quat
 from .random import random
-from .rotate_points import rotate_points
-from .slerp import slerp
-from .vee import vee
-from .weighted_mean import mean, weighted_mean
 
 __all__ = [
     "RotationRep",

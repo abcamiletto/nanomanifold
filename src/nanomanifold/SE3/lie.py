@@ -75,13 +75,13 @@ def vee(Xi: Float[Any, "... 4 4"], *, xp: ModuleType | None = None) -> Float[Any
 
 
 def _small_angle(omega: Any, xp: ModuleType) -> tuple[Any, Any, Any]:
-    """Return ``θ²``, a mask of the angles inside the series window and ``θ`` set to 1 inside it, each ``(..., 1, 1)``.
+    """Return ``θ²``, a mask of the angles inside the series window and ``θ`` set to 1 inside it, each ``(..., 1)``.
 
     Closed forms divided by the returned ``θ`` stay finite in the masked branch, gradients included.
     """
     eps = common.safe_eps(omega.dtype, xp, scale=1.0)
     window = min((eps / 6.4e-9) ** 0.1, 1.0)
-    theta_sq = xp.sum(omega * omega, axis=-1)[..., None, None]
+    theta_sq = xp.sum(omega * omega, axis=-1, keepdims=True)
     small = theta_sq < window**2
     theta = xp.sqrt(xp.where(small, xp.ones_like(theta_sq), theta_sq))
     return theta_sq, small, theta
@@ -96,11 +96,9 @@ def _series(theta_sq: Any, coefficients: tuple[float, ...]) -> Any:
 
 
 def _apply(omega: Any, a: Any, b: Any, v: Any, xp: ModuleType) -> Any:
-    """Return ``(I + a·ω̂ + b·ω̂²) v`` for ``a``, ``b`` of shape ``(..., 1, 1)``.
+    """Return ``(I + a·ω̂ + b·ω̂²) v = v + ω × (a·v + b·(ω × v))`` for ``a``, ``b`` of shape ``(..., 1)``.
 
-    Summing the matrix before applying it rounds once per entry, which float16 measurably prefers.
+    Two cross products instead of the 3x3 matrix: no ``hat``, identity or batched ``matmul``. Adding ``v`` last keeps
+    small angles more accurate than the matrix; near π the matrix is ~0.3 ulp better at p99, in every dtype.
     """
-    W = SO3.hat(omega, xp=xp)
-    identity = SO3.identity_as(omega, batch_dims=omega.shape[:-1], rep="rotmat", xp=xp)
-    V = identity + a * W + b * xp.matmul(W, W)
-    return xp.matmul(V, v[..., None])[..., 0]
+    return v + common.cross(omega, a * v + b * common.cross(omega, v, xp), xp)

@@ -112,9 +112,13 @@ def largest_eigenvector(matrix: Float[Any, "... 4 4"], *, xp: ModuleType, steps:
 
     # Shift so the largest algebraic eigenvalue also has the largest magnitude, then square the whole matrix
     # instead of iterating a single vector, so no starting guess can be orthogonal to the answer.
-    projector = matrix + (xp.linalg.norm(matrix, axis=(-2, -1), keepdims=True) + eps) * identity
-    for _ in range(steps):
-        projector = projector / (xp.linalg.norm(projector, axis=(-2, -1), keepdims=True) + eps)
+    # Halving puts the eigenvalues in (0, 1) and the largest in [1/4, 1), or in [1/2, 1] after each renormalization,
+    # so two squarings keep it above 2^-8 and the norm (whose squares must not underflow float16) can skip every other.
+    scale = xp.linalg.norm(matrix, axis=(-2, -1), keepdims=True) + eps
+    projector = (matrix + scale * identity) / (2 * scale)
+    for step in range(steps):
+        if step % 2 == 0 and step > 0:
+            projector = projector / xp.linalg.norm(projector, axis=(-2, -1), keepdims=True)
         projector = xp.matmul(projector, projector)
 
     # The projector is close to v v^T; its column with the largest diagonal entry is the best-conditioned copy of v.

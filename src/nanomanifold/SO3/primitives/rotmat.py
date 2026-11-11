@@ -36,7 +36,8 @@ def rotmat_to_quat(rotmat: Float[Any, "... 3 3"], *, xp: ModuleType) -> Float[An
     return quaternion.normalize(xp.stack([w, x, y, z], axis=-1), xp)
 
 
-def quat_to_rotmat(q: Float[Any, "... 4"], *, xp: ModuleType) -> Float[Any, "... 3 3"]:
+def _rows(q: Float[Any, "... 4"], *, xp: ModuleType) -> tuple[tuple[Any, Any, Any], ...]:
+    """Entries of the rotation matrix of wxyz quaternions, as three rows of arrays shaped like ``q[..., 0]``."""
     w, x, y, z = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
     # Each product once, doubled through one factor: doubling is exact, so this rounds like 2 (x y - w z).
     x2, y2, z2 = x + x, y + y, z + z
@@ -44,12 +45,23 @@ def quat_to_rotmat(q: Float[Any, "... 4"], *, xp: ModuleType) -> Float[Any, "...
     xy, xz, yz = x * y2, x * z2, y * z2
     wx, wy, wz = w * x2, w * y2, w * z2
     one = xp.ones_like(w)
-
-    return xp.stack(
-        [
-            xp.stack([one - (yy + zz), xy - wz, xz + wy], axis=-1),
-            xp.stack([xy + wz, one - (xx + zz), yz - wx], axis=-1),
-            xp.stack([xz - wy, yz + wx, one - (xx + yy)], axis=-1),
-        ],
-        axis=-2,
+    return (
+        (one - (yy + zz), xy - wz, xz + wy),
+        (xy + wz, one - (xx + zz), yz - wx),
+        (xz - wy, yz + wx, one - (xx + yy)),
     )
+
+
+def quat_to_rotmat(q: Float[Any, "... 4"], *, xp: ModuleType) -> Float[Any, "... 3 3"]:
+    return xp.stack([xp.stack(row, axis=-1) for row in _rows(q, xp=xp)], axis=-2)
+
+
+def rotate(q: Float[Any, "... 4"], points: Float[Any, "... N 3"], *, xp: ModuleType) -> Float[Any, "... N 3"]:
+    """Rotate points by unit wxyz quaternions through their matrix entries, built once per rotation on ``(..., 1)``.
+
+    Costs 15 operations per point plus one stack, against 24 plus three full-size passes for ``quaternion.rotate``,
+    which stays cheaper for one point per rotation. Batched ``matmul`` is avoided: it is slow on CPU compilers.
+    """
+    px, py, pz = points[..., 0], points[..., 1], points[..., 2]
+    rows = _rows(q[..., None, :], xp=xp)
+    return xp.stack([r0 * px + r1 * py + r2 * pz for r0, r1, r2 in rows], axis=-1)

@@ -30,29 +30,42 @@ def _check(convention: str) -> None:
 
 def euler_to_quat(euler: Float[Any, "... 3"], *, convention: EulerConvention = "ZYX", xp: ModuleType) -> Float[Any, "... 4"]:
     _check(convention)
-    # Slicing before cos and sin, not after: XLA compiles the per-angle form to faster code.
-    half = [euler[..., i : i + 1] / 2 for i in range(3)]
-    cos, sin = [xp.cos(h) for h in half], [xp.sin(h) for h in half]
-    # Intrinsic sequences compose as first · second · third, extrinsic ones as third · second · first.
-    # Either way the product is built from the right, one axis rotation at a time.
-    inner, middle, outer = (0, 1, 2) if convention.islower() else (2, 1, 0)
-    axes = convention.lower()
-
-    zero = xp.zeros_like(half[0])
-    quat = [cos[inner], *(sin[inner] if axes[inner] == name else zero for name in "xyz")]
-    for i in (middle, outer):
-        quat = _axis_times_quat(cos[i], sin[i], axes[i], *quat)
-    # Three float16 products drift by up to 1.5 ulp; renormalizing keeps euler -> rotmat as accurate as one rounding.
+    # (cos, sin) of each half angle, stacked on a new leading axis: (2, ..., 1).
+    a, b, c = [xp.concatenate([xp.cos(h), xp.sin(h)]) for h in (euler[None, ..., i : i + 1] / 2 for i in range(3))]
+    # All 8 products of one cos-or-sin per angle, by broadcasting over leading axes (contiguous along the batch).
+    # The broadcast also stops XLA from fusing cos and sin into each of the four outputs and recomputing them there.
+    products = a[:, None, None] * b[None, :, None] * c[None, None, :]
+    products = list(xp.reshape(products, (8, *products.shape[3:])))
+    quat = [products[i] + products[j] if plus else products[i] - products[j] for i, j, plus in _TERMS[convention]]
+    # Float16 products drift by up to 1.5 ulp; renormalizing keeps euler -> rotmat as accurate as one rounding.
     return quaternion.normalize(xp.concatenate(quat, axis=-1), xp)
 
 
-def _axis_times_quat(c, s, axis: str, w, x, y, z) -> list:
-    """Hamilton product ``(c, s·axis) · (w, x, y, z)``: the general product with its zero terms dropped."""
-    if axis == "x":
-        return [c * w - s * x, c * x + s * w, c * y - s * z, c * z + s * y]
-    if axis == "y":
-        return [c * w - s * y, c * x + s * z, c * y + s * w, c * z - s * x]
-    return [c * w - s * z, c * x - s * y, c * y + s * x, c * z + s * w]
+def _expand(convention: str) -> list[tuple[int, int, bool]]:
+    """Each wxyz component of the composed rotation is ``products[i] ± products[j]``; returns ``(i, j, plus)``.
+
+    Product ``4·b0 + 2·b1 + b2`` takes the sin of angle k if ``bk`` else its cos. Intrinsic sequences compose as
+    first · second · third, extrinsic ones as third · second · first.
+    """
+    axes = ["wxyz".index(axis) for axis in convention.lower()]
+    terms: list[list[tuple[int, int]]] = [[], [], [], []]
+    for index in range(8):
+        sign, unit = 1, 0  # running product ±1, ±i, ±j or ±k, as (sign, wxyz index)
+        for k in (0, 1, 2) if convention.isupper() else (2, 1, 0):
+            if index >> (2 - k) & 1:
+                axis = axes[k]
+                if unit == 0:
+                    unit = axis
+                elif unit == axis:
+                    sign, unit = -sign, 0
+                else:  # ij = k, jk = i, ki = j and the reverse orders negated
+                    sign, unit = sign if (axis - unit) % 3 == 1 else -sign, 6 - unit - axis
+        terms[unit].append((sign, index))
+    # Sorting puts the positive product first; for all 24 conventions the first one is positive.
+    return [(i, j, sign > 0) for (_, i), (sign, j) in (sorted(pair, reverse=True) for pair in terms)]
+
+
+_TERMS = {convention: _expand(convention) for convention in EULER_CONVENTIONS}
 
 
 def quat_to_euler(quat: Float[Any, "... 4"], *, convention: EulerConvention = "ZYX", xp: ModuleType) -> Float[Any, "... 3"]:

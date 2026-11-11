@@ -52,4 +52,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
-          files: dist/*
+          # uv build also writes dist/.gitignore, so name the artifacts explicitly.
+          files: |
+            dist/*.whl
+            dist/*.tar.gz

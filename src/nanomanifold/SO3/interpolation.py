@@ -30,14 +30,13 @@ def slerp(
     q2 = from_quat(q2, convention=convention, xp=xp)[..., None, :]
     t = t[..., None]
 
-    # Interpolate along the shorter arc.
+    # Interpolate along the shorter arc, by negating the weight of q2 instead of q2 itself.
     dot = xp.sum(q1 * q2, axis=-1, keepdims=True)
-    q2 = xp.where(dot < 0, -q2, q2)
-    dot = xp.clip(xp.where(dot < 0, -dot, dot), 0.0, 1.0)
+    flip = dot < 0
+    dot = xp.clip(xp.where(flip, -dot, dot), 0.0, 1.0)
 
     eps = common.safe_eps(dot.dtype, xp, scale=1.0)
     use_linear = dot > 1.0 - math.sqrt(eps)
-    linear = (1.0 - t) * q1 + t * q2
 
     # Keep the acos argument away from exactly 1.0 so the unselected spherical
     # path does not introduce NaN gradients at the linear/spherical boundary.
@@ -45,10 +44,14 @@ def slerp(
     omega = xp.arccos(xp.minimum(dot, xp.ones_like(dot) - eps))
     sin_omega = xp.sin(omega)
     sin_omega = xp.where(xp.abs(sin_omega) < eps, eps, sin_omega)
-    spherical = xp.sin((1.0 - t) * omega) / sin_omega * q1 + xp.sin(t * omega) / sin_omega * q2
+
+    # Linear and spherical paths are both weighted sums: choose the (..., N, 1) weights, then combine once.
+    weight1 = xp.where(use_linear, 1.0 - t, xp.sin((1.0 - t) * omega) / sin_omega)
+    weight2 = xp.where(use_linear, t, xp.sin(t * omega) / sin_omega)
+    weight2 = xp.where(flip, -weight2, weight2)
 
     # The linear branch needs renormalizing; the spherical one drifts off the unit sphere by rounding.
-    return _from_wxyz(normalize(xp.where(use_linear, linear, spherical), xp), convention=convention, xp=xp)
+    return _from_wxyz(normalize(weight1 * q1 + weight2 * q2, xp), convention=convention, xp=xp)
 
 
 def weighted_mean(

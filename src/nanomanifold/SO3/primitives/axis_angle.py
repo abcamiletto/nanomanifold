@@ -11,8 +11,6 @@ from jaxtyping import Float
 
 from nanomanifold import common
 
-from .quaternion import positive_w
-
 
 def axis_angle_to_quat(axis_angle: Float[Any, "... 3"], *, xp: ModuleType) -> Float[Any, "... 4"]:
     angle_sq = xp.sum(axis_angle * axis_angle, axis=-1, keepdims=True)
@@ -20,9 +18,12 @@ def axis_angle_to_quat(axis_angle: Float[Any, "... 3"], *, xp: ModuleType) -> Fl
     angle = xp.sqrt(xp.where(small, xp.ones_like(angle_sq), angle_sq))
 
     # Below the threshold cos(angle / 2) ≈ 1 - angle² / 8 and sin(angle / 2) / angle ≈ 1 / 2.
-    w = xp.where(small, 1 - angle_sq / 8, xp.cos(angle / 2))
-    xyz = xp.where(small, axis_angle / 2, xp.sin(angle / 2) * axis_angle / angle)
-    return positive_w(xp.concatenate([w, xyz], axis=-1), xp)
+    # The branch and the flip to w >= 0 are chosen on (..., 1) arrays; the vector is touched by one multiply.
+    half = angle / 2
+    w = xp.where(small, 1 - angle_sq / 8, xp.cos(half))
+    scale = xp.where(small, xp.ones_like(angle) / 2, xp.sin(half) / angle)
+    flip = w < 0
+    return xp.concatenate([xp.where(flip, -w, w), xp.where(flip, -scale, scale) * axis_angle], axis=-1)
 
 
 def quat_to_axis_angle(quat: Float[Any, "... 4"], *, xp: ModuleType) -> Float[Any, "... 3"]:
@@ -33,4 +34,4 @@ def quat_to_axis_angle(quat: Float[Any, "... 4"], *, xp: ModuleType) -> Float[An
     norm = xp.sqrt(xp.where(small, xp.ones_like(norm_sq), norm_sq))
 
     angle = 2 * xp.arctan2(norm, xp.clip(w, 0.0, 1.0))
-    return xp.where(small, 2 * xyz, angle * xyz / norm)
+    return xp.where(small, 2 * xp.ones_like(norm), angle / norm) * xyz

@@ -13,7 +13,6 @@ from jaxtyping import Float
 from nanomanifold import common
 
 from . import quaternion
-from .quaternion import product
 
 EulerConvention = Literal[
     "xyz", "xzy", "yxz", "yzx", "zxy", "zyx",
@@ -31,10 +30,29 @@ def _check(convention: str) -> None:
 
 def euler_to_quat(euler: Float[Any, "... 3"], *, convention: EulerConvention = "ZYX", xp: ModuleType) -> Float[Any, "... 4"]:
     _check(convention)
-    first, second, third = [_axis_quat(euler[..., i : i + 1], axis, xp) for i, axis in enumerate(convention.lower())]
-    quat = product(third, product(second, first, xp), xp) if convention.islower() else product(first, product(second, third, xp), xp)
+    # Slicing before cos and sin, not after: XLA compiles the per-angle form to faster code.
+    half = [euler[..., i : i + 1] / 2 for i in range(3)]
+    cos, sin = [xp.cos(h) for h in half], [xp.sin(h) for h in half]
+    # Intrinsic sequences compose as first · second · third, extrinsic ones as third · second · first.
+    # Either way the product is built from the right, one axis rotation at a time.
+    inner, middle, outer = (0, 1, 2) if convention.islower() else (2, 1, 0)
+    axes = convention.lower()
+
+    zero = xp.zeros_like(half[0])
+    quat = [cos[inner], *(sin[inner] if axes[inner] == name else zero for name in "xyz")]
+    for i in (middle, outer):
+        quat = _axis_times_quat(cos[i], sin[i], axes[i], *quat)
     # Three float16 products drift by up to 1.5 ulp; renormalizing keeps euler -> rotmat as accurate as one rounding.
-    return quaternion.normalize(quat, xp)
+    return quaternion.normalize(xp.concatenate(quat, axis=-1), xp)
+
+
+def _axis_times_quat(c, s, axis: str, w, x, y, z) -> list:
+    """Hamilton product ``(c, s·axis) · (w, x, y, z)``: the general product with its zero terms dropped."""
+    if axis == "x":
+        return [c * w - s * x, c * x + s * w, c * y - s * z, c * z + s * y]
+    if axis == "y":
+        return [c * w - s * y, c * x + s * z, c * y + s * w, c * z - s * x]
+    return [c * w - s * z, c * x - s * y, c * y + s * x, c * z + s * w]
 
 
 def quat_to_euler(quat: Float[Any, "... 4"], *, convention: EulerConvention = "ZYX", xp: ModuleType) -> Float[Any, "... 3"]:
@@ -81,14 +99,6 @@ def quat_to_euler(quat: Float[Any, "... 4"], *, convention: EulerConvention = "Z
             first = sign * first
 
     return xp.concatenate([_wrap(first, xp), middle, _wrap(third, xp)], axis=-1)
-
-
-def _axis_quat(angle: Float[Any, "... 1"], axis: str, xp: ModuleType) -> Float[Any, "... 4"]:
-    cos = xp.cos(angle / 2)
-    sin = xp.sin(angle / 2)
-    zero = xp.zeros_like(cos)
-    xyz = [sin if axis == name else zero for name in "xyz"]
-    return xp.concatenate([cos, *xyz], axis=-1)
 
 
 def _hypot(x: Float[Any, "..."], y: Float[Any, "..."], xp: ModuleType) -> Float[Any, "..."]:

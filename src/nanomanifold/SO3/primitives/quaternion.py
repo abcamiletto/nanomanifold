@@ -36,9 +36,10 @@ def _from_wxyz(quat: Float[Any, "... 4"], *, convention: str = "wxyz", xp: Modul
 
 def normalize(quat: Float[Any, "... 4"], xp: ModuleType) -> Float[Any, "... 4"]:
     """Scale a wxyz quaternion to unit norm and flip it to ``w >= 0``."""
-    norm = xp.sqrt(xp.sum(quat**2, axis=-1, keepdims=True))
-    eps = common.safe_eps(quat.dtype, xp)
-    return positive_w(quat / xp.maximum(norm, xp.asarray(eps, dtype=quat.dtype)), xp)
+    eps = xp.asarray(common.safe_eps(quat.dtype, xp), dtype=quat.dtype)
+    norm = xp.maximum(xp.sqrt(xp.sum(quat * quat, axis=-1, keepdims=True)), eps)
+    # The sign flip goes into the (..., 1) divisor, so the (..., 4) array is touched once.
+    return quat / xp.where(quat[..., 0:1] < 0, -norm, norm)
 
 
 def positive_w(quat: Float[Any, "... 4"], xp: ModuleType) -> Float[Any, "... 4"]:
@@ -68,8 +69,13 @@ def product(q1: Float[Any, "... 4"], q2: Float[Any, "... 4"], xp: ModuleType) ->
 
 def rotate(quat: Float[Any, "... 4"], points: Float[Any, "... N 3"], xp: ModuleType) -> Float[Any, "... N 3"]:
     """Rotate points by unit wxyz quaternions: ``p + 2 v × (v × p + w p)`` with ``v`` the vector part."""
-    w, v = quat[..., None, 0:1], quat[..., None, 1:4]
-    return points + 2 * common.cross(v, common.cross(v, points, xp) + w * points, xp)
+    w, x, y, z = quat[..., None, 0], quat[..., None, 1], quat[..., None, 2], quat[..., None, 3]
+    px, py, pz = points[..., 0], points[..., 1], points[..., 2]
+    # t = v × p + w p stays in components, so the outer cross product does not split it again.
+    tx = (y * pz - z * py) + w * px
+    ty = (z * px - x * pz) + w * py
+    tz = (x * py - y * px) + w * pz
+    return points + 2 * xp.stack([y * tz - z * ty, z * tx - x * tz, x * ty - y * tx], axis=-1)
 
 
 def canonicalize(q: Float[Any, "... 4"], *, convention: QuaternionConvention = "wxyz", xp: ModuleType | None = None) -> Float[Any, "... 4"]:
